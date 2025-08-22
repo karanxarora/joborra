@@ -1,0 +1,219 @@
+2025-08-19 18:32:35,748 - __main__ - INFO - Starting comprehensive Australian job scraping...
+2025-08-19 18:32:35,748 - __main__ - INFO - Search terms: 149
+2025-08-19 18:32:35,748 - __main__ - INFO - Locations: 29
+2025-08-19 18:32:35,748 - __main__ - INFO - Scraping location 1/8: Australia
+2025-08-19 18:32:35,769 - app.services - INFO - Starting scraping from seek
+2025-08-19 18:32:36,860 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20engineer&where=Australia
+2025-08-19 18:32:51,170 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x555584abc01a <unknown>
+#1 0x55558455ba70 <unknown>
+#2 0x5555845ad907 <unknown>
+#3 0x5555845adb01 <unknown>
+#4 0x5555845fbd54 <unknown>
+#5 0x5555845d340d <unknown>
+#6 0x5555845f914f <unknown>
+#7 0x5555845d31b3 <unknown>
+#8 0x55558459f59b <unknown>
+#9 0x5555845a0971 <unknown>
+#10 0x555584a811eb <unknown>
+#11 0x555584a84f39 <unknown>
+#12 0x555584a682c9 <unknown>
+#13 0x555584a85ae8 <unknown>
+#14 0x555584a4cbaf <unknown>
+#15 0x555584aa90a8 <unknown>
+#16 0x555584aa9286 <unknown>
+#17 0x555584abaff6 <unknown>
+#18 0x7fe1407deaa4 <unknown>
+#19 0x7fe14086bc3c <unknown>
+
+2025-08-19 18:32:51,242 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'software engineer'
+2025-08-19 18:32:52,350 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20developer&where=Australia
+2025-08-19 18:33:06,625 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x55c79680301a <unknown>
+#1 0x55c7962a2a70 <unknown>
+#2 0x55c7962f4907 <unknown>
+#3 0x55c7962f4b01 <unknown>
+#4 0x55c796342d54 <unknown>
+#5 0x55c79631a40d <unknown>
+#6 0x55c79634014f <unknown>
+#7 0x55c79631a1b3 <unknown>
+#8 0x55c7962e659b <unknown>
+#9 0x55c7962e7971 <unknown>
+#10 0x55c7967c81eb <unknown>
+#11 0x55c7967cbf39 <unknown>
+#12 0x55c7967af2c9 <unknown>
+#13 0x55c7967ccae8 <unknown>
+#14 0x55c796793baf <unknown>
+#15 0x55c7967f00a8 <unknown>
+#16 0x55c7967f0286 <unknown>
+#17 0x55c796801ff6 <unknown>
+#18 0x7f7e8bce3aa4 <unknown>
+#19 0x7f7e8bd70c3c <unknown>
+
+2025-08-19 18:33:06,735 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'software developer'
+2025-08-19 18:33:07,909 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=python%20developer&where=Australia
+2025-08-19 18:35:50,511 - __main__ - INFO - Starting comprehensive Australian job scraping...
+2025-08-19 18:35:50,511 - __main__ - INFO - Search terms: 149
+2025-08-19 18:35:50,511 - __main__ - INFO - Locations: 29
+2025-08-19 18:35:50,511 - __main__ - INFO - Scraping location 1/8: Australia
+2025-08-19 18:35:50,534 - app.services - INFO - Starting scraping from seek
+2025-08-19 18:35:51,733 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20engineer&where=Australia
+2025-08-19 18:36:06,872 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x555f6584301a <unknown>
+#1 0x555f652e2a70 <unknown>
+#2 0x555f65334907 <unknown>
+#3 0x555f65334b01 <unknown>
+#4 0x555f65382d54 <unknown>
+#5 0x555f6535a40d <unknown>
+#6 0x555f6538014f <unknown>
+#7 0x555f6535a1b3 <unknown>
+#8 0x555f6532659b <unknown>
+#9 0x555f65327971 <unknown>
+#10 0x555f658081eb <unknown>
+#11 0x555f6580bf39 <unknown>
+#12 0x555f657ef2c9 <unknown>
+#13 0x555f6580cae8 <unknown>
+#14 0x555f657d3baf <unknown>
+#15 0x555f658300a8 <unknown>
+#16 0x555f65830286 <unknown>
+#17 0x555f65841ff6 <unknown>
+#18 0x7fe58f3adaa4 <unknown>
+#19 0x7fe58f43ac3c <unknown>
+
+2025-08-19 18:36:06,943 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'software engineer'
+2025-08-19 18:36:08,048 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20developer&where=Australia
+2025-08-19 18:49:54,907 - __main__ - INFO - Starting comprehensive Australian job scraping...
+2025-08-19 18:49:54,907 - __main__ - INFO - Search terms: 149
+2025-08-19 18:49:54,908 - __main__ - INFO - Locations: 29
+2025-08-19 18:49:54,908 - __main__ - INFO - Scraping location 1/8: Australia
+2025-08-19 18:49:54,928 - app.services - INFO - Starting scraping from seek
+2025-08-19 18:49:58,307 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20engineer&where=Australia
+2025-08-19 18:50:14,233 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x5588d04f172a <unknown>
+#1 0x5588cffbb120 <unknown>
+#2 0x5588d000b417 <unknown>
+#3 0x5588d000b611 <unknown>
+#4 0x5588d0059cd4 <unknown>
+#5 0x5588d003123d <unknown>
+#6 0x5588d00570cc <unknown>
+#7 0x5588d0030fe3 <unknown>
+#8 0x5588cfffd3ed <unknown>
+#9 0x5588cfffe7b1 <unknown>
+#10 0x5588d04b772f <unknown>
+#11 0x5588d04bb7e8 <unknown>
+#12 0x5588d049e8c2 <unknown>
+#13 0x5588d04bbf8e <unknown>
+#14 0x5588d048519e <unknown>
+#15 0x5588d04dfe18 <unknown>
+#16 0x5588d04e0028 <unknown>
+#17 0x5588d04f088c <unknown>
+#18 0x7f8804335ac3 <unknown>
+
+2025-08-19 18:50:14,308 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'software engineer'
+2025-08-19 18:50:15,992 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20developer&where=Australia
+2025-08-19 18:50:30,383 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x55cc9ac9972a <unknown>
+#1 0x55cc9a763120 <unknown>
+#2 0x55cc9a7b3417 <unknown>
+#3 0x55cc9a7b3611 <unknown>
+#4 0x55cc9a801cd4 <unknown>
+#5 0x55cc9a7d923d <unknown>
+#6 0x55cc9a7ff0cc <unknown>
+#7 0x55cc9a7d8fe3 <unknown>
+#8 0x55cc9a7a53ed <unknown>
+#9 0x55cc9a7a67b1 <unknown>
+#10 0x55cc9ac5f72f <unknown>
+#11 0x55cc9ac637e8 <unknown>
+#12 0x55cc9ac468c2 <unknown>
+#13 0x55cc9ac63f8e <unknown>
+#14 0x55cc9ac2d19e <unknown>
+#15 0x55cc9ac87e18 <unknown>
+#16 0x55cc9ac88028 <unknown>
+#17 0x55cc9ac9888c <unknown>
+#18 0x7fbd41615ac3 <unknown>
+
+2025-08-19 18:50:30,447 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'software developer'
+2025-08-19 18:50:32,043 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=python%20developer&where=Australia
+2025-08-19 18:50:46,895 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x55727328b72a <unknown>
+#1 0x557272d55120 <unknown>
+#2 0x557272da5417 <unknown>
+#3 0x557272da5611 <unknown>
+#4 0x557272df3cd4 <unknown>
+#5 0x557272dcb23d <unknown>
+#6 0x557272df10cc <unknown>
+#7 0x557272dcafe3 <unknown>
+#8 0x557272d973ed <unknown>
+#9 0x557272d987b1 <unknown>
+#10 0x55727325172f <unknown>
+#11 0x5572732557e8 <unknown>
+#12 0x5572732388c2 <unknown>
+#13 0x557273255f8e <unknown>
+#14 0x55727321f19e <unknown>
+#15 0x557273279e18 <unknown>
+#16 0x55727327a028 <unknown>
+#17 0x55727328a88c <unknown>
+#18 0x7f8c7d210ac3 <unknown>
+
+2025-08-19 18:50:46,958 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'python developer'
+2025-08-19 18:50:48,765 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=java%20developer&where=Australia
+2025-08-19 18:52:21,646 - __main__ - INFO - Starting comprehensive Australian job scraping...
+2025-08-19 18:52:21,646 - __main__ - INFO - Search terms: 149
+2025-08-19 18:52:21,646 - __main__ - INFO - Locations: 29
+2025-08-19 18:52:21,647 - __main__ - INFO - Scraping location 1/8: Australia
+2025-08-19 18:52:21,667 - app.services - INFO - Starting scraping from seek
+2025-08-19 18:52:23,320 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20engineer&where=Australia
+2025-08-19 18:52:40,612 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x55f7cb56672a <unknown>
+#1 0x55f7cb030120 <unknown>
+#2 0x55f7cb080417 <unknown>
+#3 0x55f7cb080611 <unknown>
+#4 0x55f7cb0cecd4 <unknown>
+#5 0x55f7cb0a623d <unknown>
+#6 0x55f7cb0cc0cc <unknown>
+#7 0x55f7cb0a5fe3 <unknown>
+#8 0x55f7cb0723ed <unknown>
+#9 0x55f7cb0737b1 <unknown>
+#10 0x55f7cb52c72f <unknown>
+#11 0x55f7cb5307e8 <unknown>
+#12 0x55f7cb5138c2 <unknown>
+#13 0x55f7cb530f8e <unknown>
+#14 0x55f7cb4fa19e <unknown>
+#15 0x55f7cb554e18 <unknown>
+#16 0x55f7cb555028 <unknown>
+#17 0x55f7cb56588c <unknown>
+#18 0x7f88a38b1ac3 <unknown>
+
+2025-08-19 18:52:40,688 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'software engineer'
+2025-08-19 18:52:42,185 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=software%20developer&where=Australia
+2025-08-19 18:52:56,680 - app.scrapers.seek_scraper - ERROR - Error scraping Seek: Message: 
+Stacktrace:
+#0 0x55debe15f72a <unknown>
+#1 0x55debdc29120 <unknown>
+#2 0x55debdc79417 <unknown>
+#3 0x55debdc79611 <unknown>
+#4 0x55debdcc7cd4 <unknown>
+#5 0x55debdc9f23d <unknown>
+#6 0x55debdcc50cc <unknown>
+#7 0x55debdc9efe3 <unknown>
+#8 0x55debdc6b3ed <unknown>
+#9 0x55debdc6c7b1 <unknown>
+#10 0x55debe12572f <unknown>
+#11 0x55debe1297e8 <unknown>
+#12 0x55debe10c8c2 <unknown>
+#13 0x55debe129f8e <unknown>
+#14 0x55debe0f319e <unknown>
+#15 0x55debe14de18 <unknown>
+#16 0x55debe14e028 <unknown>
+#17 0x55debe15e88c <unknown>
+#18 0x7f0df7bb3ac3 <unknown>
+
+2025-08-19 18:52:56,794 - app.scrapers.seek_scraper - INFO - Scraped 0 jobs from Seek for term 'software developer'
+2025-08-19 18:52:58,637 - app.scrapers.seek_scraper - INFO - Scraping Seek: https://www.seek.com.au/jobs?keywords=python%20developer&where=Australia

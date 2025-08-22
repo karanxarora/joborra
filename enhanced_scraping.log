@@ -1,0 +1,38 @@
+2025-08-19 18:38:27,650 - __main__ - INFO - === Starting Enhanced Job Scraping ===
+2025-08-19 18:38:27,650 - __main__ - INFO - Scraping jobs in Sydney NSW
+2025-08-19 18:38:27,650 - __main__ - INFO - Searching for 'software engineer' in Sydney NSW
+2025-08-19 18:38:28,357 - __main__ - WARNING - Failed to scrape from https://jobsearch-api.seek.com/v4/search: HTTPSConnectionPool(host='jobsearch-api.seek.com', port=443): Max retries exceeded with url: /v4/search?keywords=software+engineer&where=Sydney+NSW&page=1&pageSize=20 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7f2b159608f0>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2025-08-19 18:38:34,275 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:34,378 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:34,481 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:34,581 - __main__ - INFO - Saved 0 jobs for 'software engineer' in Sydney NSW
+2025-08-19 18:38:36,449 - __main__ - INFO - Searching for 'software developer' in Sydney NSW
+2025-08-19 18:38:36,681 - __main__ - WARNING - Failed to scrape from https://jobsearch-api.seek.com/v4/search: HTTPSConnectionPool(host='jobsearch-api.seek.com', port=443): Max retries exceeded with url: /v4/search?keywords=software+developer&where=Sydney+NSW&page=1&pageSize=20 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7f2b15960aa0>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2025-08-19 18:38:41,856 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:41,959 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:42,062 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:42,163 - __main__ - INFO - Saved 0 jobs for 'software developer' in Sydney NSW
+2025-08-19 18:38:44,712 - __main__ - INFO - Searching for 'python developer' in Sydney NSW
+2025-08-19 18:38:44,851 - __main__ - WARNING - Failed to scrape from https://jobsearch-api.seek.com/v4/search: HTTPSConnectionPool(host='jobsearch-api.seek.com', port=443): Max retries exceeded with url: /v4/search?keywords=python+developer&where=Sydney+NSW&page=1&pageSize=20 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7f2b15961040>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2025-08-19 18:38:50,851 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:50,954 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:51,057 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:51,158 - __main__ - INFO - Saved 0 jobs for 'python developer' in Sydney NSW
+2025-08-19 18:38:52,251 - __main__ - INFO - Searching for 'java developer' in Sydney NSW
+2025-08-19 18:38:52,392 - __main__ - WARNING - Failed to scrape from https://jobsearch-api.seek.com/v4/search: HTTPSConnectionPool(host='jobsearch-api.seek.com', port=443): Max retries exceeded with url: /v4/search?keywords=java+developer&where=Sydney+NSW&page=1&pageSize=20 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7f2b15960410>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2025-08-19 18:38:58,669 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:58,772 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:58,875 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:38:58,976 - __main__ - INFO - Saved 0 jobs for 'java developer' in Sydney NSW
+2025-08-19 18:39:01,359 - __main__ - INFO - Searching for 'full stack developer' in Sydney NSW
+2025-08-19 18:39:01,496 - __main__ - WARNING - Failed to scrape from https://jobsearch-api.seek.com/v4/search: HTTPSConnectionPool(host='jobsearch-api.seek.com', port=443): Max retries exceeded with url: /v4/search?keywords=full+stack+developer&where=Sydney+NSW&page=1&pageSize=20 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7f2b15960ec0>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2025-08-19 18:39:08,429 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:39:08,532 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:39:08,634 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:39:08,735 - __main__ - INFO - Saved 0 jobs for 'full stack developer' in Sydney NSW
+2025-08-19 18:39:11,141 - __main__ - INFO - Searching for 'frontend developer' in Sydney NSW
+2025-08-19 18:39:11,258 - __main__ - WARNING - Failed to scrape from https://jobsearch-api.seek.com/v4/search: HTTPSConnectionPool(host='jobsearch-api.seek.com', port=443): Max retries exceeded with url: /v4/search?keywords=frontend+developer&where=Sydney+NSW&page=1&pageSize=20 (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7f2b15961400>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2025-08-19 18:39:18,043 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:39:18,145 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:39:18,247 - __main__ - WARNING - Failed to save job: 404 - {"detail":"Not Found"}
+2025-08-19 18:39:18,348 - __main__ - INFO - Saved 0 jobs for 'frontend developer' in Sydney NSW

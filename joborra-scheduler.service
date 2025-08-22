@@ -1,0 +1,17 @@
+[Unit]
+Description=Joborra Job Scraping Scheduler
+After=network.target
+
+[Service]
+Type=simple
+User=karan
+WorkingDirectory=/home/karan/startup/joborra
+Environment=PATH=/home/karan/.pyenv/versions/3.12.0/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/karan/.pyenv/versions/3.12.0/bin/python scheduler.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
