@@ -123,7 +123,7 @@ app.mount("/data", StaticFiles(directory="data"), name="data")
 # FastAPI backend only - React runs on separate port 3000
 @app.get("/")
 async def read_root():
-    return {"message": "Joborra API Server", "status": "running", "frontend_url": "http://localhost:3000"}
+    return {"message": "Joborra API Server", "status": "running", "frontend_url": "https://joborra-frontend.onrender.com"}
 
 if __name__ == "__main__":
     import uvicorn

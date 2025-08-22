@@ -29,7 +29,7 @@ function jobDashboard() {
         searchTimeout: null,
         
         // API base URL
-        apiBase: 'http://localhost:8000',
+        apiBase: 'https://joborra.onrender.com/api',
         
         // Computed properties
         get filteredJobs() {
