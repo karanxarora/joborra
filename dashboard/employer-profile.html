@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employer Profile - Joborra</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div x-data="employerProfile()" x-init="init()" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold text-gray-900">Joborra</h1>
+                        <span class="ml-2 text-sm text-gray-500">Employer Profile</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="/dashboard/employer-dashboard.html" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                        </a>
+                        <button @click="logout()" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <!-- Profile Section -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Company Profile</h2>
+                    <button @click="editMode = !editMode" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <i class="fas fa-edit mr-2"></i>
+                        <span x-text="editMode ? 'Cancel' : 'Edit Profile'"></span>
+                    </button>
+                </div>
+
+                <!-- Profile Form -->
+                <form @submit.prevent="updateProfile()" class="space-y-6">
+                    <!-- Company Information -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
+                            <input type="text" x-model="profile.company_name" :disabled="!editMode"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Company Website</label>
+                            <input type="url" x-model="profile.company_website" :disabled="!editMode"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Company Size</label>
+                            <select x-model="profile.company_size" :disabled="!editMode"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                <option value="">Select Size</option>
+                                <option value="1-10">1-10 employees</option>
+                                <option value="11-50">11-50 employees</option>
+                                <option value="51-200">51-200 employees</option>
+                                <option value="201-500">201-500 employees</option>
+                                <option value="501-1000">501-1000 employees</option>
+                                <option value="1000+">1000+ employees</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Industry</label>
+                            <select x-model="profile.industry" :disabled="!editMode"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                <option value="">Select Industry</option>
+                                <option value="Technology">Technology</option>
+                                <option value="Finance">Finance</option>
+                                <option value="Healthcare">Healthcare</option>
+                                <option value="Education">Education</option>
+                                <option value="Retail">Retail</option>
+                                <option value="Manufacturing">Manufacturing</option>
+                                <option value="Consulting">Consulting</option>
+                                <option value="Media">Media</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Company Location</label>
+                            <input type="text" x-model="profile.company_location" :disabled="!editMode"
+                                   placeholder="e.g., Sydney, NSW"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Company Logo URL</label>
+                            <input type="url" x-model="profile.company_logo_url" :disabled="!editMode"
+                                   placeholder="https://example.com/logo.png"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        </div>
+                    </div>
+
+                    <!-- Hiring Manager Information -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Hiring Manager Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                                <input type="text" x-model="profile.full_name" :disabled="!editMode"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
+                                <input type="text" x-model="profile.hiring_manager_title" :disabled="!editMode"
+                                       placeholder="e.g., HR Manager, Talent Acquisition Lead"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Company Description -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Company Description</h3>
+                        <textarea x-model="profile.company_description" :disabled="!editMode" rows="4"
+                                  placeholder="Describe your company, mission, and what makes it a great place to work..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"></textarea>
+                    </div>
+
+                    <!-- Company Culture -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Company Culture</h3>
+                        <textarea x-model="profile.company_culture" :disabled="!editMode" rows="3"
+                                  placeholder="Describe your company culture, values, and work environment..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"></textarea>
+                    </div>
+
+                    <!-- Company Benefits -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Benefits & Perks</h3>
+                        <textarea x-model="profile.company_benefits" :disabled="!editMode" rows="3"
+                                  placeholder="List benefits like health insurance, flexible hours, remote work, professional development..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"></textarea>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div x-show="editMode" class="border-t pt-6">
+                        <div class="flex justify-end space-x-4">
+                            <button type="button" @click="editMode = false"
+                                    class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="submit" :disabled="loading"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                                <span x-show="!loading">Save Profile</span>
+                                <span x-show="loading">Saving...</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Job Analytics Section -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Job Listing Analytics</h2>
+                    <button @click="loadAnalytics()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <i class="fas fa-refresh mr-2"></i>Refresh
+                    </button>
+                </div>
+
+                <!-- Analytics Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-briefcase text-blue-600 text-2xl mr-3"></i>
+                            <div>
+                                <p class="text-sm text-gray-600">Total Jobs</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="analytics.totalJobs"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-eye text-green-600 text-2xl mr-3"></i>
+                            <div>
+                                <p class="text-sm text-gray-600">Total Views</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="analytics.totalViews"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-users text-yellow-600 text-2xl mr-3"></i>
+                            <div>
+                                <p class="text-sm text-gray-600">Student Views</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="analytics.studentViews"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-file-alt text-purple-600 text-2xl mr-3"></i>
+                            <div>
+                                <p class="text-sm text-gray-600">Applications</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="analytics.totalApplications"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Job Performance Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Views</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Views</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applications</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conversion Rate</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Top Referrers</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <template x-for="job in jobAnalytics" :key="job.job_id">
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900" x-text="job.title"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900" x-text="job.total_views"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900" x-text="job.student_views"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900" x-text="job.applications_count"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900" 
+                                             x-text="job.total_views > 0 ? Math.round((job.applications_count / job.total_views) * 100) + '%' : '0%'"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">
+                                            <template x-for="(count, referrer) in Object.entries(job.views_by_referrer).slice(0, 2)" :key="referrer">
+                                                <span class="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs mr-1" 
+                                                      x-text="referrer + ' (' + count + ')'"></span>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- No Jobs Message -->
+                <div x-show="jobAnalytics.length === 0" class="text-center py-8">
+                    <i class="fas fa-chart-bar text-gray-400 text-4xl mb-4"></i>
+                    <p class="text-gray-600">No job analytics available. Post your first job to see analytics!</p>
+                    <a href="/dashboard/employer-dashboard.html" class="inline-block mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Post a Job
+                    </a>
+                </div>
+            </div>
+
+            <!-- Views Chart -->
+            <div x-show="jobAnalytics.length > 0" class="bg-white rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Views Over Time (Last 30 Days)</h3>
+                <div class="h-64">
+                    <canvas id="viewsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function employerProfile() {
+            return {
+                editMode: false,
+                loading: false,
+                profile: {
+                    full_name: '',
+                    email: '',
+                    company_name: '',
+                    company_website: '',
+                    company_size: '',
+                    industry: '',
+                    company_description: '',
+                    company_logo_url: '',
+                    company_location: '',
+                    hiring_manager_title: '',
+                    company_benefits: '',
+                    company_culture: ''
+                },
+                jobAnalytics: [],
+                analytics: {
+                    totalJobs: 0,
+                    totalViews: 0,
+                    studentViews: 0,
+                    totalApplications: 0
+                },
+                viewsChart: null,
+
+                async init() {
+                    await this.loadProfile();
+                    await this.loadAnalytics();
+                    this.initChart();
+                },
+
+                async loadProfile() {
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        if (!token) {
+                            window.location.href = '/dashboard/auth.html';
+                            return;
+                        }
+
+                        const response = await fetch('/auth/me', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (response.ok) {
+                            this.profile = await response.json();
+                        } else {
+                            throw new Error('Failed to load profile');
+                        }
+                    } catch (error) {
+                        console.error('Error loading profile:', error);
+                        alert('Failed to load profile');
+                    }
+                },
+
+                async updateProfile() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/auth/profile/employer', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(this.profile)
+                        });
+
+                        if (response.ok) {
+                            this.profile = await response.json();
+                            this.editMode = false;
+                            alert('Profile updated successfully!');
+                        } else {
+                            throw new Error('Failed to update profile');
+                        }
+                    } catch (error) {
+                        console.error('Error updating profile:', error);
+                        alert('Failed to update profile');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async loadAnalytics() {
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/auth/employer/analytics/jobs', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (response.ok) {
+                            this.jobAnalytics = await response.json();
+                            this.calculateOverallAnalytics();
+                            this.updateChart();
+                        } else {
+                            console.error('Failed to load analytics');
+                        }
+                    } catch (error) {
+                        console.error('Error loading analytics:', error);
+                    }
+                },
+
+                calculateOverallAnalytics() {
+                    this.analytics = {
+                        totalJobs: this.jobAnalytics.length,
+                        totalViews: this.jobAnalytics.reduce((sum, job) => sum + job.total_views, 0),
+                        studentViews: this.jobAnalytics.reduce((sum, job) => sum + job.student_views, 0),
+                        totalApplications: this.jobAnalytics.reduce((sum, job) => sum + job.applications_count, 0)
+                    };
+                },
+
+                initChart() {
+                    const ctx = document.getElementById('viewsChart');
+                    if (ctx) {
+                        this.viewsChart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: [],
+                                datasets: [{
+                                    label: 'Total Views',
+                                    data: [],
+                                    borderColor: 'rgb(59, 130, 246)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    tension: 0.1
+                                }, {
+                                    label: 'Student Views',
+                                    data: [],
+                                    borderColor: 'rgb(16, 185, 129)',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                    tension: 0.1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }
+                        });
+                    }
+                },
+
+                updateChart() {
+                    if (!this.viewsChart || this.jobAnalytics.length === 0) return;
+
+                    // Aggregate views by date across all jobs
+                    const dateViews = {};
+                    this.jobAnalytics.forEach(job => {
+                        Object.entries(job.views_by_date).forEach(([date, views]) => {
+                            if (!dateViews[date]) {
+                                dateViews[date] = { total: 0, student: 0 };
+                            }
+                            dateViews[date].total += views;
+                            // Approximate student views (you might want to track this separately)
+                            dateViews[date].student += Math.round(views * (job.student_views / job.total_views || 0));
+                        });
+                    });
+
+                    const sortedDates = Object.keys(dateViews).sort();
+                    const totalViews = sortedDates.map(date => dateViews[date].total);
+                    const studentViews = sortedDates.map(date => dateViews[date].student);
+
+                    this.viewsChart.data.labels = sortedDates;
+                    this.viewsChart.data.datasets[0].data = totalViews;
+                    this.viewsChart.data.datasets[1].data = studentViews;
+                    this.viewsChart.update();
+                },
+
+                logout() {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    window.location.href = '/dashboard/auth.html';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joborra - Student Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50">
+    <div x-data="studentDashboard()" x-init="init()">
+        <!-- Navigation -->
+        <nav class="bg-white shadow">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-bold text-blue-600">Joborra</h1>
+                        <span class="ml-2 text-sm text-gray-500">Student Dashboard</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span x-text="'Welcome, ' + user.full_name" class="text-gray-700"></span>
+                        <a href="/dashboard/student-profile.html" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-user mr-2"></i>My Profile
+                        </a>
+                        <a href="/dashboard/visa-verification.html" class="text-green-600 hover:text-green-800">
+                            <i class="fas fa-passport mr-2"></i>Visa Verification
+                        </a>
+                        <button @click="logout()" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Tab Navigation -->
+        <div class="bg-white border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex space-x-8">
+                    <button @click="activeTab = 'recommended'" 
+                            :class="activeTab === 'recommended' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm">
+                        <i class="fas fa-star mr-2"></i>Recommended
+                    </button>
+                    <button @click="activeTab = 'browse'" 
+                            :class="activeTab === 'browse' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm">
+                        Browse Jobs
+                    </button>
+                    <button @click="activeTab = 'favorites'" 
+                            :class="activeTab === 'favorites' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm">
+                        My Favorites <span x-show="favorites.length > 0" x-text="`(${favorites.length})`" class="text-xs"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <!-- Recommended Jobs Tab -->
+            <div x-show="activeTab === 'recommended'" class="space-y-6">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-star text-yellow-500 mr-2"></i>Jobs Recommended for You
+                        </h2>
+                        <button @click="loadRecommendedJobs()" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-refresh mr-1"></i>Refresh
+                        </button>
+                        <input x-model="filters.search" @input="debounceSearch()" type="text" placeholder="Job title, company..."
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                        <select x-model="filters.location" @change="applyFilters()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Locations</option>
+                            <option value="Sydney">Sydney</option>
+                            <option value="Melbourne">Melbourne</option>
+                            <option value="Brisbane">Brisbane</option>
+                            <option value="Perth">Perth</option>
+                            <option value="Adelaide">Adelaide</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Job Source</label>
+                        <select x-model="filters.source" @change="applyFilters()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Sources</option>
+                            <option value="adzuna">Adzuna</option>
+                            <option value="greenhouse">Greenhouse</option>
+                            <option value="lever">Lever</option>
+                            <option value="joborra">Joborra Jobs</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <label class="flex items-center">
+                            <input type="checkbox" x-model="filters.visa_sponsorship" @change="applyFilters()"
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">Visa Sponsorship</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jobs List -->
+            <div x-show="loading" class="text-center py-8">
+                <div class="text-gray-500">Loading jobs...</div>
+            </div>
+
+            <div x-show="!loading && jobs.length === 0" class="text-center py-8">
+                <div class="text-gray-500">No jobs found matching your criteria.</div>
+            </div>
+
+            <div class="grid gap-6">
+                <template x-for="job in jobs" :key="job.id">
+                    <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <h3 class="text-lg font-semibold text-gray-900" x-text="job.title"></h3>
+                                    <span x-show="job.is_joborra_job" class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Joborra Job</span>
+                                    <span x-show="job.visa_sponsorship" class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Visa Friendly</span>
+                                    <span x-show="job.international_student_friendly" class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">Student Friendly</span>
+                                </div>
+                                <p class="text-gray-600 mb-2" x-text="job.company?.name || 'Unknown Company'"></p>
+                                <p class="text-sm text-gray-500 mb-2" x-text="job.location"></p>
+                                <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                    <span x-show="job.employment_type" x-text="job.employment_type"></span>
+                                    <span x-show="job.salary_min && job.salary_max" 
+                                          x-text="`$${job.salary_min}k - $${job.salary_max}k AUD`"></span>
+                                    <span class="text-xs" x-text="job.source_website"></span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col space-y-2 ml-4">
+                                <button @click="toggleFavorite(job)" 
+                                        :class="isFavorite(job.id) ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                                        class="px-3 py-1 rounded text-sm font-medium transition-colors">
+                                    <span x-show="isFavorite(job.id)">❤️ Favorited</span>
+                                    <span x-show="!isFavorite(job.id)">🤍 Add to Favorites</span>
+                                </button>
+                                <a :href="job.source_url" target="_blank" 
+                                   class="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 text-center">
+                                    View Job
+                                </a>
+                            </div>
+                        </div>
+                        <div x-show="job.description" class="mt-4">
+                            <p class="text-gray-700 text-sm line-clamp-3" x-text="job.description?.substring(0, 200) + '...'"></p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Load More -->
+            <div x-show="hasMore && !loading" class="text-center mt-8">
+                <button @click="loadMore()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Load More Jobs
+                </button>
+            </div>
+        </div>
+
+        <!-- Favorites Tab -->
+        <div x-show="activeTab === 'favorites'" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div x-show="favorites.length === 0" class="text-center py-12">
+                <div class="text-gray-500 mb-4">You haven't favorited any jobs yet.</div>
+                <button @click="activeTab = 'browse'" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Browse Jobs
+                </button>
+            </div>
+
+            <div class="grid gap-6">
+                <template x-for="favorite in favorites" :key="favorite.id">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <h3 class="text-lg font-semibold text-gray-900" x-text="favorite.job.title"></h3>
+                                    <span x-show="favorite.job.is_joborra_job" class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Joborra Job</span>
+                                </div>
+                                <p class="text-gray-600 mb-2" x-text="favorite.job.company?.name || 'Unknown Company'"></p>
+                                <p class="text-sm text-gray-500 mb-2" x-text="favorite.job.location"></p>
+                                <div x-show="favorite.notes" class="mt-3 p-3 bg-yellow-50 rounded border-l-4 border-yellow-400">
+                                    <p class="text-sm text-gray-700"><strong>My Notes:</strong> <span x-text="favorite.notes"></span></p>
+                                </div>
+                            </div>
+                            <div class="flex flex-col space-y-2 ml-4">
+                                <button @click="removeFavorite(favorite.id)" 
+                                        class="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded text-sm font-medium">
+                                    Remove
+                                </button>
+                                <a :href="favorite.job.source_url" target="_blank" 
+                                   class="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 text-center">
+                                    View Job
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function studentDashboard() {
+            return {
+                user: {},
+                activeTab: 'recommended',
+                jobs: [],
+                recommendedJobs: [],
+                favorites: [],
+                loading: false,
+                filters: {
+                    search: '',
+                    location: '',
+                    employment_type: '',
+                    visa_sponsorship: '',
+                    international_student_friendly: '',
+                },
+                
+                async init() {
+                    // Check authentication
+                    const token = localStorage.getItem('access_token');
+                    
+                    if (!token) {
+                        window.location.href = '/dashboard/auth.html';
+                        return;
+                    }
+                    
+                    await this.loadUser();
+                    await this.loadRecommendedJobs();
+                    await this.loadJobs();
+                    await this.loadFavorites();
+                },
+                
+                async loadJobs(reset = true) {
+                    if (reset) {
+                        this.currentPage = 1;
+                        this.jobs = [];
+                    }
+                    
+                    this.loading = true;
+                    
+                    try {
+                        const params = new URLSearchParams({
+                            page: this.currentPage,
+                            per_page: 12
+                        });
+                        
+                        if (this.filters.search) params.append('search', this.filters.search);
+                        if (this.filters.location) params.append('location', this.filters.location);
+                        if (this.filters.source) params.append('source_website', this.filters.source);
+                        if (this.filters.visa_sponsorship) params.append('visa_sponsorship', 'true');
+                        
+                        const response = await fetch(`/jobs/search?${params}`);
+                        const data = await response.json();
+                        
+                        if (reset) {
+                            this.jobs = data.jobs;
+                        } else {
+                            this.jobs.push(...data.jobs);
+                        }
+                        
+                        this.hasMore = this.currentPage < data.total_pages;
+                        
+                    } catch (error) {
+                        console.error('Error loading jobs:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadFavorites() {
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/auth/student/favorites', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            this.favorites = await response.json();
+                        }
+                    } catch (error) {
+                        console.error('Error loading favorites:', error);
+                    }
+                },
+                
+                async toggleFavorite(job) {
+                    const token = localStorage.getItem('access_token');
+                    
+                    if (this.isFavorite(job.id)) {
+                        // Remove from favorites
+                        const favorite = this.favorites.find(f => f.job_id === job.id);
+                        if (favorite) {
+                            await this.removeFavorite(favorite.id);
+                        }
+                    } else {
+                        // Add to favorites
+                        try {
+                            const response = await fetch('/auth/student/favorites', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                    job_id: job.id,
+                                    notes: ''
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                await this.loadFavorites();
+                            }
+                        } catch (error) {
+                            console.error('Error adding favorite:', error);
+                        }
+                    }
+                },
+                
+                async removeFavorite(favoriteId) {
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch(`/auth/student/favorites/${favoriteId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            this.favorites = this.favorites.filter(f => f.id !== favoriteId);
+                        }
+                    } catch (error) {
+                        console.error('Error removing favorite:', error);
+                    }
+                },
+                
+                isFavorite(jobId) {
+                    return this.favorites.some(f => f.job_id === jobId);
+                },
+                
+                debounceSearch() {
+                    clearTimeout(this.searchTimeout);
+                    this.searchTimeout = setTimeout(() => {
+                        this.applyFilters();
+                    }, 500);
+                },
+                
+                async applyFilters() {
+                    await this.loadJobs(true);
+                },
+                
+                async loadMore() {
+                    this.currentPage++;
+                    await this.loadJobs(false);
+                },
+                
+                logout() {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/dashboard/auth.html';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

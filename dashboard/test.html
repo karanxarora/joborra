@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filter Test</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body>
+    <div x-data="filterTest()" x-init="loadJobs()">
+        <h1>Filter Test</h1>
+        
+        <div>
+            <label>Search: <input type="text" x-model="searchTerm" @input="applyFilter()"></label>
+        </div>
+        
+        <div>
+            <label>State: 
+                <select x-model="selectedState" @change="applyFilter()">
+                    <option value="">All States</option>
+                    <option value="NSW">NSW</option>
+                    <option value="VIC">VIC</option>
+                    <option value="QLD">QLD</option>
+                </select>
+            </label>
+        </div>
+        
+        <div>
+            <label>
+                <input type="checkbox" x-model="visaOnly" @change="applyFilter()">
+                Visa Sponsorship Only
+            </label>
+        </div>
+        
+        <div>
+            <p>Total Jobs: <span x-text="jobs.length"></span></p>
+            <p>Filtered Jobs: <span x-text="filteredJobs.length"></span></p>
+        </div>
+        
+        <div>
+            <template x-for="job in filteredJobs.slice(0, 5)" :key="job.id">
+                <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                    <h3 x-text="job.title"></h3>
+                    <p x-text="job.company.name + ' - ' + job.location"></p>
+                    <p>Visa: <span x-text="job.visa_sponsorship ? 'Yes' : 'No'"></span></p>
+                    <p>State: <span x-text="job.state"></span></p>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        function filterTest() {
+            return {
+                jobs: [],
+                searchTerm: '',
+                selectedState: '',
+                visaOnly: false,
+                
+                get filteredJobs() {
+                    let filtered = [...this.jobs];
+                    
+                    if (this.searchTerm.trim()) {
+                        const term = this.searchTerm.toLowerCase();
+                        filtered = filtered.filter(job => 
+                            job.title.toLowerCase().includes(term) ||
+                            job.company.name.toLowerCase().includes(term)
+                        );
+                    }
+                    
+                    if (this.selectedState) {
+                        filtered = filtered.filter(job => job.state === this.selectedState);
+                    }
+                    
+                    if (this.visaOnly) {
+                        filtered = filtered.filter(job => job.visa_sponsorship === true);
+                    }
+                    
+                    return filtered;
+                },
+                
+                async loadJobs() {
+                    try {
+                        const response = await fetch('http://localhost:8000/jobs/search?per_page=50');
+                        const data = await response.json();
+                        this.jobs = data.jobs || [];
+                        console.log('Loaded jobs:', this.jobs.length);
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                },
+                
+                applyFilter() {
+                    console.log('Filter applied:', {
+                        search: this.searchTerm,
+                        state: this.selectedState,
+                        visa: this.visaOnly,
+                        results: this.filteredJobs.length
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

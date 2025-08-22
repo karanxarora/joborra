@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <div x-data="testLogout()" x-init="init()">
+        <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow">
+            <h1 class="text-2xl font-bold mb-4">Logout Test</h1>
+            
+            <div class="space-y-4">
+                <!-- Login Status -->
+                <div class="p-4 bg-gray-100 rounded">
+                    <p><strong>Logged In:</strong> <span x-text="isLoggedIn ? 'Yes' : 'No'"></span></p>
+                    <p><strong>User:</strong> <span x-text="user?.email || 'None'"></span></p>
+                    <p><strong>Token:</strong> <span x-text="hasToken ? 'Present' : 'None'"></span></p>
+                </div>
+                
+                <!-- Login Form -->
+                <div x-show="!isLoggedIn">
+                    <h3 class="font-semibold mb-2">Login First:</h3>
+                    <form @submit.prevent="login()" class="space-y-2">
+                        <input x-model="loginForm.email" type="email" placeholder="Email" 
+                               class="w-full p-2 border rounded" value="journeytest@example.com">
+                        <input x-model="loginForm.password" type="password" placeholder="Password" 
+                               class="w-full p-2 border rounded" value="testpass123">
+                        <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
+                            Login
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Logout Button -->
+                <div x-show="isLoggedIn">
+                    <button @click="logout()" 
+                            class="w-full bg-red-600 text-white p-2 rounded hover:bg-red-700">
+                        Test Logout
+                    </button>
+                </div>
+                
+                <!-- Console Output -->
+                <div class="p-4 bg-black text-green-400 rounded text-sm font-mono h-40 overflow-y-auto">
+                    <div class="text-white mb-2">Console Output:</div>
+                    <template x-for="log in logs" :key="log.id">
+                        <div x-text="log.message"></div>
+                    </template>
+                </div>
+                
+                <button @click="clearLogs()" class="w-full bg-gray-600 text-white p-2 rounded">
+                    Clear Console
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function testLogout() {
+            return {
+                isLoggedIn: false,
+                user: null,
+                hasToken: false,
+                logs: [],
+                loginForm: {
+                    email: 'journeytest@example.com',
+                    password: 'testpass123'
+                },
+                
+                init() {
+                    this.log('Test page initialized');
+                    this.checkAuthStatus();
+                    
+                    // Override console.log to capture logs
+                    const originalLog = console.log;
+                    const originalError = console.error;
+                    
+                    console.log = (...args) => {
+                        this.log('LOG: ' + args.join(' '));
+                        originalLog.apply(console, args);
+                    };
+                    
+                    console.error = (...args) => {
+                        this.log('ERROR: ' + args.join(' '));
+                        originalError.apply(console, args);
+                    };
+                },
+                
+                log(message) {
+                    this.logs.push({
+                        id: Date.now() + Math.random(),
+                        message: new Date().toLocaleTimeString() + ': ' + message
+                    });
+                    // Keep only last 20 logs
+                    if (this.logs.length > 20) {
+                        this.logs = this.logs.slice(-20);
+                    }
+                },
+                
+                clearLogs() {
+                    this.logs = [];
+                },
+                
+                checkAuthStatus() {
+                    const token = localStorage.getItem('token');
+                    const user = localStorage.getItem('user');
+                    
+                    this.hasToken = !!token;
+                    
+                    if (token && user) {
+                        this.isLoggedIn = true;
+                        this.user = JSON.parse(user);
+                        this.log('User is logged in: ' + this.user.email);
+                    } else {
+                        this.isLoggedIn = false;
+                        this.user = null;
+                        this.log('User is not logged in');
+                    }
+                },
+                
+                async login() {
+                    this.log('Attempting login...');
+                    try {
+                        const response = await fetch('http://localhost:8000/auth/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(this.loginForm)
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            localStorage.setItem('token', data.access_token);
+                            localStorage.setItem('user', JSON.stringify(data.user));
+                            this.log('Login successful');
+                            this.checkAuthStatus();
+                        } else {
+                            this.log('Login failed: ' + response.status);
+                        }
+                    } catch (error) {
+                        this.log('Login error: ' + error.message);
+                    }
+                },
+                
+                async logout() {
+                    this.log('=== LOGOUT BUTTON CLICKED ===');
+                    this.log('Starting logout process...');
+                    
+                    try {
+                        const token = localStorage.getItem('token');
+                        this.log('Token found: ' + !!token);
+                        
+                        if (token) {
+                            this.log('Calling logout API...');
+                            const response = await fetch('http://localhost:8000/auth/session/logout', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            this.log('Logout API response status: ' + response.status);
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                this.log('Logout API success: ' + JSON.stringify(data));
+                            } else {
+                                this.log('Logout API failed: ' + await response.text());
+                            }
+                        }
+                    } catch (error) {
+                        this.log('Logout API error: ' + error.message);
+                    } finally {
+                        this.log('Clearing localStorage...');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        
+                        this.log('Updating UI state...');
+                        this.isLoggedIn = false;
+                        this.user = null;
+                        this.hasToken = false;
+                        
+                        this.log('Logout process completed');
+                        this.log('Would redirect to: /');
+                        
+                        // Don't actually redirect for testing
+                        // window.location.href = '/';
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

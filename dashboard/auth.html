@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joborra - Login & Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div x-data="authApp()" class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8">
+            <!-- Header -->
+            <div>
+                <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                    <span class="text-blue-600">Joborra</span>
+                </h2>
+                <p class="mt-2 text-center text-sm text-gray-600">
+                    Australian Jobs for International Students
+                </p>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="flex border-b border-gray-200">
+                <button @click="activeTab = 'login'" 
+                        :class="activeTab === 'login' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
+                        class="w-1/2 py-2 px-1 text-center border-b-2 font-medium text-sm">
+                    Login
+                </button>
+                <button @click="activeTab = 'register'" 
+                        :class="activeTab === 'register' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500'"
+                        class="w-1/2 py-2 px-1 text-center border-b-2 font-medium text-sm">
+                    Register
+                </button>
+            </div>
+
+            <!-- Login Form -->
+            <div x-show="activeTab === 'login'" class="mt-8 space-y-6">
+                <form @submit.prevent="login()" class="space-y-6">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input id="login-email" x-model="loginForm.email" type="email" required
+                               class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input id="login-password" x-model="loginForm.password" type="password" required
+                               class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div x-show="error" class="text-red-600 text-sm" x-text="error"></div>
+                    
+                    <button type="submit" :disabled="loading"
+                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                        <span x-show="!loading">Sign In</span>
+                        <span x-show="loading">Signing In...</span>
+                    </button>
+                </form>
+
+                <!-- Demo Accounts -->
+                <div class="mt-6 p-4 bg-blue-50 rounded-md">
+                    <h4 class="text-sm font-medium text-blue-800 mb-2">Demo Accounts:</h4>
+                    <div class="text-xs text-blue-700 space-y-1">
+                        <div>Student: <code>student@example.com</code> / <code>student123</code></div>
+                        <div>Employer: <code>employer@example.com</code> / <code>employer123</code></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Register Form -->
+            <div x-show="activeTab === 'register'" class="mt-8 space-y-6">
+                <form @submit.prevent="register()" class="space-y-6">
+                    <!-- Basic Info -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Email</label>
+                            <input x-model="registerForm.email" type="email" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Username</label>
+                            <input x-model="registerForm.username" type="text" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Full Name</label>
+                        <input x-model="registerForm.full_name" type="text" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Password</label>
+                        <input x-model="registerForm.password" type="password" required minlength="8"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Role Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">I am a:</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                                   :class="registerForm.role === 'student' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'">
+                                <input type="radio" x-model="registerForm.role" value="student" class="sr-only">
+                                <div class="flex-1">
+                                    <div class="font-medium text-gray-900">Student</div>
+                                    <div class="text-sm text-gray-500">Looking for jobs</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                                   :class="registerForm.role === 'employer' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'">
+                                <input type="radio" x-model="registerForm.role" value="employer" class="sr-only">
+                                <div class="flex-1">
+                                    <div class="font-medium text-gray-900">Employer</div>
+                                    <div class="text-sm text-gray-500">Posting jobs</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Student Fields -->
+                    <div x-show="registerForm.role === 'student'" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">University</label>
+                                <select x-model="registerForm.university"
+                                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select University...</option>
+                                    <!-- Group 1: Universities (Go8) -->
+                                    <optgroup label="Group of Eight Universities">
+                                        <option value="University of Melbourne">University of Melbourne</option>
+                                        <option value="University of Sydney">University of Sydney</option>
+                                        <option value="Australian National University">Australian National University</option>
+                                        <option value="University of Queensland">University of Queensland</option>
+                                        <option value="University of New South Wales">University of New South Wales</option>
+                                        <option value="Monash University">Monash University</option>
+                                        <option value="University of Western Australia">University of Western Australia</option>
+                                        <option value="University of Adelaide">University of Adelaide</option>
+                                    </optgroup>
+                                    <!-- Australian Technology Network -->
+                                    <optgroup label="Australian Technology Network">
+                                        <option value="University of Technology Sydney">University of Technology Sydney</option>
+                                        <option value="RMIT University">RMIT University</option>
+                                        <option value="Queensland University of Technology">Queensland University of Technology</option>
+                                        <option value="Curtin University">Curtin University</option>
+                                        <option value="University of South Australia">University of South Australia</option>
+                                    </optgroup>
+                                    <!-- Other Major Universities -->
+                                    <optgroup label="Other Major Universities">
+                                        <option value="Macquarie University">Macquarie University</option>
+                                        <option value="Griffith University">Griffith University</option>
+                                        <option value="Deakin University">Deakin University</option>
+                                        <option value="La Trobe University">La Trobe University</option>
+                                        <option value="Swinburne University of Technology">Swinburne University of Technology</option>
+                                        <option value="Western Sydney University">Western Sydney University</option>
+                                        <option value="Victoria University">Victoria University</option>
+                                        <option value="Flinders University">Flinders University</option>
+                                        <option value="James Cook University">James Cook University</option>
+                                        <option value="Bond University">Bond University</option>
+                                        <option value="Murdoch University">Murdoch University</option>
+                                        <option value="Edith Cowan University">Edith Cowan University</option>
+                                        <option value="Central Queensland University">Central Queensland University</option>
+                                        <option value="University of Tasmania">University of Tasmania</option>
+                                        <option value="University of the Sunshine Coast">University of the Sunshine Coast</option>
+                                        <option value="Southern Cross University">Southern Cross University</option>
+                                        <option value="Charles Darwin University">Charles Darwin University</option>
+                                        <option value="University of Canberra">University of Canberra</option>
+                                        <option value="Australian Catholic University">Australian Catholic University</option>
+                                    </optgroup>
+                                    <!-- TAFE and Vocational -->
+                                    <optgroup label="TAFE & Vocational Education">
+                                        <option value="TAFE NSW">TAFE NSW</option>
+                                        <option value="TAFE Queensland">TAFE Queensland</option>
+                                        <option value="TAFE Victoria">TAFE Victoria</option>
+                                        <option value="TAFE SA">TAFE SA</option>
+                                        <option value="TAFE WA">TAFE WA</option>
+                                        <option value="TasTAFE">TasTAFE</option>
+                                        <option value="CIT (Canberra Institute of Technology)">CIT (Canberra Institute of Technology)</option>
+                                    </optgroup>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Degree Program</label>
+                                <select x-model="registerForm.degree"
+                                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Degree...</option>
+                                    <!-- Undergraduate Degrees -->
+                                    <optgroup label="Undergraduate Degrees">
+                                        <option value="Bachelor of Computer Science">Bachelor of Computer Science</option>
+                                        <option value="Bachelor of Information Technology">Bachelor of Information Technology</option>
+                                        <option value="Bachelor of Software Engineering">Bachelor of Software Engineering</option>
+                                        <option value="Bachelor of Engineering">Bachelor of Engineering</option>
+                                        <option value="Bachelor of Business">Bachelor of Business</option>
+                                        <option value="Bachelor of Commerce">Bachelor of Commerce</option>
+                                        <option value="Bachelor of Economics">Bachelor of Economics</option>
+                                        <option value="Bachelor of Accounting">Bachelor of Accounting</option>
+                                        <option value="Bachelor of Marketing">Bachelor of Marketing</option>
+                                        <option value="Bachelor of Finance">Bachelor of Finance</option>
+                                        <option value="Bachelor of Data Science">Bachelor of Data Science</option>
+                                        <option value="Bachelor of Cybersecurity">Bachelor of Cybersecurity</option>
+                                        <option value="Bachelor of Design">Bachelor of Design</option>
+                                        <option value="Bachelor of Media and Communications">Bachelor of Media and Communications</option>
+                                        <option value="Bachelor of Health Sciences">Bachelor of Health Sciences</option>
+                                        <option value="Bachelor of Nursing">Bachelor of Nursing</option>
+                                        <option value="Bachelor of Education">Bachelor of Education</option>
+                                        <option value="Bachelor of Arts">Bachelor of Arts</option>
+                                        <option value="Bachelor of Science">Bachelor of Science</option>
+                                    </optgroup>
+                                    <!-- Postgraduate Degrees -->
+                                    <optgroup label="Postgraduate Degrees">
+                                        <option value="Master of Computer Science">Master of Computer Science</option>
+                                        <option value="Master of Information Technology">Master of Information Technology</option>
+                                        <option value="Master of Data Science">Master of Data Science</option>
+                                        <option value="Master of Cybersecurity">Master of Cybersecurity</option>
+                                        <option value="Master of Business Administration (MBA)">Master of Business Administration (MBA)</option>
+                                        <option value="Master of Professional Accounting">Master of Professional Accounting</option>
+                                        <option value="Master of Finance">Master of Finance</option>
+                                        <option value="Master of Marketing">Master of Marketing</option>
+                                        <option value="Master of Engineering">Master of Engineering</option>
+                                        <option value="Master of Project Management">Master of Project Management</option>
+                                        <option value="Master of Applied Finance">Master of Applied Finance</option>
+                                        <option value="Master of International Business">Master of International Business</option>
+                                        <option value="Master of Digital Marketing">Master of Digital Marketing</option>
+                                        <option value="Master of Health Administration">Master of Health Administration</option>
+                                        <option value="Master of Education">Master of Education</option>
+                                        <option value="Master of Arts">Master of Arts</option>
+                                        <option value="Master of Science">Master of Science</option>
+                                    </optgroup>
+                                    <!-- Doctoral Degrees -->
+                                    <optgroup label="Doctoral Degrees">
+                                        <option value="Doctor of Philosophy (PhD)">Doctor of Philosophy (PhD)</option>
+                                        <option value="Doctor of Business Administration (DBA)">Doctor of Business Administration (DBA)</option>
+                                        <option value="Doctor of Education (EdD)">Doctor of Education (EdD)</option>
+                                    </optgroup>
+                                    <!-- Vocational & Certificates -->
+                                    <optgroup label="Vocational & Certificate Programs">
+                                        <option value="Certificate IV in Information Technology">Certificate IV in Information Technology</option>
+                                        <option value="Diploma of Information Technology">Diploma of Information Technology</option>
+                                        <option value="Advanced Diploma of Computer Systems Technology">Advanced Diploma of Computer Systems Technology</option>
+                                        <option value="Certificate IV in Business">Certificate IV in Business</option>
+                                        <option value="Diploma of Business">Diploma of Business</option>
+                                        <option value="Certificate IV in Accounting and Bookkeeping">Certificate IV in Accounting and Bookkeeping</option>
+                                        <option value="Diploma of Accounting">Diploma of Accounting</option>
+                                        <option value="Certificate IV in Marketing and Communication">Certificate IV in Marketing and Communication</option>
+                                        <option value="Diploma of Digital Media Technologies">Diploma of Digital Media Technologies</option>
+                                        <option value="Certificate IV in Cyber Security">Certificate IV in Cyber Security</option>
+                                    </optgroup>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Graduation Year</label>
+                                <input x-model="registerForm.graduation_year" type="number" min="2020" max="2030"
+                                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Visa Status</label>
+                                <select x-model="registerForm.visa_status"
+                                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select Visa Status...</option>
+                                    <!-- Student Visas -->
+                                    <optgroup label="Student Visas">
+                                        <option value="500">Subclass 500 - Student Visa</option>
+                                        <option value="590">Subclass 590 - Student Guardian Visa</option>
+                                    </optgroup>
+                                    <!-- Temporary Work Visas -->
+                                    <optgroup label="Temporary Work Visas">
+                                        <option value="482">Subclass 482 - Temporary Skill Shortage (TSS)</option>
+                                        <option value="485">Subclass 485 - Temporary Graduate Visa</option>
+                                        <option value="407">Subclass 407 - Training Visa</option>
+                                        <option value="408">Subclass 408 - Temporary Activity Visa</option>
+                                        <option value="400">Subclass 400 - Temporary Work (Short Stay Specialist)</option>
+                                        <option value="403">Subclass 403 - International Relations</option>
+                                        <option value="462">Subclass 462 - Work and Holiday Visa</option>
+                                        <option value="417">Subclass 417 - Working Holiday Visa</option>
+                                    </optgroup>
+                                    <!-- Skilled Permanent Visas -->
+                                    <optgroup label="Skilled Permanent Visas">
+                                        <option value="189">Subclass 189 - Skilled Independent</option>
+                                        <option value="190">Subclass 190 - Skilled Nominated</option>
+                                        <option value="491">Subclass 491 - Skilled Work Regional (Provisional)</option>
+                                        <option value="494">Subclass 494 - Skilled Employer Sponsored Regional (Provisional)</option>
+                                        <option value="186">Subclass 186 - Employer Nomination Scheme</option>
+                                        <option value="187">Subclass 187 - Regional Sponsored Migration Scheme</option>
+                                        <option value="132">Subclass 132 - Talent (Exceptional Ability)</option>
+                                        <option value="858">Subclass 858 - Distinguished Talent</option>
+                                    </optgroup>
+                                    <!-- Family Visas -->
+                                    <optgroup label="Family & Partner Visas">
+                                        <option value="820">Subclass 820 - Partner Visa (Temporary)</option>
+                                        <option value="801">Subclass 801 - Partner Visa (Permanent)</option>
+                                        <option value="309">Subclass 309 - Partner Visa (Provisional)</option>
+                                        <option value="100">Subclass 100 - Partner Visa (Migrant)</option>
+                                        <option value="300">Subclass 300 - Prospective Marriage Visa</option>
+                                        <option value="101">Subclass 101 - Child Visa</option>
+                                        <option value="802">Subclass 802 - Child Visa</option>
+                                        <option value="103">Subclass 103 - Parent Visa</option>
+                                        <option value="143">Subclass 143 - Contributory Parent Visa</option>
+                                        <option value="173">Subclass 173 - Contributory Parent (Temporary)</option>
+                                    </optgroup>
+                                    <!-- Business & Investment Visas -->
+                                    <optgroup label="Business & Investment Visas">
+                                        <option value="188">Subclass 188 - Business Innovation and Investment (Provisional)</option>
+                                        <option value="888">Subclass 888 - Business Innovation and Investment (Permanent)</option>
+                                        <option value="124">Subclass 124 - Distinguished Talent</option>
+                                    </optgroup>
+                                    <!-- Permanent Residents & Citizens -->
+                                    <optgroup label="Permanent Status">
+                                        <option value="permanent_resident">Australian Permanent Resident</option>
+                                        <option value="citizen">Australian Citizen</option>
+                                        <option value="new_zealand_citizen">New Zealand Citizen</option>
+                                    </optgroup>
+                                    <!-- Other -->
+                                    <optgroup label="Other">
+                                        <option value="bridging_visa">Bridging Visa</option>
+                                        <option value="other">Other Visa Type</option>
+                                        <option value="applying">Currently Applying for Visa</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Employer Fields -->
+                    <div x-show="registerForm.role === 'employer'" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Company Name</label>
+                            <input x-model="registerForm.company_name" type="text"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Company Website</label>
+                                <input x-model="registerForm.company_website" type="url"
+                                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Company Size</label>
+                                <select x-model="registerForm.company_size"
+                                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Select...</option>
+                                    <option value="startup">Startup (1-10)</option>
+                                    <option value="small">Small (11-50)</option>
+                                    <option value="medium">Medium (51-200)</option>
+                                    <option value="large">Large (201-1000)</option>
+                                    <option value="enterprise">Enterprise (1000+)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Industry</label>
+                            <input x-model="registerForm.industry" type="text"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div x-show="error" class="text-red-600 text-sm" x-text="error"></div>
+                    
+                    <button type="submit" :disabled="loading"
+                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+                        <span x-show="!loading">Create Account</span>
+                        <span x-show="loading">Creating Account...</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function authApp() {
+            return {
+                activeTab: 'login',
+                loading: false,
+                error: '',
+                
+                loginForm: {
+                    email: '',
+                    password: ''
+                },
+                
+                registerForm: {
+                    email: '',
+                    username: '',
+                    password: '',
+                    full_name: '',
+                    role: 'student',
+                    university: '',
+                    degree: '',
+                    graduation_year: null,
+                    visa_status: '',
+                    company_name: '',
+                    company_website: '',
+                    company_size: '',
+                    industry: ''
+                },
+                
+                async login() {
+                    this.loading = true;
+                    this.error = '';
+                    
+                    try {
+                        const response = await fetch('/auth/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(this.loginForm)
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            // Store token and user info
+                            localStorage.setItem('token', data.access_token);
+                            localStorage.setItem('user', JSON.stringify(data.user));
+                            
+                            // Redirect to job dashboard
+                            window.location.href = '/dashboard/index.html';
+                        } else {
+                            this.error = data.detail || 'Login failed';
+                        }
+                    } catch (err) {
+                        this.error = 'Network error. Please try again.';
+                        console.error('Login error:', err);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async register() {
+                    this.loading = true;
+                    this.error = '';
+                    
+                    try {
+                        const response = await fetch('/auth/register', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(this.registerForm)
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            // Switch to login tab and show success
+                            this.activeTab = 'login';
+                            this.loginForm.email = this.registerForm.email;
+                            alert('Account created successfully! Please log in.');
+                        } else {
+                            this.error = data.detail || 'Registration failed';
+                        }
+                    } catch (err) {
+                        this.error = 'Network error. Please try again.';
+                        console.error('Registration error:', err);
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

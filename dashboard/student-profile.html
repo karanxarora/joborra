@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Profile - Joborra</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div x-data="studentProfile()" x-init="init()" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold text-gray-900">Joborra</h1>
+                        <span class="ml-2 text-sm text-gray-500">Student Profile</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="/dashboard/student-dashboard.html" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                        </a>
+                        <button @click="logout()" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <!-- Profile Header -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">My Profile</h2>
+                    <button @click="editMode = !editMode" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <i class="fas fa-edit mr-2"></i>
+                        <span x-text="editMode ? 'Cancel' : 'Edit Profile'"></span>
+                    </button>
+                </div>
+
+                <!-- Profile Form -->
+                <form @submit.prevent="updateProfile()" class="space-y-6">
+                    <!-- Basic Information -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                            <input type="text" x-model="profile.full_name" :disabled="!editMode"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" x-model="profile.email" disabled
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100">
+                        </div>
+                    </div>
+
+                    <!-- Education -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Education</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">University</label>
+                                <select x-model="profile.university" :disabled="!editMode"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                    <option value="">Select University</option>
+                                    <optgroup label="Group of Eight">
+                                        <option value="University of Sydney">University of Sydney</option>
+                                        <option value="University of Melbourne">University of Melbourne</option>
+                                        <option value="Australian National University">Australian National University</option>
+                                        <option value="University of Queensland">University of Queensland</option>
+                                        <option value="University of New South Wales">University of New South Wales</option>
+                                        <option value="Monash University">Monash University</option>
+                                        <option value="University of Western Australia">University of Western Australia</option>
+                                        <option value="University of Adelaide">University of Adelaide</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Degree</label>
+                                <select x-model="profile.degree" :disabled="!editMode"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                    <option value="">Select Degree</option>
+                                    <option value="Computer Science">Computer Science</option>
+                                    <option value="Software Engineering">Software Engineering</option>
+                                    <option value="Information Technology">Information Technology</option>
+                                    <option value="Data Science">Data Science</option>
+                                    <option value="Engineering">Engineering</option>
+                                    <option value="Business">Business</option>
+                                    <option value="Marketing">Marketing</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Graduation Year</label>
+                                <select x-model="profile.graduation_year" :disabled="!editMode"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                    <option value="">Select Year</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026">2026</option>
+                                    <option value="2027">2027</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Visa Status</label>
+                                <select x-model="profile.visa_status" :disabled="!editMode"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                    <option value="">Select Status</option>
+                                    <option value="student_visa">Student Visa</option>
+                                    <option value="work_visa">Work Visa</option>
+                                    <option value="permanent_resident">Permanent Resident</option>
+                                    <option value="citizen">Australian Citizen</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Professional Information -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Professional Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Experience Level</label>
+                                <select x-model="profile.experience_level" :disabled="!editMode"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                    <option value="">Select Level</option>
+                                    <option value="entry">Entry Level</option>
+                                    <option value="junior">Junior (0-2 years)</option>
+                                    <option value="mid">Mid Level (2-5 years)</option>
+                                    <option value="senior">Senior (5+ years)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Work Authorization</label>
+                                <select x-model="profile.work_authorization" :disabled="!editMode"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                                    <option value="">Select Authorization</option>
+                                    <option value="citizen">Australian Citizen</option>
+                                    <option value="pr">Permanent Resident</option>
+                                    <option value="work_visa">Work Visa Holder</option>
+                                    <option value="student_visa">Student Visa (Work Rights)</option>
+                                    <option value="requires_sponsorship">Requires Sponsorship</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Skills -->
+                        <div class="mt-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Skills (comma separated)</label>
+                            <textarea x-model="profile.skills" :disabled="!editMode" rows="3"
+                                      placeholder="e.g., JavaScript, Python, React, Node.js, SQL, AWS"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"></textarea>
+                        </div>
+
+                        <!-- Preferred Locations -->
+                        <div class="mt-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Preferred Locations (comma separated)</label>
+                            <input type="text" x-model="profile.preferred_locations" :disabled="!editMode"
+                                   placeholder="e.g., Sydney, Melbourne, Brisbane, Remote"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                        </div>
+
+                        <!-- Salary Expectations -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Salary (AUD)</label>
+                                <input type="number" x-model="profile.salary_expectations_min" :disabled="!editMode"
+                                       placeholder="e.g., 60000"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Maximum Salary (AUD)</label>
+                                <input type="number" x-model="profile.salary_expectations_max" :disabled="!editMode"
+                                       placeholder="e.g., 80000"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Profiles -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Social Profiles</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">LinkedIn Profile</label>
+                                <input type="url" x-model="profile.linkedin_profile" :disabled="!editMode"
+                                       placeholder="https://linkedin.com/in/yourprofile"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">GitHub Profile</label>
+                                <input type="url" x-model="profile.github_profile" :disabled="!editMode"
+                                       placeholder="https://github.com/yourusername"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Portfolio URL</label>
+                                <input type="url" x-model="profile.portfolio_url" :disabled="!editMode"
+                                       placeholder="https://yourportfolio.com"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bio -->
+                    <div class="border-t pt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">About Me</h3>
+                        <textarea x-model="profile.bio" :disabled="!editMode" rows="4"
+                                  placeholder="Tell employers about yourself, your goals, and what makes you unique..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"></textarea>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div x-show="editMode" class="border-t pt-6">
+                        <div class="flex justify-end space-x-4">
+                            <button type="button" @click="editMode = false"
+                                    class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="submit" :disabled="loading"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                                <span x-show="!loading">Save Profile</span>
+                                <span x-show="loading">Saving...</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Profile Completeness -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Profile Completeness</h3>
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span>Profile Strength</span>
+                        <span x-text="profileCompleteness + '%'"></span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                             :style="'width: ' + profileCompleteness + '%'"></div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <template x-for="tip in profileTips" :key="tip">
+                        <div class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                            <span x-text="tip"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function studentProfile() {
+            return {
+                editMode: false,
+                loading: false,
+                profile: {
+                    full_name: '',
+                    email: '',
+                    university: '',
+                    degree: '',
+                    graduation_year: '',
+                    visa_status: '',
+                    skills: '',
+                    experience_level: '',
+                    preferred_locations: '',
+                    salary_expectations_min: '',
+                    salary_expectations_max: '',
+                    work_authorization: '',
+                    linkedin_profile: '',
+                    github_profile: '',
+                    portfolio_url: '',
+                    bio: ''
+                },
+
+                async init() {
+                    await this.loadProfile();
+                },
+
+                async loadProfile() {
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        if (!token) {
+                            window.location.href = '/dashboard/auth.html';
+                            return;
+                        }
+
+                        const response = await fetch('/auth/me', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (response.ok) {
+                            this.profile = await response.json();
+                        } else {
+                            throw new Error('Failed to load profile');
+                        }
+                    } catch (error) {
+                        console.error('Error loading profile:', error);
+                        alert('Failed to load profile');
+                    }
+                },
+
+                async updateProfile() {
+                    this.loading = true;
+                    try {
+                        const token = localStorage.getItem('access_token');
+                        const response = await fetch('/auth/profile/student', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(this.profile)
+                        });
+
+                        if (response.ok) {
+                            this.profile = await response.json();
+                            this.editMode = false;
+                            alert('Profile updated successfully!');
+                        } else {
+                            throw new Error('Failed to update profile');
+                        }
+                    } catch (error) {
+                        console.error('Error updating profile:', error);
+                        alert('Failed to update profile');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                get profileCompleteness() {
+                    const fields = [
+                        'full_name', 'university', 'degree', 'graduation_year', 'visa_status',
+                        'skills', 'experience_level', 'work_authorization', 'bio'
+                    ];
+                    const completed = fields.filter(field => this.profile[field] && this.profile[field].toString().trim()).length;
+                    return Math.round((completed / fields.length) * 100);
+                },
+
+                get profileTips() {
+                    const tips = [];
+                    if (!this.profile.skills) tips.push('Add your skills to match with relevant jobs');
+                    if (!this.profile.bio) tips.push('Write a compelling bio to stand out to employers');
+                    if (!this.profile.linkedin_profile) tips.push('Add your LinkedIn profile for credibility');
+                    if (!this.profile.preferred_locations) tips.push('Specify preferred locations for better job matching');
+                    return tips;
+                },
+
+                logout() {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    window.location.href = '/dashboard/auth.html';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

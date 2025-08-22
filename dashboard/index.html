@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joborra - Australian Job Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .job-card {
+            transition: all 0.3s ease;
+        }
+        .job-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .visa-badge {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        .student-badge {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        .salary-badge {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div x-data="jobDashboard()" x-init="init()">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-6">
+                    <div class="flex items-center">
+                        <h1 class="text-3xl font-bold text-gray-900">
+                            <i class="fas fa-briefcase text-blue-600 mr-3"></i>
+                            Joborra
+                        </h1>
+                        <span class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                            Australian Jobs Dashboard
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div x-show="!isLoggedIn">
+                            <a href="/dashboard/auth.html" 
+                               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                <i class="fas fa-user mr-2"></i>Login / Register
+                            </a>
+                        </div>
+                        <div x-show="isLoggedIn" class="flex items-center space-x-4">
+                            <span class="text-gray-600">Welcome, <span x-text="user?.name || user?.email"></span></span>
+                            <button @click="logout()" 
+                                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                            </button>
+                        </div>
+                        <button @click="refreshData()" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Statistics Cards -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-blue-100 rounded-lg">
+                            <i class="fas fa-briefcase text-blue-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Total Jobs</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.total_jobs || '0'"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-green-100 rounded-lg">
+                            <i class="fas fa-passport text-green-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Visa Friendly</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.visa_friendly_jobs || '0'"></p>
+                            <p class="text-xs text-green-600" x-text="(stats.visa_friendly_percentage || 0).toFixed(1) + '%'"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-purple-100 rounded-lg">
+                            <i class="fas fa-graduation-cap text-purple-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Student Friendly</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.student_friendly_jobs || '0'"></p>
+                            <p class="text-xs text-purple-600" x-text="(stats.student_friendly_percentage || 0).toFixed(1) + '%'"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-orange-100 rounded-lg">
+                            <i class="fas fa-map-marker-alt text-orange-600 text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Locations</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="Object.keys(stats.jobs_by_state || {}).length"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-filter mr-2"></i>Filters
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Search -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search Jobs</label>
+                        <input type="text" 
+                               x-model="filters.search"
+                               @input="onSearchInput()"
+                               placeholder="Job title, company..."
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Location -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                        <select x-model="filters.location" @change="console.log('Location changed to:', $event.target.value); applyFilters()" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Locations</option>
+                            <option value="Sydney">Sydney</option>
+                            <option value="Melbourne">Melbourne</option>
+                            <option value="Brisbane">Brisbane</option>
+                            <option value="Perth">Perth</option>
+                            <option value="Adelaide">Adelaide</option>
+                            <option value="Canberra">Canberra</option>
+                            <option value="Darwin">Darwin</option>
+                            <option value="Hobart">Hobart</option>
+                            <option value="Gold Coast">Gold Coast</option>
+                            <option value="Newcastle">Newcastle</option>
+                            <option value="Wollongong">Wollongong</option>
+                            <option value="Geelong">Geelong</option>
+                        </select>
+                    </div>
+
+                    <!-- Visa Sponsorship -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Visa Sponsorship</label>
+                        <select x-model="filters.visa_sponsorship" @change="console.log('Visa changed to:', $event.target.value); applyFilters()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Jobs</option>
+                            <option value="true">Visa Friendly Only</option>
+                            <option value="false">No Visa Sponsorship</option>
+                        </select>
+                    </div>
+
+                    <!-- Experience Level -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Experience Level</label>
+                        <select x-model="filters.experience_level" @change="applyFilters()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Levels</option>
+                            <option value="entry">Entry Level</option>
+                            <option value="mid">Mid Level</option>
+                            <option value="senior">Senior Level</option>
+                        </select>
+                    </div>
+
+                    <!-- Job Source -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Job Source</label>
+                        <select x-model="filters.source" @change="console.log('Source changed to:', $event.target.value); applyFilters()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Sources</option>
+                            <option value="adzuna.com.au">Adzuna</option>
+                            <option value="greenhouse">Greenhouse</option>
+                            <option value="lever">Lever</option>
+                            <option value="workable">Workable</option>
+                            <option value="smartrecruiters">SmartRecruiters</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" x-model="filters.student_friendly" @change="applyFilters()"
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-700">Student Friendly Only</span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <!-- Active filters indicator -->
+                        <div x-show="hasActiveFilters()" class="flex items-center space-x-2">
+                            <span class="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                                <i class="fas fa-filter mr-1"></i>
+                                Filters Active
+                            </span>
+                        </div>
+                        
+                        <button @click="clearFilters()" 
+                                x-show="hasActiveFilters()"
+                                class="px-3 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">
+                            <i class="fas fa-times mr-1"></i>Clear All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jobs Grid -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        Jobs (<span x-text="filteredJobs.length"></span> of <span x-text="jobs.length"></span>)
+                    </h2>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-600">Sort by:</span>
+                        <select x-model="sortBy" @change="sortJobs()"
+                                class="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="scraped_at">Latest</option>
+                            <option value="title">Title</option>
+                            <option value="salary_max">Salary</option>
+                            <option value="visa_sponsorship_confidence">Visa Confidence</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div x-show="loading" class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+                    <p class="text-gray-600 mt-2">Loading jobs...</p>
+                </div>
+
+                <div x-show="!loading && filteredJobs.length === 0 && jobs.length > 0" class="text-center py-8">
+                    <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-600">No jobs found matching your criteria.</p>
+                    <button @click="clearFilters()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Clear Filters
+                    </button>
+                </div>
+                
+                <div x-show="!loading && jobs.length === 0" class="text-center py-8">
+                    <i class="fas fa-database text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-600">No jobs loaded. Click refresh to load jobs.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <template x-for="job in paginatedJobs" :key="job.id">
+                        <div class="job-card bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg">
+                            <!-- Job Header -->
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-1" x-text="job.title"></h3>
+                                    <p class="text-blue-600 font-medium" x-text="job.company.name"></p>
+                                    <p class="text-sm text-gray-600 flex items-center mt-1">
+                                        <i class="fas fa-map-marker-alt mr-1"></i>
+                                        <span x-text="job.location"></span>
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <div x-show="job.visa_sponsorship" class="visa-badge text-white text-xs px-2 py-1 rounded-full mb-1">
+                                        <i class="fas fa-passport mr-1"></i>Visa Friendly
+                                    </div>
+                                    <div x-show="job.international_student_friendly" class="student-badge text-white text-xs px-2 py-1 rounded-full">
+                                        <i class="fas fa-graduation-cap mr-1"></i>Student OK
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Job Details -->
+                            <div class="space-y-2 mb-4">
+                                <div class="flex items-center text-sm text-gray-600">
+                                    <i class="fas fa-clock mr-2 w-4"></i>
+                                    <span x-text="job.employment_type"></span>
+                                    <span class="mx-2">•</span>
+                                    <span x-text="job.experience_level"></span>
+                                </div>
+                                
+                                <div x-show="job.salary_min && job.salary_max" class="flex items-center text-sm">
+                                    <i class="fas fa-dollar-sign mr-2 w-4 text-green-600"></i>
+                                    <span class="salary-badge text-white px-2 py-1 rounded text-xs">
+                                        $<span x-text="formatSalary(job.salary_min)"></span> - $<span x-text="formatSalary(job.salary_max)"></span>
+                                    </span>
+                                </div>
+
+                                <div x-show="job.visa_sponsorship" class="flex items-center text-sm text-gray-600">
+                                    <i class="fas fa-chart-line mr-2 w-4"></i>
+                                    <span>Visa Confidence: </span>
+                                    <span class="font-medium ml-1" x-text="Math.round((job.visa_sponsorship_confidence || 0) * 100) + '%'"></span>
+                                </div>
+                            </div>
+
+                            <!-- Job Description -->
+                            <p class="text-gray-700 text-sm mb-4 line-clamp-3" x-text="job.description"></p>
+
+                            <!-- Job Actions -->
+                            <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                                <div class="flex items-center text-xs text-gray-500">
+                                    <i class="fas fa-globe mr-1"></i>
+                                    <span x-text="job.source_website"></span>
+                                </div>
+                                <a :href="job.source_url" target="_blank" 
+                                   class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-external-link-alt mr-1"></i>View Job
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Pagination -->
+                <div x-show="totalPages > 1" class="mt-8 flex justify-center">
+                    <nav class="flex items-center space-x-2">
+                        <button @click="currentPage = Math.max(1, currentPage - 1)" 
+                                :disabled="currentPage === 1"
+                                class="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        
+                        <template x-for="page in visiblePages" :key="page">
+                            <button @click="currentPage = page" 
+                                    :class="page === currentPage ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'"
+                                    class="px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                                    x-text="page">
+                            </button>
+                        </template>
+                        
+                        <button @click="currentPage = Math.min(totalPages, currentPage + 1)" 
+                                :disabled="currentPage === totalPages"
+                                class="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
