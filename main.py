@@ -116,6 +116,11 @@ app.include_router(auth_router, prefix="/api/auth")
 app.include_router(visa_router, prefix="/api/auth")
 app.include_router(session_router, prefix="/api/auth")
 
+# Backward-compatible mounts to support clients calling /auth/* directly
+app.include_router(auth_router, prefix="/auth")
+app.include_router(visa_router, prefix="/auth")
+app.include_router(session_router, prefix="/auth")
+
 # Serve uploaded files
 os.makedirs("data", exist_ok=True)
 app.mount("/data", StaticFiles(directory="data"), name="data")
