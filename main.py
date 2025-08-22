@@ -94,6 +94,8 @@ app.add_middleware(
         "http://127.0.0.1:3001",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:8000",
+        # Render deployed frontend
+        "https://joborra-frontend.onrender.com",
     ],  # React/Vite dev and backend
     allow_credentials=True,
     allow_methods=["*"],
