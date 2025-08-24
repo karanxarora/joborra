@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Search,
-  Filter,
   MapPin,
   ExternalLink,
-  ChevronDown
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -18,7 +16,7 @@ const JobsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
+  // UI state simplified to match example screenshot
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   
   const [filters, setFilters] = useState<Partial<JobFilters>>({
@@ -33,9 +31,41 @@ const JobsPage: React.FC = () => {
     industry: undefined,
   });
 
+  // Location autocomplete state
+  const [locationInput, setLocationInput] = useState<string>('');
+  const [locSuggestions, setLocSuggestions] = useState<string[]>([]);
+  const [locLoading, setLocLoading] = useState<boolean>(false);
+  const [showLocDropdown, setShowLocDropdown] = useState<boolean>(false);
+
+  // Keep input in sync if filters reset
+  useEffect(() => {
+    setLocationInput(String(filters.location || ''));
+  }, [filters.location]);
+
   useEffect(() => {
     loadJobs();
   }, [filters, currentPage]);
+
+  // Debounced fetch for location suggestions
+  useEffect(() => {
+    const q = locationInput?.trim() || '';
+    if (!q) {
+      setLocSuggestions([]);
+      return;
+    }
+    setLocLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const items = await apiService.getLocationSuggestions(q, 8);
+        setLocSuggestions(items);
+      } catch (e) {
+        setLocSuggestions([]);
+      } finally {
+        setLocLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [locationInput]);
 
   const loadJobs = async () => {
     setLoading(true);
@@ -145,219 +175,145 @@ const JobsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div
-          
-          
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Jobs</h1>
-          <p className="text-gray-600">
-            Discover visa-friendly and student-friendly opportunities across Australia
-          </p>
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Find Your Next Job</h1>
+          <p className="text-slate-600 mt-1">Verified jobs welcoming international students</p>
         </div>
 
-        {/* Search Bar */}
-        <Card className="mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
+        {/* Search Row */}
+        <Card className="mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">What</label>
               <Input
-                placeholder="Search for jobs, companies, or keywords..."
+                placeholder="Job title, keywords, or company"
                 value={filters.search || ''}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
-                icon={<Search className="h-5 w-5" />}
+                icon={<Search className="h-4 w-4" />}
               />
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                icon={<Filter className="h-4 w-4" />}
+            <div className="relative">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Where</label>
+              <input
+                className="input-field w-full"
+                placeholder="Suburb, city, or region"
+                value={locationInput}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setLocationInput(v);
+                  handleFilterChange('location', v);
+                }}
+                onFocus={() => setShowLocDropdown(true)}
+              />
+              {showLocDropdown && (locLoading || locSuggestions.length > 0) && (
+                <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow-lg max-h-64 overflow-auto thin-scrollbar">
+                  {locLoading && (
+                    <div className="px-3 py-2 text-sm text-slate-500">Searching…</div>
+                  )}
+                  {!locLoading && locSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                      onMouseDown={(e) => {
+                        // use mousedown to prevent input blur before click
+                        e.preventDefault();
+                        setLocationInput(s);
+                        handleFilterChange('location', s);
+                        setShowLocDropdown(false);
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                  {!locLoading && locSuggestions.length === 0 && locationInput && (
+                    <div className="px-3 py-2 text-sm text-slate-500">No matches</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Job Category</label>
+              <select
+                className="input-field w-full"
+                value={filters.category || ''}
+                onChange={(e) => handleFilterChange('category', e.target.value || undefined)}
               >
-                Filters
-                <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-              </Button>
-              <Button onClick={loadJobs} loading={loading}>
-                Search
-              </Button>
+                <option value="">All Categories</option>
+                <option value="Software">Software</option>
+                <option value="Design">Design</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Sales">Sales</option>
+              </select>
             </div>
           </div>
-
-          {/* Advanced Filters */}
-          {showFilters && (
-            <div
-              
-              
-              
-              className="mt-6 pt-6 border-t border-gray-200"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Location
-                  </label>
-                  <select
-                    value={filters.location || ''}
-                    onChange={(e) => handleFilterChange('location', e.target.value)}
-                    className="input-field"
-                  >
-                    <option value="">All Locations</option>
-                    <option value="Sydney">Sydney, NSW</option>
-                    <option value="Melbourne">Melbourne, VIC</option>
-                    <option value="Brisbane">Brisbane, QLD</option>
-                    <option value="Perth">Perth, WA</option>
-                    <option value="Adelaide">Adelaide, SA</option>
-                    <option value="Canberra">Canberra, ACT</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Visa Sponsorship
-                  </label>
-                  <select
-                    value={filters.visa_sponsorship == null ? '' : filters.visa_sponsorship.toString()}
-                    onChange={(e) => handleFilterChange('visa_sponsorship', e.target.value === '' ? null : e.target.value === 'true')}
-                    className="input-field"
-                  >
-                    <option value="">All Jobs</option>
-                    <option value="true">Visa Friendly Only</option>
-                    <option value="false">No Visa Sponsorship</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={filters.category || ''}
-                    onChange={(e) => handleFilterChange('category', e.target.value || undefined)}
-                    className="input-field"
-                  >
-                    <option value="">All</option>
-                    <option value="casual">Casual</option>
-                    <option value="career">Career</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Work Type</label>
-                  <select
-                    value={filters.work_type || ''}
-                    onChange={(e) => handleFilterChange('work_type', e.target.value || undefined)}
-                    className="input-field"
-                  >
-                    <option value="">Any</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Part-time">Part-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Internship">Internship</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                  <select
-                    value={filters.industry || ''}
-                    onChange={(e) => handleFilterChange('industry', e.target.value || undefined)}
-                    className="input-field"
-                  >
-                    <option value="">All</option>
-                    <option value="Software">Software</option>
-                    <option value="Education">Education</option>
-                    <option value="Healthcare">Healthcare</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Retail">Retail</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Salary Range (min/max)</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      className="input-field w-full"
-                      placeholder="Min"
-                      value={(filters.salary_min as number | undefined) ?? ''}
-                      onChange={(e) => handleFilterChange('salary_min', e.target.value ? Number(e.target.value) : undefined)}
-                    />
-                    <input
-                      type="number"
-                      className="input-field w-full"
-                      placeholder="Max"
-                      value={(filters.salary_max as number | undefined) ?? ''}
-                      onChange={(e) => handleFilterChange('salary_max', e.target.value ? Number(e.target.value) : undefined)}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Visa Accepted</label>
-                  <select
-                    multiple
-                    value={(filters.visa_types as string[] | undefined) ?? []}
-                    onChange={(e) => {
-                      const options = Array.from(e.target.selectedOptions).map(o => o.value);
-                      handleFilterChange('visa_types', options.length ? options : undefined);
-                    }}
-                    className="input-field h-24"
-                  >
-                    <option value="Subclass 482">Subclass 482 (TSS)</option>
-                    <option value="Subclass 186">Subclass 186 (ENS)</option>
-                    <option value="Subclass 494">Subclass 494 (Regional)</option>
-                    <option value="Subclass 485">Subclass 485 (Graduate)</option>
-                    <option value="Subclass 500">Subclass 500 (Student)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={filters.student_friendly || false}
-                    onChange={(e) => handleFilterChange('student_friendly', e.target.checked)}
-                    className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Student Friendly Only</span>
-                </label>
-                
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={!!filters.remote_friendly}
-                    onChange={(e) => handleFilterChange('remote_friendly', e.target.checked || undefined)}
-                    className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Remote Friendly</span>
-                </label>
-
-                <Button variant="ghost" size="sm" onClick={clearFilters}>
-                  Clear All Filters
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="mt-3 flex justify-center">
+            <Button onClick={loadJobs} loading={loading}>Search</Button>
+          </div>
         </Card>
 
-        {/* Results Header */}
-        <div className="flex justify-between items-center mb-3 md:mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {loading ? 'Loading...' : `${jobs.length} Jobs Found`}
-          </h2>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Sort by:</span>
-            <select className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
-              <option value="latest">Latest</option>
-              <option value="salary">Salary</option>
-              <option value="relevance">Relevance</option>
-              <option value="visa">Visa Confidence</option>
+        {/* Filter Pills Row */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <div>
+            <select
+              className="px-3 py-2 rounded-md border text-sm text-slate-700"
+              value={filters.work_type || ''}
+              onChange={(e) => handleFilterChange('work_type', e.target.value || undefined)}
+            >
+              <option value="">Work Type</option>
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Contract">Contract</option>
+              <option value="Internship">Internship</option>
+            </select>
+          </div>
+          <div>
+            <select
+              className="px-3 py-2 rounded-md border text-sm text-slate-700"
+              value={filters.visa_types && (filters.visa_types as string[])[0] || ''}
+              onChange={(e) => handleFilterChange('visa_types', e.target.value ? [e.target.value] : undefined)}
+            >
+              <option value="">Visa Accepted</option>
+              <option value="Subclass 500">Subclass 500 (Student)</option>
+              <option value="Subclass 485">Subclass 485 (Graduate)</option>
+              <option value="Subclass 482">Subclass 482 (TSS)</option>
+            </select>
+          </div>
+          <div>
+            <select
+              className="px-3 py-2 rounded-md border text-sm text-slate-700"
+              value={String(!!filters.remote_friendly)}
+              onChange={(e) => handleFilterChange('remote_friendly', e.target.value === 'true' ? true : undefined)}
+            >
+              <option value="false">Remote Friendly</option>
+              <option value="true">Remote Friendly</option>
+            </select>
+          </div>
+          <div>
+            <select
+              className="px-3 py-2 rounded-md border text-sm text-slate-700"
+              value={(filters.salary_min as number | undefined) ? 'custom' : ''}
+              onChange={(e) => {
+                if (e.target.value === 'custom') {
+                  handleFilterChange('salary_min', 60000);
+                  handleFilterChange('salary_max', 120000);
+                } else {
+                  handleFilterChange('salary_min', undefined);
+                  handleFilterChange('salary_max', undefined);
+                }
+              }}
+            >
+              <option value="">Salary</option>
+              <option value="custom">$60k - $120k</option>
             </select>
           </div>
         </div>
+
+        {/* Results Header */}
+        <div className="mb-2 text-slate-700 text-sm">{loading ? 'Loading…' : `${jobs.length} Jobs Found`}</div>
 
         {/* Jobs Grid - Master/Detail */}
         {loading ? (
@@ -368,8 +324,8 @@ const JobsPage: React.FC = () => {
         ) : (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-10">
-              {/* Left: Job list */}
-              <div className="lg:col-span-3 space-y-4 max-h-[75vh] overflow-auto pr-1 scroll-smooth">
+              {/* Left: Job list (narrower) */}
+              <div className="lg:col-span-2 space-y-4 max-h-[75vh] overflow-auto pr-1 scroll-smooth thin-scrollbar">
                 {jobs.map((job) => (
                   <JobCard
                     key={job.id}
@@ -380,46 +336,69 @@ const JobsPage: React.FC = () => {
                 ))}
               </div>
 
-              {/* Right: Details panel */}
-              <div className="lg:col-span-2">
-                <Card className="sticky top-6 rounded-xl shadow-sm">
+              {/* Right: Details panel (wider) */}
+              <div className="lg:col-span-3">
+                <Card className="sticky top-6 rounded-xl shadow-sm" padding="sm">
                   {selectedJob ? (
                     <div>
+                      {/* Header */}
                       <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-2xl font-semibold text-gray-900">{selectedJob.title}</h3>
-                          <div className="text-cyan-700 font-medium text-sm md:text-base">{selectedJob.company.name}</div>
-                          <div className="mt-1 text-sm text-gray-600 flex items-center">
+                        <div className="space-y-1">
+                          <h3 className="text-[22px] md:text-2xl font-semibold text-slate-900">{selectedJob.title}</h3>
+                          <div className="text-slate-600 font-medium text-sm md:text-[15px]">{selectedJob.company.name}</div>
+                          <div className="mt-1 text-sm text-slate-600 flex items-center">
                             <MapPin className="h-4 w-4 mr-1" /> {selectedJob.location}
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {selectedJob.visa_sponsorship && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 text-cyan-700 px-2 py-0.5 text-xs">
-                            Visa Friendly
+                      {/* Meta chips row */}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {selectedJob.employment_type && (
+                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white text-slate-700 px-2.5 py-0.5 text-xs">
+                            {selectedJob.employment_type}
                           </span>
                         )}
-                        {selectedJob.international_student_friendly && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 text-cyan-700 px-2 py-0.5 text-xs">
-                            Student OK
+                        {selectedJob.source_website && (
+                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white text-slate-700 px-2.5 py-0.5 text-xs">
+                            {selectedJob.source_website}
+                          </span>
+                        )}
+                        {(selectedJob.created_at || selectedJob.scraped_at) && (
+                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white text-slate-700 px-2.5 py-0.5 text-xs">
+                            {new Date(selectedJob.created_at || selectedJob.scraped_at).toLocaleDateString()}
                           </span>
                         )}
                         {selectedJob.salary_min && selectedJob.salary_max && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">
+                          <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 px-2.5 py-0.5 text-xs">
                             {formatSalary(selectedJob.salary_min)} - {formatSalary(selectedJob.salary_max)}
                           </span>
                         )}
                       </div>
 
-                      <div className="mt-6 border-t border-gray-100 pt-5">
-                        <div className="text-[15px] md:text-[16px] leading-relaxed text-gray-800 whitespace-pre-line">
+                      {/* Badges */}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selectedJob.visa_sponsorship && (
+                          <span className="inline-flex items-center rounded-full bg-cyan-100 text-cyan-700 px-2.5 py-0.5 text-xs">
+                            Visa Friendly
+                          </span>
+                        )}
+                        {selectedJob.international_student_friendly && (
+                          <span className="inline-flex items-center rounded-full bg-cyan-100 text-cyan-700 px-2.5 py-0.5 text-xs">
+                            Student OK
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <div className="mt-5 border-t border-slate-200 pt-5">
+                        <div className="text-[15px] md:text-[16px] leading-7 text-slate-800 whitespace-pre-line">
                           {selectedJob.description}
                         </div>
                       </div>
 
-                      <div className="mt-6 flex gap-2">
+                      {/* Actions */}
+                      <div className="mt-5 flex gap-2">
                         <a href={selectedJob.source_url} target="_blank" rel="noopener noreferrer">
                           <Button icon={<ExternalLink className="h-4 w-4" />}>Apply</Button>
                         </a>

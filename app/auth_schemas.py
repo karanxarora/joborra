@@ -134,6 +134,21 @@ class JobApplicationResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# Application with job details for student listings
+class JobApplicationWithJob(JobApplicationResponse):
+    job: dict  # includes minimal job fields and company info
+    
+    class Config:
+        from_attributes = True
+
+# Employer view: application with applicant (student) info
+class EmployerApplicationWithUser(JobApplicationResponse):
+    user: dict  # minimal user fields: id, full_name, email, university, degree, graduation_year, resume_url
+    job: dict   # minimal job fields
+    
+    class Config:
+        from_attributes = True
+
 # Employer Job Creation
 class EmployerJobCreate(BaseModel):
     title: str

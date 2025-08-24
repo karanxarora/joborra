@@ -5,6 +5,7 @@ export interface User {
   username: string;
   full_name: string;
   role: 'student' | 'employer';
+  is_verified?: boolean;
   university?: string;
   degree?: string;
   graduation_year?: number;
@@ -90,7 +91,6 @@ export interface LoginForm {
 
 export interface RegisterForm {
   email: string;
-  username: string;
   password: string;
   full_name: string;
   role: 'student' | 'employer';

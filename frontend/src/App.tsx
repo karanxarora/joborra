@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
+import { ToastProvider } from './contexts/ToastContext';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
@@ -11,6 +12,10 @@ import ProfilePage from './pages/ProfilePage';
 import AboutPage from './pages/AboutPage';
 import './App.css';
 import EmployerPostJobPage from './pages/EmployerPostJobPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
+import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
+import SubmittedApplicationsPage from './pages/SubmittedApplicationsPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -52,8 +57,33 @@ const AppContent: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/applications"
+            element={
+              <ProtectedRoute>
+                <SubmittedApplicationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/company"
+            element={
+              <ProtectedRoute>
+                <EmployerCompanyInfoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/applications"
+            element={
+              <ProtectedRoute>
+                <EmployerApplicationsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           {/** Dashboard disabled for now */}
           {/**
           <Route 
@@ -77,7 +107,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

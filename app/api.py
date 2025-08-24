@@ -360,6 +360,48 @@ def calculate_job_match_score(user, job):
     
     return score
 
+# Location suggestions endpoint
+@router.get("/locations/suggest")
+async def suggest_locations(
+    q: str = Query(..., min_length=1, description="Search text for location autocomplete"),
+    limit: int = Query(8, ge=1, le=25),
+    db: Session = Depends(get_db)
+):
+    """Return a list of distinct location suggestions matching the query.
+    Combines `location`, `city`, and `state` fields from jobs and returns unique values.
+    """
+    try:
+        from app.models import Job as JobModel
+        # Build case-insensitive match
+        pattern = f"%{q}%"
+
+        # Select distinct values from multiple columns
+        locs = (
+            db.query(JobModel.location.label("val"))
+            .filter(JobModel.location.isnot(None), JobModel.location.ilike(pattern))
+        ).union(
+            db.query(JobModel.city.label("val"))
+            .filter(JobModel.city.isnot(None), JobModel.city.ilike(pattern))
+        ).union(
+            db.query(JobModel.state.label("val"))
+            .filter(JobModel.state.isnot(None), JobModel.state.ilike(pattern))
+        ).limit(limit * 3).all()
+
+        # Deduplicate while preserving order, prefer longer strings (more specific)
+        seen = set()
+        results = []
+        for row in sorted((l.val for l in locs if l and l.val), key=lambda s: (-len(s), s)):
+            key = row.strip()
+            if key and key.lower() not in seen:
+                seen.add(key.lower())
+                results.append(key)
+            if len(results) >= limit:
+                break
+        return {"items": results}
+    except Exception as e:
+        logger.error(f"Error suggesting locations: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Scraping endpoints
 @router.post("/jobs/scrape")
 async def start_scraping(

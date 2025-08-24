@@ -14,7 +14,7 @@ from .auth_schemas import (
     UserCreate, UserLogin, TokenResponse, UserResponse, 
     JobFavoriteCreate, JobFavoriteResponse, JobFavoriteWithJob, JobApplicationCreate, JobApplicationResponse,
     StudentProfileUpdate, EmployerProfileUpdate, JobViewCreate, JobViewResponse, JobAnalytics, 
-    EmployerJobCreate, EmployerJobUpdate
+    EmployerJobCreate, EmployerJobUpdate, JobApplicationWithJob, EmployerApplicationWithUser
 )
 from .models import Job, Company
 from .schemas import Job as JobSchema
@@ -28,11 +28,112 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["authentication"])
 
+# Simple in-memory rate limiting and token invalidation for verification
+from typing import Dict
+VERIFICATION_STATE: Dict[int, dict] = {}
+RATE_LIMIT_SECONDS = 60  # min interval between requests per user
+
 @router.post("/register", response_model=UserResponse)
 def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user (Student or Employer)"""
     auth_service = AuthService(db)
     user = auth_service.create_user(user_data)
+    return user
+
+# Email verification endpoints
+@router.post("/verify/request")
+def request_email_verification(
+    current_user: User = Depends(get_current_user),
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
+    """Issue an email verification token for the current user.
+    For now, we return the token and a frontend URL for manual testing.
+    """
+    if current_user.is_verified:
+        return {"message": "Email already verified"}
+
+    # Rate limit per user
+    state = VERIFICATION_STATE.get(current_user.id)
+    now = datetime.utcnow()
+    if state:
+        last = state.get("issued_at")
+        if last and (now - last).total_seconds() < RATE_LIMIT_SECONDS:
+            raise HTTPException(status_code=429, detail="Please wait before requesting another verification email")
+
+    auth_service = AuthService(db)
+    # Create a short-lived token specifically for email verification
+    from datetime import datetime, timedelta
+    from jose import jwt
+    from .auth import SECRET_KEY, ALGORITHM
+
+    import uuid
+    token_id = uuid.uuid4().hex
+    payload = {
+        "sub": str(current_user.id),
+        "type": "email_verify",
+        "email": current_user.email,
+        "jti": token_id,
+        "exp": datetime.utcnow() + timedelta(hours=24),
+        "iat": datetime.utcnow(),
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    # Construct a frontend URL the app will handle
+    base_url = str(request.base_url).rstrip('/') if request else ""
+    verify_url = f"{base_url}/verify-email?token={token}" if base_url else f"/verify-email?token={token}"
+
+    # Save state for invalidation and rate limiting
+    VERIFICATION_STATE[current_user.id] = {"issued_at": now, "token_id": token_id}
+
+    # Attempt to send email if SMTP configured
+    try:
+        from .email_utils import send_email
+        subject = "Verify your Joborra email"
+        body = f"Hello {current_user.full_name},\n\nPlease verify your email by clicking the link below:\n{verify_url}\n\nThis link expires in 24 hours.\n\nIf you didn't request this, you can ignore this email.\n\n— Joborra"
+        sent = send_email(current_user.email, subject, body)
+    except Exception:
+        sent = False
+
+    return {
+        "message": "Verification email (token) issued",
+        "verification_token": token,
+        "verify_url": verify_url,
+        "email_sent": sent,
+    }
+
+@router.get("/verify/confirm", response_model=UserResponse)
+def confirm_email_verification(token: str, db: Session = Depends(get_db)):
+    """Confirm user email via verification token and set is_verified=True."""
+    from jose import jwt
+    from .auth import SECRET_KEY, ALGORITHM
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "email_verify":
+            raise HTTPException(status_code=400, detail="Invalid verification token type")
+        user_id = int(payload.get("sub"))
+        token_id = payload.get("jti")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Verification token has expired")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check invalidation state
+    state = VERIFICATION_STATE.get(user.id)
+    if state and state.get("token_id") and token_id != state.get("token_id"):
+        raise HTTPException(status_code=400, detail="This verification link has been superseded. Please request a new one.")
+
+    if user.is_verified:
+        return user
+
+    user.is_verified = True
+    db.commit()
+    db.refresh(user)
     return user
 
 @router.post("/login", response_model=TokenResponse)
@@ -307,6 +408,58 @@ def get_employer_jobs(
     
     return jobs
 
+@employer_router.get("/applications", response_model=List[EmployerApplicationWithUser])
+def list_employer_applications(
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """List applications for all jobs posted by the current employer, including applicant info."""
+    # Fetch applications joined with jobs owned by employer
+    applications = db.query(JobApplication).join(Job, JobApplication.job_id == Job.id).filter(
+        Job.posted_by_user_id == current_user.id
+    ).all()
+
+    results: List[EmployerApplicationWithUser] = []
+    for app in applications:
+        job = db.query(Job).filter(Job.id == app.job_id).first()
+        user = db.query(User).filter(User.id == app.user_id).first()
+        if not job or not user:
+            continue
+        job_dict = {
+            "id": job.id,
+            "title": job.title,
+            "location": job.location,
+            "city": job.city,
+            "state": job.state,
+            "company": {
+                "id": job.company.id if job.company else None,
+                "name": job.company.name if job.company else (current_user.company_name or "Unknown"),
+                "website": job.company.website if job.company else None,
+            },
+        }
+        user_dict = {
+            "id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "university": user.university,
+            "degree": user.degree,
+            "graduation_year": user.graduation_year,
+            "resume_url": getattr(user, "resume_url", None),
+        }
+        results.append(EmployerApplicationWithUser(
+            id=app.id,
+            job_id=app.job_id,
+            status=app.status,
+            applied_at=app.applied_at,
+            updated_at=app.updated_at,
+            cover_letter=app.cover_letter,
+            resume_url=app.resume_url,
+            notes=app.notes,
+            job=job_dict,
+            user=user_dict,
+        ))
+    return results
+
 # Profile Management Endpoints
 @router.put("/profile/student", response_model=UserResponse)
 def update_student_profile(
@@ -392,6 +545,43 @@ async def upload_resume(
     logger.info(f"User {current_user.id} uploaded resume: {current_user.resume_url}")
     return {
         "resume_url": current_user.resume_url,
+        "file_name": file.filename,
+        "file_size": len(content)
+    }
+
+@employer_router.post("/company/logo")
+async def upload_company_logo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Upload a company logo image for the employer profile."""
+    allowed_extensions = [".png", ".jpg", ".jpeg", ".webp", ".svg"]
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+
+    upload_dir = Path("data/company_logos") / str(current_user.id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    unique_name = f"logo_{uuid.uuid4()}{ext}"
+    file_path = upload_dir / unique_name
+
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+    # Update user profile
+    current_user.company_logo_url = f"/data/company_logos/{current_user.id}/{unique_name}"
+    db.commit()
+    db.refresh(current_user)
+
+    logger.info(f"Employer {current_user.id} uploaded company logo: {current_user.company_logo_url}")
+    return {
+        "company_logo_url": current_user.company_logo_url,
         "file_name": file.filename,
         "file_size": len(content)
     }

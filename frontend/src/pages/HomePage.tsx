@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Users, Briefcase, TrendingUp, CheckCircle, Star, Shield, GraduationCap, Brain, RefreshCw, MapPin, ArrowRight } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import SearchBar from '../components/home/SearchBar';
 import { JobStats } from '../types';
 import apiService from '../services/api';
 
@@ -72,74 +73,51 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hero Section */}
-      <div className="bg-cyan-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
+      {/* Hero Section (light background like mock) */}
+      <div className="bg-gradient-to-b from-white to-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            {/* Left: Headline + CTA */}
-            <div className="text-center lg:text-left">
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-                Land Your Dream Job in Australia
+            {/* Left: Headline + subcopy + search */}
+            <div>
+              <h1 className="text-[34px] md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+                <span className="block">Find Your Next</span>
+                <span className="block">Opportunity.</span>
+                <span className="block text-primary-700">Built for international</span>
+                <span className="block text-primary-700">students. Backed by</span>
+                <span className="block text-primary-700">real employers.</span>
               </h1>
-              <p className="text-xl md:text-2xl mb-8 md:mb-10 text-cyan-50 max-w-3xl lg:max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Connect with 500+ visa-friendly employers, discover student-friendly opportunities, and fast-track your Australian career journey with AI‑powered job matching.
+              <p className="mt-5 text-slate-600 max-w-2xl">
+                Every job here is confirmed to be international student friendly and visa‑verified.
+                No cold calls. No guesswork. Just real opportunities, made for you.
               </p>
-              <div className="flex justify-center lg:justify-start items-center">
-                <Link to="/jobs">
-                  <Button size="lg" className="px-8 py-4 text-base font-semibold">
-                    <Search className="mr-3 h-6 w-6" />
-                    Explore Jobs
-                  </Button>
-                </Link>
+              {/* Badges */}
+              <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                  ✅ 100% Verified
+                </span>
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  Visa‑Friendly
+                </span>
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  Student‑Approved
+                </span>
+              </div>
+              {/* Search */}
+              <div className="mt-6 max-w-2xl">
+                <SearchBar onSearch={() => { /* route to /jobs later */ }} />
+              </div>
+              {/* Popular chips */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['Developer Jobs','Visa Sponsorship','Remote Internships','Part‑Time Roles','Melbourne','Work Type','Remote Friendly','Salary'].map((chip) => (
+                  <button key={chip} className="px-3 py-1.5 rounded-full text-sm bg-slate-100 text-slate-700 hover:bg-slate-200">{chip}</button>
+                ))}
               </div>
             </div>
-
-            {/* Right: Human touch panel */}
-            <div className="hidden md:block">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-xl">
-                {/* Header with avatars */}
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex -space-x-3">
-                    {['AM','RK','SJ','LW'].map((i, idx) => (
-                      <div key={idx} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-cyan-700 font-semibold ring-2 ring-cyan-600 shadow-sm">
-                        {i}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-sm text-cyan-50/90">Live community chat</div>
-                </div>
-
-                {/* Chat bubbles */}
-                <div className="space-y-3">
-                  <div className="max-w-[85%] rounded-2xl bg-white text-slate-800 px-4 py-3 shadow-md">
-                    <p className="text-sm">“Got an interview with an accredited sponsor thanks to Joborra!”</p>
-                    <div className="mt-1 text-xs text-slate-500">Amelia • Software Grad</div>
-                  </div>
-                  <div className="max-w-[85%] ml-auto rounded-2xl bg-cyan-700/60 text-white px-4 py-3 shadow-md">
-                    <p className="text-sm">“Filter by 482/186 made it so easy to shortlist roles.”</p>
-                    <div className="mt-1 text-xs text-cyan-100/80">Ravi • Data Analyst</div>
-                  </div>
-                  <div className="max-w-[85%] rounded-2xl bg-white text-slate-800 px-4 py-3 shadow-md">
-                    <p className="text-sm">“Remote‑friendly internships helped me start while studying.”</p>
-                    <div className="mt-1 text-xs text-slate-500">Sana • Intl Student</div>
-                  </div>
-                </div>
-
-                {/* Mini stats/footer */}
-                <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <div className="text-lg font-bold">500+</div>
-                    <div className="text-xs opacity-90">Companies</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold">Visa</div>
-                    <div className="text-xs opacity-90">Friendly</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold">Student</div>
-                    <div className="text-xs opacity-90">Support</div>
-                  </div>
-                </div>
+            {/* Right: Visual placeholder */}
+            <div className="hidden lg:block">
+              <div className="rounded-2xl bg-slate-100 h-[420px] border border-slate-200 shadow-sm flex items-center justify-center text-slate-500">
+                {/* Placeholder for hero image */}
+                <span className="text-sm">Hero Image</span>
               </div>
             </div>
           </div>

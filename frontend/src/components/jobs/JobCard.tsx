@@ -15,7 +15,11 @@ const badgeBase = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-
 const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick }) => {
   return (
     <Card
-      className={`cursor-pointer border ${selected ? 'ring-2 ring-cyan-500 border-cyan-100' : 'border-gray-100'} rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-[1px] bg-white`}
+      className={`relative cursor-pointer border rounded-xl transition-all duration-200
+        ${selected
+          ? 'bg-cyan-50 border-2 border-cyan-300 shadow-md'
+          : 'bg-white border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-[1px]'}
+      `}
       padding="sm"
     >
       <div className="flex gap-3" onClick={onClick}>
@@ -63,12 +67,12 @@ const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick }) => {
           </div>
 
           {/* Snippet */}
-          <p className="mt-3 text-[13.5px] text-gray-700 leading-relaxed line-clamp-3">{job.description}</p>
+          <p className="mt-2 text-[13.5px] text-gray-700 leading-relaxed line-clamp-2">{job.description}</p>
         </div>
       </div>
 
       {/* Footer actions */}
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-3 flex items-center justify-between">
         <div className="text-[11px] text-gray-500">{new Date(job.created_at || job.scraped_at).toLocaleDateString()}</div>
         <div className="flex gap-2">
           <a href={job.source_url} target="_blank" rel="noopener noreferrer">

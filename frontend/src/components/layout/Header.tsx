@@ -1,17 +1,24 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Briefcase, LogOut, User, Menu, X } from 'lucide-react';
+import { LogOut, User, Menu, X, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../ui/Button';
+import LogoIcon from '../ui/LogoIcon';
+import { useToast } from '../../contexts/ToastContext';
 
 const Header: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const { toast } = useToast();
 
   const handleLogout = async () => {
+    const confirm = window.confirm('Are you sure you want to log out?');
+    if (!confirm) return;
     try {
       await logout();
+      toast('Logged out successfully', 'success');
       navigate('/');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -28,10 +35,10 @@ const Header: React.FC = () => {
               
               className="flex items-center"
             >
-              <Briefcase className="h-8 w-8 text-cyan-600 mr-3" />
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Joborra</h1>
+              {/* Brand icon, inherits theme color via Tailwind */}
+              <LogoIcon className="h-8 w-8 text-primary-600 mr-3" />
             </div>
-            <span className="ml-3 px-2 py-1 bg-cyan-100 text-cyan-800 text-xs font-medium rounded-full hidden sm:inline">
+            <span className="ml-3 px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded-full hidden sm:inline">
               Australia's Job Portal
             </span>
           </Link>
@@ -39,44 +46,61 @@ const Header: React.FC = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             <nav className="flex items-center space-x-6">
-              {isAuthenticated && (
-                <Link to="/jobs" className="text-slate-600 hover:text-cyan-600 transition-colors">
-                  Find Jobs
+              <Link to="/jobs" className="text-slate-600 hover:text-primary-600 transition-colors">
+                Browse Jobs
+              </Link>
+              <Link to="/employer/post-job" className="text-slate-600 hover:text-primary-600 transition-colors">
+                For Employers
+              </Link>
+              {isAuthenticated && user?.role === 'employer' && (
+                <Link to="/employer/applications" className="text-slate-600 hover:text-primary-600 transition-colors">
+                  Applications
                 </Link>
               )}
-              <Link to="/about" className="text-slate-600 hover:text-cyan-600 transition-colors">
+              <Link to="/about" className="text-slate-600 hover:text-primary-600 transition-colors">
                 About
               </Link>
-              {/** Dashboard link hidden while disabled */}
-              {isAuthenticated && (
-                <Link to="/profile" className="text-slate-600 hover:text-cyan-600 transition-colors">
-                  Profile
-                </Link>
-              )}
-              {isAuthenticated && user?.role === 'employer' && (
-                <Link to="/employer/post-job" className="text-slate-600 hover:text-cyan-600 transition-colors">
-                  Post a Job
-                </Link>
-              )}
             </nav>
 
             {/* Auth Section */}
             {isAuthenticated ? (
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4 text-slate-500" />
-                  <span className="text-sm text-slate-700">
-                    {user?.full_name || user?.email}
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleLogout}
-                  icon={<LogOut className="h-4 w-4" />}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm text-slate-700 hover:bg-slate-50"
                 >
-                  Logout
-                </Button>
+                  <User className="h-4 w-4 text-slate-500" />
+                  <span>
+                    Welcome, {user?.full_name || user?.email}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-slate-500" />
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-200 rounded-md shadow-lg py-1 z-50">
+                    <Link
+                      to="/profile"
+                      className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    {user?.role === 'employer' && (
+                      <Link
+                        to="/employer/applications"
+                        className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Applications
+                      </Link>
+                    )}
+                    <button
+                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                      onClick={() => { setMenuOpen(false); handleLogout(); }}
+                    >
+                      <LogOut className="h-4 w-4" /> Logout
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center space-x-3">
@@ -119,7 +143,7 @@ const Header: React.FC = () => {
               {isAuthenticated && (
                 <Link
                   to="/jobs"
-                  className="text-slate-600 hover:text-cyan-600 transition-colors"
+                  className="text-slate-600 hover:text-primary-600 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Find Jobs
@@ -127,28 +151,28 @@ const Header: React.FC = () => {
               )}
               <Link
                 to="/about"
-                className="text-slate-600 hover:text-cyan-600 transition-colors"
+                className="text-slate-600 hover:text-primary-600 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 About
               </Link>
               {/** Dashboard link hidden while disabled (mobile) */}
-              {isAuthenticated && (
+              {isAuthenticated && user?.role === 'employer' && (
                 <Link
-                  to="/profile"
-                  className="text-slate-600 hover:text-cyan-600 transition-colors"
+                  to="/employer/post-job"
+                  className="text-slate-600 hover:text-primary-600 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Profile
+                  Post a Job
                 </Link>
               )}
               {isAuthenticated && user?.role === 'employer' && (
                 <Link
-                  to="/employer/post-job"
-                  className="text-slate-600 hover:text-cyan-600 transition-colors"
+                  to="/employer/applications"
+                  className="text-slate-600 hover:text-primary-600 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Post a Job
+                  Applications
                 </Link>
               )}
             </nav>
@@ -162,6 +186,11 @@ const Header: React.FC = () => {
                       {user?.full_name || user?.email}
                     </span>
                   </div>
+                  <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" size="sm" className="w-full">
+                      Profile
+                    </Button>
+                  </Link>
                   <Button
                     variant="outline"
                     size="sm"

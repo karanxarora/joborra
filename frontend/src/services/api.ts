@@ -67,7 +67,11 @@ class ApiService {
   }
 
   async register(userData: RegisterForm): Promise<AuthResponse> {
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', userData);
+    // Backend expects username; derive from email if UI omits it
+    const email = userData.email || '';
+    const derived = email.includes('@') ? email.split('@')[0] : email;
+    const payload: any = { username: derived, ...userData };
+    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', payload);
     this.setAuth(response.data);
     return response.data;
   }
@@ -189,6 +193,16 @@ class ApiService {
     return response.data;
   }
 
+  // Locations autocomplete
+  async getLocationSuggestions(query: string, limit = 8): Promise<string[]> {
+    if (!query || !query.trim()) return [];
+    const params = new URLSearchParams();
+    params.append('q', query.trim());
+    params.append('limit', String(limit));
+    const response: AxiosResponse<{ items: string[] }> = await this.api.get(`/locations/suggest?${params.toString()}`);
+    return response.data?.items ?? [];
+  }
+
   // User methods
   async getCurrentUser(): Promise<User> {
     const response: AxiosResponse<User> = await this.api.get('/auth/me');
@@ -234,6 +248,22 @@ class ApiService {
     return response.data;
   }
 
+  // Email verification methods
+  async requestEmailVerification(): Promise<{ verification_token: string; verify_url: string } | { message: string }>{
+    const response = await this.api.post('/auth/verify/request');
+    return response.data;
+  }
+
+  async confirmEmailVerification(token: string): Promise<User> {
+    const response: AxiosResponse<User> = await this.api.get(`/auth/verify/confirm`, { params: { token } });
+    // Update stored user with verified flag
+    const stored = this.getCurrentUserFromStorage();
+    if (stored && response.data) {
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
+    return response.data;
+  }
+
   // Employer job posting methods
   async createEmployerJob(data: EmployerJobCreate): Promise<Job> {
     const response: AxiosResponse<Job> = await this.api.post('/auth/employer/jobs', data);
@@ -247,6 +277,22 @@ class ApiService {
 
   async listEmployerJobs(): Promise<Job[]> {
     const response: AxiosResponse<Job[]> = await this.api.get('/auth/employer/jobs');
+    return response.data;
+  }
+
+  // Employer applications
+  async listEmployerApplications(): Promise<Array<{ id: number; job_id: number; status: string; applied_at: string; updated_at: string; cover_letter?: string; resume_url?: string; notes?: string; job: any; user: any }>> {
+    const response = await this.api.get('/auth/employer/applications');
+    return response.data;
+  }
+
+  // Employer company logo upload
+  async uploadCompanyLogo(file: File): Promise<{ company_logo_url: string }>{
+    const form = new FormData();
+    form.append('file', file);
+    const response = await this.api.post('/auth/employer/company/logo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   }
 

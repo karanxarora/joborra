@@ -4,13 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Joborra - Find Your Dream Job in Australia</title>
+    <!-- Tailwind CDN brand theme config -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: '#e9f7f6', 100: '#c9ebe8', 200: '#98d9d3', 300: '#67c6bd', 400: '#36b4a8',
+                500: '#14a39a', 600: '#0D9488', 700: '#0b7a70', 800: '#0a5f58', 900: '#084b46'
+              },
+              secondary: {
+                50: '#e9eef5', 100: '#c8d4e6', 200: '#97adcf', 300: '#6686b8', 400: '#3a5c91',
+                500: '#284a7e', 600: '#1E3A5F', 700: '#18304f', 800: '#12263f', 900: '#0c1b2e'
+              },
+              accent: {
+                50: '#fff1ef', 100: '#ffd9d3', 200: '#ffb5ab', 300: '#ff8f83', 400: '#fb7a6e',
+                500: '#F97362', 600: '#ea5a47', 700: '#cf4736', 800: '#a53a2d', 900: '#7b2c22'
+              },
+              support: {
+                50: '#F7FBF9', 100: '#F1F8F5', 200: '#e7f1ec', 300: '#d9e8e1', 400: '#c9ded5',
+                500: '#b9d3c8', 600: '#9fbeb1', 700: '#85a89a', 800: '#6a9183', 900: '#52786b'
+              }
+            }
+          }
+        }
+      }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .hero-gradient {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
+        .hero-gradient { background: linear-gradient(135deg, #0D9488 0%, #1E3A5F 100%); }
         .feature-card {
             transition: all 0.3s ease;
         }
@@ -35,22 +60,22 @@
                 <div class="flex justify-between items-center py-4">
                     <div class="flex items-center">
                         <h1 class="text-2xl font-bold text-gray-900">
-                            <i class="fas fa-briefcase text-blue-600 mr-2"></i>
+                            <i class="fas fa-briefcase text-primary-600 mr-2"></i>
                             Joborra
                         </h1>
-                        <span class="ml-3 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                        <span class="ml-3 px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded-full">
                             Australia's Job Portal
                         </span>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <a href="#features" class="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
-                        <a href="#about" class="text-gray-600 hover:text-blue-600 transition-colors">About</a>
+                        <a href="#features" class="text-gray-600 hover:text-primary-600 transition-colors">Features</a>
+                        <a href="#about" class="text-gray-600 hover:text-primary-600 transition-colors">About</a>
                         <a href="auth.html" 
-                           class="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+                           class="px-4 py-2 text-primary-600 border border-primary-600 rounded-lg hover:bg-primary-50 transition-colors">
                             Login
                         </a>
                         <a href="auth.html" 
-                           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                           class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
                             Get Started
                         </a>
                     </div>
@@ -65,7 +90,7 @@
                     Find Your Dream Job in 
                     <span class="text-yellow-300">Australia</span>
                 </h1>
-                <p class="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto">
+                <p class="text-xl md:text-2xl mb-8 text-support-100 max-w-3xl mx-auto">
                     Discover thousands of visa-friendly jobs, student-friendly opportunities, and career paths across Australia. Your Australian dream starts here.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -74,7 +99,7 @@
                         <i class="fas fa-rocket mr-2"></i>Start Job Search
                     </a>
                     <a href="#features" 
-                       class="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors text-lg">
+                       class="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-secondary-600 transition-colors text-lg">
                         <i class="fas fa-play mr-2"></i>Learn More
                     </a>
                 </div>
@@ -86,19 +111,19 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
                     <div class="stats-counter">
-                        <div class="text-4xl font-bold text-blue-600 mb-2" x-text="stats.totalJobs">0</div>
+                        <div class="text-4xl font-bold text-secondary-600 mb-2" x-text="stats.totalJobs">0</div>
                         <div class="text-gray-600">Active Jobs</div>
                     </div>
                     <div class="stats-counter">
-                        <div class="text-4xl font-bold text-green-600 mb-2" x-text="stats.visaFriendly">0</div>
+                        <div class="text-4xl font-bold text-primary-600 mb-2" x-text="stats.visaFriendly">0</div>
                         <div class="text-gray-600">Visa Friendly</div>
                     </div>
                     <div class="stats-counter">
-                        <div class="text-4xl font-bold text-purple-600 mb-2" x-text="stats.studentFriendly">0</div>
+                        <div class="text-4xl font-bold text-accent-600 mb-2" x-text="stats.studentFriendly">0</div>
                         <div class="text-gray-600">Student Friendly</div>
                     </div>
                     <div class="stats-counter">
-                        <div class="text-4xl font-bold text-orange-600 mb-2" x-text="stats.locations">8+</div>
+                        <div class="text-4xl font-bold text-accent-600 mb-2" x-text="stats.locations">8+</div>
                         <div class="text-gray-600">Major Cities</div>
                     </div>
                 </div>
@@ -118,97 +143,97 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <!-- Visa Sponsorship -->
                     <div class="feature-card bg-white rounded-xl p-8 shadow-sm">
-                        <div class="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center mb-6">
-                            <i class="fas fa-passport text-green-600 text-2xl"></i>
+                        <div class="w-16 h-16 bg-primary-100 rounded-lg flex items-center justify-center mb-6">
+                            <i class="fas fa-passport text-primary-600 text-2xl"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Visa Sponsorship</h3>
                         <p class="text-gray-600 mb-4">
                             Find employers who actively sponsor work visas. We identify and verify visa-friendly companies across Australia.
                         </p>
                         <ul class="text-sm text-gray-500 space-y-1">
-                            <li><i class="fas fa-check text-green-500 mr-2"></i>482 TSS Visa opportunities</li>
-                            <li><i class="fas fa-check text-green-500 mr-2"></i>494 Regional Sponsored visas</li>
-                            <li><i class="fas fa-check text-green-500 mr-2"></i>186 Permanent Residence paths</li>
+                            <li><i class="fas fa-check text-primary-500 mr-2"></i>482 TSS Visa opportunities</li>
+                            <li><i class="fas fa-check text-primary-500 mr-2"></i>494 Regional Sponsored visas</li>
+                            <li><i class="fas fa-check text-primary-500 mr-2"></i>186 Permanent Residence paths</li>
                         </ul>
                     </div>
 
                     <!-- Student Friendly -->
                     <div class="feature-card bg-white rounded-xl p-8 shadow-sm">
-                        <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mb-6">
-                            <i class="fas fa-graduation-cap text-blue-600 text-2xl"></i>
+                        <div class="w-16 h-16 bg-secondary-100 rounded-lg flex items-center justify-center mb-6">
+                            <i class="fas fa-graduation-cap text-secondary-600 text-2xl"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Student Friendly Jobs</h3>
                         <p class="text-gray-600 mb-4">
                             Part-time and casual positions perfect for international students with study visa work restrictions.
                         </p>
                         <ul class="text-sm text-gray-500 space-y-1">
-                            <li><i class="fas fa-check text-blue-500 mr-2"></i>48 hours per fortnight compliance</li>
-                            <li><i class="fas fa-check text-blue-500 mr-2"></i>Flexible scheduling options</li>
-                            <li><i class="fas fa-check text-blue-500 mr-2"></i>Graduate pathway opportunities</li>
+                            <li><i class="fas fa-check text-secondary-500 mr-2"></i>48 hours per fortnight compliance</li>
+                            <li><i class="fas fa-check text-secondary-500 mr-2"></i>Flexible scheduling options</li>
+                            <li><i class="fas fa-check text-secondary-500 mr-2"></i>Graduate pathway opportunities</li>
                         </ul>
                     </div>
 
                     <!-- Smart Matching -->
                     <div class="feature-card bg-white rounded-xl p-8 shadow-sm">
-                        <div class="w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center mb-6">
-                            <i class="fas fa-brain text-purple-600 text-2xl"></i>
+                        <div class="w-16 h-16 bg-accent-100 rounded-lg flex items-center justify-center mb-6">
+                            <i class="fas fa-brain text-accent-600 text-2xl"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Smart Job Matching</h3>
                         <p class="text-gray-600 mb-4">
                             AI-powered recommendations based on your skills, visa status, and career goals.
                         </p>
                         <ul class="text-sm text-gray-500 space-y-1">
-                            <li><i class="fas fa-check text-purple-500 mr-2"></i>Personalized job recommendations</li>
-                            <li><i class="fas fa-check text-purple-500 mr-2"></i>Skill-based matching</li>
-                            <li><i class="fas fa-check text-purple-500 mr-2"></i>Career progression insights</li>
+                            <li><i class="fas fa-check text-accent-500 mr-2"></i>Personalized job recommendations</li>
+                            <li><i class="fas fa-check text-accent-500 mr-2"></i>Skill-based matching</li>
+                            <li><i class="fas fa-check text-accent-500 mr-2"></i>Career progression insights</li>
                         </ul>
                     </div>
 
                     <!-- Real-time Updates -->
                     <div class="feature-card bg-white rounded-xl p-8 shadow-sm">
-                        <div class="w-16 h-16 bg-orange-100 rounded-lg flex items-center justify-center mb-6">
-                            <i class="fas fa-sync-alt text-orange-600 text-2xl"></i>
+                        <div class="w-16 h-16 bg-accent-100 rounded-lg flex items-center justify-center mb-6">
+                            <i class="fas fa-sync-alt text-accent-600 text-2xl"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Real-time Job Updates</h3>
                         <p class="text-gray-600 mb-4">
                             Fresh job listings updated daily from top Australian job boards and company career pages.
                         </p>
                         <ul class="text-sm text-gray-500 space-y-1">
-                            <li><i class="fas fa-check text-orange-500 mr-2"></i>Daily job scraping</li>
-                            <li><i class="fas fa-check text-orange-500 mr-2"></i>Multiple source aggregation</li>
-                            <li><i class="fas fa-check text-orange-500 mr-2"></i>Instant notifications</li>
+                            <li><i class="fas fa-check text-accent-500 mr-2"></i>Daily job scraping</li>
+                            <li><i class="fas fa-check text-accent-500 mr-2"></i>Multiple source aggregation</li>
+                            <li><i class="fas fa-check text-accent-500 mr-2"></i>Instant notifications</li>
                         </ul>
                     </div>
 
                     <!-- Location Coverage -->
                     <div class="feature-card bg-white rounded-xl p-8 shadow-sm">
-                        <div class="w-16 h-16 bg-red-100 rounded-lg flex items-center justify-center mb-6">
-                            <i class="fas fa-map-marker-alt text-red-600 text-2xl"></i>
+                        <div class="w-16 h-16 bg-support-100 rounded-lg flex items-center justify-center mb-6">
+                            <i class="fas fa-map-marker-alt text-secondary-600 text-2xl"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Australia-wide Coverage</h3>
                         <p class="text-gray-600 mb-4">
                             Jobs across all major Australian cities and regional areas with detailed location insights.
                         </p>
                         <ul class="text-sm text-gray-500 space-y-1">
-                            <li><i class="fas fa-check text-red-500 mr-2"></i>Sydney, Melbourne, Brisbane</li>
-                            <li><i class="fas fa-check text-red-500 mr-2"></i>Perth, Adelaide, Canberra</li>
-                            <li><i class="fas fa-check text-red-500 mr-2"></i>Regional opportunities</li>
+                            <li><i class="fas fa-check text-secondary-500 mr-2"></i>Sydney, Melbourne, Brisbane</li>
+                            <li><i class="fas fa-check text-secondary-500 mr-2"></i>Perth, Adelaide, Canberra</li>
+                            <li><i class="fas fa-check text-secondary-500 mr-2"></i>Regional opportunities</li>
                         </ul>
                     </div>
 
                     <!-- Visa Verification -->
                     <div class="feature-card bg-white rounded-xl p-8 shadow-sm">
-                        <div class="w-16 h-16 bg-teal-100 rounded-lg flex items-center justify-center mb-6">
-                            <i class="fas fa-shield-alt text-teal-600 text-2xl"></i>
+                        <div class="w-16 h-16 bg-primary-100 rounded-lg flex items-center justify-center mb-6">
+                            <i class="fas fa-shield-alt text-primary-600 text-2xl"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Visa Verification</h3>
                         <p class="text-gray-600 mb-4">
                             Integrated visa status verification to ensure you're applying for jobs you're eligible for.
                         </p>
                         <ul class="text-sm text-gray-500 space-y-1">
-                            <li><i class="fas fa-check text-teal-500 mr-2"></i>VEVO integration</li>
-                            <li><i class="fas fa-check text-teal-500 mr-2"></i>Work rights validation</li>
-                            <li><i class="fas fa-check text-teal-500 mr-2"></i>Compliance tracking</li>
+                            <li><i class="fas fa-check text-primary-500 mr-2"></i>VEVO integration</li>
+                            <li><i class="fas fa-check text-primary-500 mr-2"></i>Work rights validation</li>
+                            <li><i class="fas fa-check text-primary-500 mr-2"></i>Compliance tracking</li>
                         </ul>
                     </div>
                 </div>
@@ -229,28 +254,28 @@
                         </p>
                         <div class="space-y-4">
                             <div class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <i class="fas fa-check-circle text-primary-500 mr-3"></i>
                                 <span class="text-gray-700">Trusted by thousands of international students</span>
                             </div>
                             <div class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <i class="fas fa-check-circle text-primary-500 mr-3"></i>
                                 <span class="text-gray-700">Partnerships with visa-friendly employers</span>
                             </div>
                             <div class="flex items-center">
-                                <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                <i class="fas fa-check-circle text-primary-500 mr-3"></i>
                                 <span class="text-gray-700">Comprehensive career support and guidance</span>
                             </div>
                         </div>
                     </div>
-                    <div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8">
+                    <div class="bg-gradient-to-br from-support-50 to-primary-50 rounded-2xl p-8">
                         <div class="text-center">
-                            <i class="fas fa-users text-6xl text-blue-600 mb-6"></i>
+                            <i class="fas fa-users text-6xl text-primary-600 mb-6"></i>
                             <h3 class="text-2xl font-bold text-gray-900 mb-4">Join Our Community</h3>
                             <p class="text-gray-600 mb-6">
                                 Connect with fellow international professionals, share experiences, and build your network in Australia.
                             </p>
                             <a href="auth.html" 
-                               class="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                               class="inline-block px-6 py-3 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition-colors">
                                 Join Now - It's Free!
                             </a>
                         </div>
@@ -260,19 +285,19 @@
         </section>
 
         <!-- CTA Section -->
-        <section class="py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <section class="py-20 bg-gradient-to-r from-primary-600 to-secondary-600 text-white">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                 <h2 class="text-4xl font-bold mb-6">Ready to Start Your Australian Career?</h2>
-                <p class="text-xl mb-8 text-blue-100">
+                <p class="text-xl mb-8 text-support-100">
                     Join thousands of international professionals who have found their dream jobs through Joborra.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="auth.html" 
-                       class="px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors text-lg">
+                       class="px-8 py-4 bg-white text-secondary-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors text-lg">
                         <i class="fas fa-user-plus mr-2"></i>Create Account
                     </a>
                     <a href="auth.html" 
-                       class="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors text-lg">
+                       class="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-secondary-600 transition-colors text-lg">
                         <i class="fas fa-sign-in-alt mr-2"></i>Sign In
                     </a>
                 </div>

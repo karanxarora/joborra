@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Building, GraduationCap, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +7,8 @@ import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 import { LoginForm, RegisterForm } from '../types';
 import { AU_UNIVERSITIES } from '../constants/universities';
+import { useToast } from '../contexts/ToastContext';
+import apiService from '../services/api';
 
 const AuthPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -14,6 +16,7 @@ const AuthPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { login, register } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const [loginForm, setLoginForm] = useState<LoginForm>({
     email: '',
@@ -22,7 +25,6 @@ const AuthPage: React.FC = () => {
 
   const [registerForm, setRegisterForm] = useState<RegisterForm>({
     email: '',
-    username: '',
     password: '',
     full_name: '',
     role: 'student',
@@ -32,6 +34,25 @@ const AuthPage: React.FC = () => {
     visa_status: '',
   });
 
+  const visaOptions = useMemo(() => [
+    'Student Visa (500)',
+    'Temporary Graduate (485)',
+    'Skilled Independent (189)',
+    'Skilled Nominated (190)',
+    'Skilled Work Regional (491)',
+    'Employer Sponsored TSS (482)',
+    'Employer Nomination (186)',
+    'Working Holiday (417/462)',
+    'Other/Not Sure',
+  ], []);
+
+  const gradYears = useMemo(() => {
+    const current = new Date().getFullYear();
+    const years: number[] = [];
+    for (let y = current - 10; y <= current + 6; y++) years.push(y);
+    return years;
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -39,7 +60,8 @@ const AuthPage: React.FC = () => {
 
     try {
       await login(loginForm);
-      navigate('/dashboard');
+      toast('Successfully logged in', 'success');
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
@@ -54,7 +76,25 @@ const AuthPage: React.FC = () => {
 
     try {
       await register(registerForm);
-      navigate('/dashboard');
+      // Request verification email automatically (best-effort)
+      try {
+        const res: any = await apiService.requestEmailVerification();
+        if (res && (res as any).email_sent) {
+          toast('Account created. Verification email sent. Please check your inbox.', 'success', 6000);
+        } else if (res && (res as any).verify_url) {
+          toast('Account created. Copy the verification link shown in your profile to verify.', 'info', 6000);
+        } else {
+          toast('Account created. Please request a verification link from your Profile.', 'info', 6000);
+        }
+      } catch (ve: any) {
+        const code = ve?.response?.status;
+        if (code === 429) {
+          toast('Account created. Please wait a moment before requesting verification again.', 'info', 6000);
+        } else {
+          toast('Account created. Please verify your email to unlock all features.', 'info', 6000);
+        }
+      }
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
@@ -85,7 +125,7 @@ const AuthPage: React.FC = () => {
               onClick={() => setActiveTab('login')}
               className={`w-1/2 py-3 px-4 text-center rounded-lg font-medium text-sm transition-colors ${
                 activeTab === 'login'
-                  ? 'bg-white text-cyan-700'
+                  ? 'bg-white text-primary-700'
                   : 'text-slate-600 hover:text-slate-800'
               }`}
             >
@@ -95,7 +135,7 @@ const AuthPage: React.FC = () => {
               onClick={() => setActiveTab('register')}
               className={`w-1/2 py-3 px-4 text-center rounded-lg font-medium text-sm transition-colors ${
                 activeTab === 'register'
-                  ? 'bg-white text-cyan-700'
+                  ? 'bg-white text-primary-700'
                   : 'text-slate-600 hover:text-slate-800'
               }`}
             >
@@ -165,13 +205,6 @@ const AuthPage: React.FC = () => {
                   required
                 />
                 <Input
-                  label="Username"
-                  value={registerForm.username}
-                  onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                  icon={<User className="h-4 w-4" />}
-                  required
-                />
-                <Input
                   label="Email"
                   type="email"
                   value={registerForm.email}
@@ -201,7 +234,7 @@ const AuthPage: React.FC = () => {
                     onClick={() => setRegisterForm({ ...registerForm, role: 'student' })}
                     className={`p-3 border rounded-lg text-sm font-medium transition-colors ${
                       registerForm.role === 'student'
-                        ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
                         : 'border-slate-300 hover:border-slate-400'
                     }`}
                   >
@@ -213,7 +246,7 @@ const AuthPage: React.FC = () => {
                     onClick={() => setRegisterForm({ ...registerForm, role: 'employer' })}
                     className={`p-3 border rounded-lg text-sm font-medium transition-colors ${
                       registerForm.role === 'employer'
-                        ? 'border-cyan-500 bg-cyan-50 text-cyan-700'
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
                         : 'border-slate-300 hover:border-slate-400'
                     }`}
                   >
@@ -253,19 +286,35 @@ const AuthPage: React.FC = () => {
                     value={registerForm.degree || ''}
                     onChange={(e) => setRegisterForm({ ...registerForm, degree: e.target.value })}
                   />
-                  <Input
-                    label="Graduation Year"
-                    type="number"
-                    value={registerForm.graduation_year || ''}
-                    onChange={(e) => setRegisterForm({ ...registerForm, graduation_year: parseInt(e.target.value) || undefined })}
-                    icon={<Calendar className="h-4 w-4" />}
-                  />
-                  <Input
-                    label="Visa Status"
-                    value={registerForm.visa_status || ''}
-                    onChange={(e) => setRegisterForm({ ...registerForm, visa_status: e.target.value })}
-                    placeholder="e.g., Student Visa (500)"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Graduation Year</label>
+                    <div className="relative">
+                      <select
+                        value={registerForm.graduation_year || ''}
+                        onChange={(e) => setRegisterForm({ ...registerForm, graduation_year: e.target.value ? parseInt(e.target.value) : undefined })}
+                        className="input-field w-full"
+                      >
+                        <option value="">Select year</option>
+                        {gradYears.map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                      <Calendar className="h-4 w-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Visa Type</label>
+                    <select
+                      value={registerForm.visa_status || ''}
+                      onChange={(e) => setRegisterForm({ ...registerForm, visa_status: e.target.value })}
+                      className="input-field w-full"
+                    >
+                      <option value="">Select visa type</option>
+                      {visaOptions.map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
 
@@ -331,11 +380,11 @@ const AuthPage: React.FC = () => {
         <div className="text-center text-sm text-slate-600">
           <p>
             By signing up, you agree to our{' '}
-            <a href="#" className="text-cyan-600 hover:text-cyan-500">
+            <a href="#" className="text-primary-600 hover:text-primary-500">
               Terms of Service
             </a>{' '}
             and{' '}
-            <a href="#" className="text-cyan-600 hover:text-cyan-500">
+            <a href="#" className="text-primary-600 hover:text-primary-500">
               Privacy Policy
             </a>
           </p>

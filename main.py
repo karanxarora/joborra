@@ -25,6 +25,10 @@ def ensure_schema_compatibility():
             if 'resume_url' not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN resume_url VARCHAR(500)"))
                 logger.info("Added missing column users.resume_url for compatibility")
+            # Check if company_logo_url exists on users table
+            if 'company_logo_url' not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN company_logo_url VARCHAR(500)"))
+                logger.info("Added missing column users.company_logo_url for compatibility")
 
             # Ensure new employer posting fields on jobs table
             result_jobs = conn.execute(text("PRAGMA table_info(jobs);"))

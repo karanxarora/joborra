@@ -21,17 +21,7 @@ const ProfilePage: React.FC = () => {
   const [visaDocType, setVisaDocType] = useState<'passport' | 'visa_grant' | 'coe' | 'vevo'>('vevo');
   const [visaDocUploading, setVisaDocUploading] = useState(false);
   const [visaDocFile, setVisaDocFile] = useState<File | null>(null);
-  const [visaForm, setVisaForm] = useState({
-    visa_subclass: '500',
-    passport_number: '',
-    passport_country: '',
-    passport_expiry: '',
-    course_name: '',
-    institution_name: '',
-    course_start_date: '',
-    course_end_date: '',
-    coe_number: '',
-  });
+  // Removed sensitive PII fields from visa form; VEVO upload only
   // Resume upload state
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeUploading, setResumeUploading] = useState(false);
@@ -47,6 +37,14 @@ const ProfilePage: React.FC = () => {
     industry: '',
   });
 
+  // Education & Experience (UI-level for now)
+  const [education, setEducation] = useState([
+    { institution: '', degree: '', field: '', start_year: '', end_year: '' },
+  ] as Array<{ institution: string; degree: string; field: string; start_year: string; end_year: string } >);
+  const [experience, setExperience] = useState([
+    { company: '', title: '', start: '', end: '', description: '' },
+  ] as Array<{ company: string; title: string; start: string; end: string; description: string } >);
+
   useEffect(() => {
     setForm({
       full_name: ctxUser?.full_name || '',
@@ -59,6 +57,16 @@ const ProfilePage: React.FC = () => {
       company_size: ctxUser?.company_size || '',
       industry: ctxUser?.industry || '',
     });
+    // TODO: hydrate education/experience from backend when available
+  }, [ctxUser]);
+
+  // Derive avatar initials from name/email
+  const initials = React.useMemo(() => {
+    const src = (ctxUser?.full_name || ctxUser?.email || '').trim();
+    if (!src) return '?';
+    const parts = src.split(/[\s._-]+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }, [ctxUser]);
 
   // Load visa status for students
@@ -138,62 +146,133 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const onSubmitVisa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setVisaSubmitting(true);
-    setVisaMsg(null);
-    try {
-      // Build payload respecting backend schema (omit empty fields)
-      const payload: any = {
-        visa_subclass: visaForm.visa_subclass,
-        passport_number: visaForm.passport_number,
-        passport_country: visaForm.passport_country,
-      };
-      if (visaForm.passport_expiry) payload.passport_expiry = new Date(visaForm.passport_expiry).toISOString();
-      if (visaForm.course_name) payload.course_name = visaForm.course_name;
-      if (visaForm.institution_name) payload.institution_name = visaForm.institution_name;
-      if (visaForm.course_start_date) payload.course_start_date = new Date(visaForm.course_start_date).toISOString();
-      if (visaForm.course_end_date) payload.course_end_date = new Date(visaForm.course_end_date).toISOString();
-      if (visaForm.coe_number) payload.coe_number = visaForm.coe_number;
-
-      await apiService.submitVisaVerification(payload);
-      const info = await apiService.getVisaStatus();
-      setVisaInfo(info);
-      setVisaMsg('Visa verification submitted');
-    } catch (err) {
-      setVisaMsg('Failed to submit visa verification');
-    } finally {
-      setVisaSubmitting(false);
-    }
-  };
+  // Removed submitVisa form; VEVO upload only
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 mb-6">Your Profile</h1>
-        {/* Sub-tabs */}
-        <div className="border-b border-slate-200 mb-6">
-          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-            <button
-              className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'profile' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-              onClick={() => setActiveTab('profile')}
-            >
-              Profile Details
-            </button>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Your Profile</h1>
+          <div className="flex items-center gap-2">
             {ctxUser?.role === 'student' && (
-              <button
-                className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'visa' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-                onClick={() => setActiveTab('visa')}
-              >
-                Visa Verification
-              </button>
+              <a href="/applications" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">View Applications</a>
             )}
-          </nav>
+            {ctxUser?.role === 'employer' && (
+              <>
+                <a href="/employer/post-job" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">Post a Job</a>
+                <a href="/employer/company" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">Company Info</a>
+              </>
+            )}
+          </div>
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Sidebar */}
+          <aside className="lg:col-span-4">
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-semibold">
+                  {initials}
+                </div>
+                <div>
+                  <div className="font-medium text-slate-900">{ctxUser?.full_name || 'Your name'}</div>
+                  <div className="text-sm text-slate-600">{ctxUser?.email}</div>
+                </div>
+              </div>
+              {ctxUser?.role === 'student' && (
+                <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-sm text-slate-600">Visa</div>
+                    <div className="text-sm font-semibold text-slate-900">{visaInfo?.verification_status || '—'}</div>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-sm text-slate-600">Resume</div>
+                    <div className="text-sm font-semibold text-slate-900">{ctxUser?.resume_url ? 'Uploaded' : 'Missing'}</div>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-sm text-slate-600">Verified</div>
+                    <div className="text-sm font-semibold text-slate-900">{ctxUser?.is_verified ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+              )}
+              <div className="mt-4 flex gap-2">
+                <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='profile'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('profile')}>Profile</button>
+                {ctxUser?.role === 'student' && (
+                  <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='visa'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('visa')}>Visa</button>
+                )}
+              </div>
 
-        {/* Profile Details Tab */}
-        {activeTab === 'profile' && (
-          <Card className="p-6">
+              {/* Quick Links */}
+              <div className="mt-4 border-t border-slate-200 pt-4 space-y-2">
+                {ctxUser?.role === 'student' && (
+                  <a href="/applications" className="block text-sm text-primary-700 hover:underline">Submitted Applications</a>
+                )}
+                {ctxUser?.role === 'employer' && (
+                  <>
+                    <a href="/employer/post-job" className="block text-sm text-primary-700 hover:underline">Post a Job</a>
+                    <a href="/employer/company" className="block text-sm text-primary-700 hover:underline">Company Information</a>
+                  </>
+                )}
+              </div>
+            </Card>
+          </aside>
+
+          {/* Main content */}
+          <section className="lg:col-span-8">
+            {/* Sub-tabs (desktop hidden since we have sidebar buttons) */}
+            <div className="border-b border-slate-200 mb-6 lg:hidden">
+              <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                <button
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'profile' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                  onClick={() => setActiveTab('profile')}
+                >
+                  Profile Details
+                </button>
+                {ctxUser?.role === 'student' && (
+                  <button
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'visa' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                    onClick={() => setActiveTab('visa')}
+                  >
+                    Visa Verification
+                  </button>
+                )}
+              </nav>
+            </div>
+
+            {/* Profile Details Tab */}
+            {activeTab === 'profile' && (
+              <Card className="p-6 space-y-8">
+            {/* Email verification banner */}
+            {!ctxUser?.is_verified && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium">Verify your email to unlock all features</div>
+                    <div className="text-sm mt-1">Your account is not verified yet. Click the button below to get a verification link.</div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      setSaving(true); setMessage(null);
+                      try {
+                        const res: any = await apiService.requestEmailVerification();
+                        if ((res as any)?.verify_url) {
+                          setMessage('Verification link generated. Use the link to verify: ' + (res as any).verify_url);
+                        } else {
+                          setMessage('If not already verified, a link has been issued.');
+                        }
+                      } catch (e) {
+                        setMessage('Failed to issue verification link');
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                  >
+                    Send verification link
+                  </Button>
+                </div>
+              </div>
+            )}
             <form onSubmit={onSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input label="Full Name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
@@ -254,12 +333,12 @@ const ProfilePage: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-1">PDF only. Max size 10MB.</p>
               </div>
             )}
-          </Card>
-        )}
+              </Card>
+            )}
 
-        {/* Visa Verification Tab (students only) */}
-        {activeTab === 'visa' && ctxUser?.role === 'student' && (
-          <Card className="p-6">
+            {/* Visa Verification Tab (students only) */}
+            {activeTab === 'visa' && ctxUser?.role === 'student' && (
+              <Card className="p-6">
             {/* Status */}
             <div className="mb-6">
               {loadingVisa ? (
@@ -279,67 +358,102 @@ const ProfilePage: React.FC = () => {
               )}
             </div>
 
-            {/* Start verification form when none exists */}
-            {(!visaInfo || !visaInfo.has_verification) && (
-              <form onSubmit={onSubmitVisa} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input label="Visa Subclass (e.g., 500)" value={visaForm.visa_subclass} onChange={(e) => setVisaForm({ ...visaForm, visa_subclass: e.target.value })} required />
-                  <Input label="Passport Number" value={visaForm.passport_number} onChange={(e) => setVisaForm({ ...visaForm, passport_number: e.target.value })} required />
-                  <Input label="Passport Country (ISO-3)" value={visaForm.passport_country} onChange={(e) => setVisaForm({ ...visaForm, passport_country: e.target.value.toUpperCase() })} required />
-                  <Input label="Passport Expiry" type="date" value={visaForm.passport_expiry} onChange={(e) => setVisaForm({ ...visaForm, passport_expiry: e.target.value })} />
-                  <Input label="Course Name" value={visaForm.course_name} onChange={(e) => setVisaForm({ ...visaForm, course_name: e.target.value })} />
-                  <Input label="Institution Name" value={visaForm.institution_name} onChange={(e) => setVisaForm({ ...visaForm, institution_name: e.target.value })} />
-                  <Input label="Course Start Date" type="date" value={visaForm.course_start_date} onChange={(e) => setVisaForm({ ...visaForm, course_start_date: e.target.value })} />
-                  <Input label="Course End Date" type="date" value={visaForm.course_end_date} onChange={(e) => setVisaForm({ ...visaForm, course_end_date: e.target.value })} />
-                  <Input label="COE Number" value={visaForm.coe_number} onChange={(e) => setVisaForm({ ...visaForm, coe_number: e.target.value })} />
+            {/* VEVO upload only, no PII */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Upload VEVO Result</h3>
+              <p className="text-sm text-slate-600 mb-3">Please upload your VEVO check result (PDF, JPG, or PNG). Do not upload passport or other PII documents.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Document Type</label>
+                  <select
+                    value={visaDocType}
+                    onChange={(e) => setVisaDocType(e.target.value as any)}
+                    className="input-field w-full"
+                  >
+                    <option value="vevo">VEVO Result</option>
+                  </select>
                 </div>
+                <div className="md:col-span-2 flex items-end">
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*"
+                    onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-slate-900"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" onClick={onUploadVisaDoc} loading={visaDocUploading} disabled={!visaDocFile}>Upload VEVO</Button>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG. Max size 10MB.</p>
+              {visaMsg && <div className="text-sm text-slate-600 mt-2">{visaMsg}</div>}
+            </div>
 
-                {visaMsg && <div className="text-sm text-slate-600">{visaMsg}</div>}
-                <div className="flex justify-end">
-                  <Button type="submit" loading={visaSubmitting}>Start Verification</Button>
-                </div>
-              </form>
-            )}
-
-            {/* If verification exists, encourage docs/vevo actions - could be added later */}
-            {visaInfo?.has_verification && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-3">Upload Supporting Documents</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Document Type</label>
-                    <select
-                      value={visaDocType}
-                      onChange={(e) => setVisaDocType(e.target.value as any)}
-                      className="input-field w-full"
-                    >
-                      <option value="vevo">VEVO Result</option>
-                      <option value="passport">Passport</option>
-                      <option value="visa_grant">Visa Grant Notice</option>
-                      <option value="coe">COE</option>
-                    </select>
+            {/* Education Section */}
+            {ctxUser?.role === 'student' && (
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-3">Education</h3>
+                {education.map((ed, idx) => (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <Input label="Institution" value={ed.institution} onChange={(e) => {
+                      const next = [...education]; next[idx].institution = e.target.value; setEducation(next);
+                    }} />
+                    <Input label="Degree" value={ed.degree} onChange={(e) => {
+                      const next = [...education]; next[idx].degree = e.target.value; setEducation(next);
+                    }} />
+                    <Input label="Field of Study" value={ed.field} onChange={(e) => {
+                      const next = [...education]; next[idx].field = e.target.value; setEducation(next);
+                    }} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input label="Start Year" value={ed.start_year} onChange={(e) => {
+                        const next = [...education]; next[idx].start_year = e.target.value; setEducation(next);
+                      }} />
+                      <Input label="End Year" value={ed.end_year} onChange={(e) => {
+                        const next = [...education]; next[idx].end_year = e.target.value; setEducation(next);
+                      }} />
+                    </div>
                   </div>
-                  <div className="md:col-span-2 flex items-end">
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                      onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
-                      className="block w-full text-sm text-slate-900"
-                    />
-                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setEducation([...education, { institution: '', degree: '', field: '', start_year: '', end_year: '' }])}>Add Education</Button>
                 </div>
-                <div className="flex justify-end">
-                  <Button type="button" onClick={onUploadVisaDoc} loading={visaDocUploading} disabled={!visaDocFile}>Upload Document</Button>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG, DOC, DOCX. Max size 10MB.</p>
-                {visaMsg && <div className="text-sm text-slate-600 mt-2">{visaMsg}</div>}
               </div>
             )}
-          </Card>
-        )}
+
+            {/* Experience Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Experience</h3>
+              {experience.map((ex, idx) => (
+                <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <Input label="Company" value={ex.company} onChange={(e) => {
+                    const next = [...experience]; next[idx].company = e.target.value; setExperience(next);
+                  }} />
+                  <Input label="Title" value={ex.title} onChange={(e) => {
+                    const next = [...experience]; next[idx].title = e.target.value; setExperience(next);
+                  }} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="Start Date" type="month" value={ex.start} onChange={(e) => {
+                      const next = [...experience]; next[idx].start = e.target.value; setExperience(next);
+                    }} />
+                    <Input label="End Date" type="month" value={ex.end} onChange={(e) => {
+                      const next = [...experience]; next[idx].end = e.target.value; setExperience(next);
+                    }} />
+                  </div>
+                  <Input label="Description" value={ex.description} onChange={(e) => {
+                    const next = [...experience]; next[idx].description = e.target.value; setExperience(next);
+                  }} />
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setExperience([...experience, { company: '', title: '', start: '', end: '', description: '' }])}>Add Experience</Button>
+              </div>
+            </div>
+              </Card>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
 };
-
 export default ProfilePage;
