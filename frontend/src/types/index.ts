@@ -137,6 +137,18 @@ export interface PaginatedResponse<T> {
   total_pages: number;
 }
 
+// Favorites
+export interface JobFavorite {
+  id: number;
+  job_id: number;
+  created_at: string;
+  notes?: string | null;
+}
+
+export interface JobFavoriteWithJob extends JobFavorite {
+  job: Job;
+}
+
 // Employer Posting
 export interface EmployerJobCreate {
   title: string;

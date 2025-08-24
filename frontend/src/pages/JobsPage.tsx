@@ -3,6 +3,7 @@ import {
   Search,
   MapPin,
   ExternalLink,
+  Bookmark,
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -10,6 +11,8 @@ import Card from '../components/ui/Card';
 import { Job, JobFilters } from '../types';
 import JobCard from '../components/jobs/JobCard';
 import apiService from '../services/api';
+import { useFavorites } from '../contexts/FavoritesContext';
+import { useToast } from '../contexts/ToastContext';
 
 const JobsPage: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -18,6 +21,9 @@ const JobsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   // UI state simplified to match example screenshot
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const { map: favoritesMap, add: addFavorite, remove: removeFavorite } = useFavorites();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState<Record<number, boolean>>({});
   
   const [filters, setFilters] = useState<Partial<JobFilters>>({
     search: '',
@@ -45,6 +51,8 @@ const JobsPage: React.FC = () => {
   useEffect(() => {
     loadJobs();
   }, [filters, currentPage]);
+
+  // favorites are preloaded by FavoritesProvider
 
   // Debounced fetch for location suggestions
   useEffect(() => {
@@ -144,6 +152,24 @@ const JobsPage: React.FC = () => {
       setSelectedJob(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const isSaved = (jobId: number) => !!favoritesMap[jobId];
+
+  const toggleSave = async (job: Job) => {
+    const existing = favoritesMap[job.id];
+    setSaving((prev) => ({ ...prev, [job.id]: true }));
+    try {
+      if (existing) {
+        const ok = await removeFavorite(existing);
+        if (ok) toast('Removed from Saved', 'success'); else toast('Failed to remove', 'error');
+      } else {
+        const id = await addFavorite(job.id);
+        if (id) toast('Saved job', 'success'); else toast('Failed to save', 'error');
+      }
+    } finally {
+      setSaving((prev) => ({ ...prev, [job.id]: false }));
     }
   };
 
@@ -332,6 +358,9 @@ const JobsPage: React.FC = () => {
                     job={job}
                     selected={selectedJob?.id === job.id}
                     onClick={() => setSelectedJob(job)}
+                    isSaved={isSaved(job.id)}
+                    onToggleSave={() => toggleSave(job)}
+                    saving={!!saving[job.id]}
                   />
                 ))}
               </div>
@@ -390,19 +419,28 @@ const JobsPage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Description */}
-                      <div className="mt-5 border-t border-slate-200 pt-5">
-                        <div className="text-[15px] md:text-[16px] leading-7 text-slate-800 whitespace-pre-line">
-                          {selectedJob.description}
-                        </div>
-                      </div>
-
                       {/* Actions */}
                       <div className="mt-5 flex gap-2">
                         <a href={selectedJob.source_url} target="_blank" rel="noopener noreferrer">
                           <Button icon={<ExternalLink className="h-4 w-4" />}>Apply</Button>
                         </a>
-                        <Button variant="outline">Save</Button>
+                        <Button variant="outline" onClick={() => toggleSave(selectedJob)} disabled={!!saving[selectedJob.id]} aria-busy={!!saving[selectedJob.id]}>
+                          <Bookmark
+                            className={
+                              isSaved(selectedJob.id)
+                                ? 'h-4 w-4 mr-1 text-cyan-600 fill-current'
+                                : 'h-4 w-4 mr-1 text-slate-600'
+                            }
+                          />
+                          <span className="hidden sm:inline">{isSaved(selectedJob.id) ? 'Saved' : 'Save'}</span>
+                        </Button>
+                      </div>
+
+                      {/* Description */}
+                      <div className="mt-5 border-t border-slate-200 pt-5">
+                        <div className="text-[15px] md:text-[16px] leading-7 text-slate-800 whitespace-pre-line">
+                          {selectedJob.description}
+                        </div>
                       </div>
                     </div>
                   ) : (

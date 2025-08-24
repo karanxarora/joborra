@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, ShieldCheck, GraduationCap, DollarSign, Clock, Building2, Globe2 } from 'lucide-react';
+import { MapPin, ShieldCheck, GraduationCap, DollarSign, Clock, Building2, Bookmark } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { Job } from '../../types';
@@ -8,11 +8,14 @@ interface JobCardProps {
   job: Job;
   selected?: boolean;
   onClick?: () => void;
+  isSaved?: boolean;
+  onToggleSave?: () => void;
+  saving?: boolean;
 }
 
 const badgeBase = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium';
 
-const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick, isSaved, onToggleSave, saving }) => {
   return (
     <Card
       className={`relative cursor-pointer border rounded-xl transition-all duration-200
@@ -41,7 +44,6 @@ const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick }) => {
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-gray-600">
             <span className="inline-flex items-center"><MapPin className="h-3.5 w-3.5 mr-1" />{job.location}</span>
             {job.employment_type && <span className="inline-flex items-center"><Clock className="h-3.5 w-3.5 mr-1" />{job.employment_type}</span>}
-            {job.source_website && <span className="inline-flex items-center"><Globe2 className="h-3.5 w-3.5 mr-1" />{job.source_website}</span>}
           </div>
 
           {/* Badges */}
@@ -71,15 +73,24 @@ const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick }) => {
         </div>
       </div>
 
-      {/* Footer actions */}
-      <div className="mt-3 flex items-center justify-between">
-        <div className="text-[11px] text-gray-500">{new Date(job.created_at || job.scraped_at).toLocaleDateString()}</div>
-        <div className="flex gap-2">
-          <a href={job.source_url} target="_blank" rel="noopener noreferrer">
-            <Button size="sm">Apply</Button>
-          </a>
-        </div>
-      </div>
+      {/* Footer meta removed: no date on compact card */}
+
+      {/* Floating bookmark control */}
+      {onToggleSave && (
+        <button
+          type="button"
+          aria-label={isSaved ? 'Saved' : 'Save'}
+          className={`absolute right-3 bottom-3 inline-flex items-center justify-center h-8 w-8 rounded-full border transition-colors
+            ${saving ? 'opacity-60 cursor-not-allowed' : 'hover:bg-slate-50'}
+            ${isSaved ? 'border-cyan-200 bg-white' : 'border-slate-200 bg-white'}`}
+          onClick={(e) => { e.stopPropagation(); if (!saving && onToggleSave) onToggleSave(); }}
+          disabled={!!saving}
+        >
+          <Bookmark
+            className={isSaved ? 'h-4 w-4 text-cyan-600 fill-current' : 'h-4 w-4 text-slate-600'}
+          />
+        </button>
+      )}
     </Card>
   );
 };

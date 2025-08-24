@@ -49,6 +49,8 @@ class ApiService {
 
   // Helpers
   getFileUrl(path: string): string {
+    // If it's already absolute (e.g., Supabase public URL), return as-is
+    if (/^https?:\/\//i.test(path)) return path;
     // Ensure we point to backend origin even if baseURL includes /api
     try {
       const url = new URL(this.baseURL);
@@ -283,6 +285,22 @@ class ApiService {
   // Employer applications
   async listEmployerApplications(): Promise<Array<{ id: number; job_id: number; status: string; applied_at: string; updated_at: string; cover_letter?: string; resume_url?: string; notes?: string; job: any; user: any }>> {
     const response = await this.api.get('/auth/employer/applications');
+    return response.data;
+  }
+
+  // Student favorites
+  async listFavorites(): Promise<Array<{ id: number; job_id: number; created_at: string; notes?: string | null; job: Job }>> {
+    const response = await this.api.get('/auth/student/favorites');
+    return response.data;
+  }
+
+  async addFavorite(job_id: number, notes?: string | null): Promise<{ id: number; job_id: number; created_at: string; notes?: string | null }> {
+    const response = await this.api.post('/auth/student/favorites', { job_id, notes: notes ?? null });
+    return response.data;
+  }
+
+  async removeFavorite(favorite_id: number): Promise<{ message: string }> {
+    const response = await this.api.delete(`/auth/student/favorites/${favorite_id}`);
     return response.data;
   }
 

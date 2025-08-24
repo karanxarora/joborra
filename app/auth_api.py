@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFi
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import List, Optional
+import os
 
 from .database import get_db
 from .auth import AuthService, get_current_user, get_current_student, get_current_employer
@@ -23,6 +24,12 @@ import logging
 import uuid
 from pathlib import Path
 from sqlalchemy import text
+from .supabase_utils import (
+    upload_public_object,
+    SUPABASE_STORAGE_BUCKET,
+    supabase_configured,
+    resolve_storage_url,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,57 +57,87 @@ def request_email_verification(
     """Issue an email verification token for the current user.
     For now, we return the token and a frontend URL for manual testing.
     """
-    if current_user.is_verified:
-        return {"message": "Email already verified"}
-
-    # Rate limit per user
-    state = VERIFICATION_STATE.get(current_user.id)
-    now = datetime.utcnow()
-    if state:
-        last = state.get("issued_at")
-        if last and (now - last).total_seconds() < RATE_LIMIT_SECONDS:
-            raise HTTPException(status_code=429, detail="Please wait before requesting another verification email")
-
-    auth_service = AuthService(db)
-    # Create a short-lived token specifically for email verification
-    from datetime import datetime, timedelta
-    from jose import jwt
-    from .auth import SECRET_KEY, ALGORITHM
-
-    import uuid
-    token_id = uuid.uuid4().hex
-    payload = {
-        "sub": str(current_user.id),
-        "type": "email_verify",
-        "email": current_user.email,
-        "jti": token_id,
-        "exp": datetime.utcnow() + timedelta(hours=24),
-        "iat": datetime.utcnow(),
-    }
-    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-    # Construct a frontend URL the app will handle
-    base_url = str(request.base_url).rstrip('/') if request else ""
-    verify_url = f"{base_url}/verify-email?token={token}" if base_url else f"/verify-email?token={token}"
-
-    # Save state for invalidation and rate limiting
-    VERIFICATION_STATE[current_user.id] = {"issued_at": now, "token_id": token_id}
-
-    # Attempt to send email if SMTP configured
     try:
-        from .email_utils import send_email
-        subject = "Verify your Joborra email"
-        body = f"Hello {current_user.full_name},\n\nPlease verify your email by clicking the link below:\n{verify_url}\n\nThis link expires in 24 hours.\n\nIf you didn't request this, you can ignore this email.\n\n— Joborra"
-        sent = send_email(current_user.email, subject, body)
-    except Exception:
-        sent = False
+        if current_user.is_verified:
+            return {"message": "Email already verified"}
 
-    return {
-        "message": "Verification email (token) issued",
-        "verification_token": token,
-        "verify_url": verify_url,
-        "email_sent": sent,
-    }
+        # Rate limit per user
+        state = VERIFICATION_STATE.get(current_user.id)
+        now = datetime.utcnow()
+        if state:
+            last = state.get("issued_at")
+            if last and (now - last).total_seconds() < RATE_LIMIT_SECONDS:
+                raise HTTPException(status_code=429, detail="Please wait before requesting another verification email")
+
+        auth_service = AuthService(db)
+        # Create a short-lived token specifically for email verification
+        from jose import jwt
+        from .auth import SECRET_KEY, ALGORITHM
+
+        import uuid
+        token_id = uuid.uuid4().hex
+        payload = {
+            "sub": str(current_user.id),
+            "type": "email_verify",
+            "email": current_user.email,
+            "jti": token_id,
+            "exp": datetime.utcnow() + timedelta(hours=24),
+            "iat": datetime.utcnow(),
+        }
+        try:
+            token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        except Exception as e:
+            logger.exception("Failed to create verification token")
+            raise HTTPException(status_code=500, detail=f"Failed to create verification token: {str(e)}")
+
+        # Construct a frontend URL using FRONTEND_ORIGIN if provided, else request.base_url
+        try:
+            frontend_origin = os.getenv("FRONTEND_ORIGIN")
+            if frontend_origin:
+                base = frontend_origin.rstrip('/')
+            else:
+                base = str(request.base_url).rstrip('/') if request else ""
+            verify_url = f"{base}/verify-email?token={token}" if base else f"/verify-email?token={token}"
+        except Exception as e:
+            logger.exception("Failed to construct verify_url")
+            raise HTTPException(status_code=500, detail=f"Failed to construct verify_url: {str(e)}")
+
+        # Save state for invalidation and rate limiting
+        VERIFICATION_STATE[current_user.id] = {"issued_at": now, "token_id": token_id}
+
+        # Attempt to send email if SMTP configured
+        try:
+            from .email_utils import send_email
+            subject = "Verify your Joborra email"
+            body = (
+                f"Hello {current_user.full_name},\n\n"
+                f"Please verify your email by clicking the link below:\n{verify_url}\n\n"
+                f"This link expires in 24 hours.\n\nIf you didn't request this, you can ignore this email.\n\n— Joborra"
+            )
+            html = (
+                f"<p>Hello {current_user.full_name},</p>"
+                f"<p>Please verify your email by clicking the button below:</p>"
+                f"<p><a href=\"{verify_url}\" style=\"display:inline-block;padding:10px 16px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px\">Verify Email</a></p>"
+                f"<p>Or copy and paste this link into your browser:<br><a href=\"{verify_url}\">{verify_url}</a></p>"
+                f"<p>This link expires in 24 hours.</p>"
+                f"<p>If you didn't request this, you can ignore this email.</p>"
+                f"<p>— Joborra</p>"
+            )
+            sent = send_email(current_user.email, subject, body, html)
+        except Exception:
+            sent = False
+
+        return {
+            "message": "Verification email (token) issued",
+            "verification_token": token,
+            "verify_url": verify_url,
+            "email_sent": sent,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("/auth/verify/request failed unexpectedly")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in verify/request: {str(e)}")
 
 @router.get("/verify/confirm", response_model=UserResponse)
 def confirm_email_verification(token: str, db: Session = Depends(get_db)):
@@ -151,6 +188,12 @@ def login_user(login_data: UserLogin, request: Request, db: Session = Depends(ge
     access_token = auth_service.create_access_token(user)
     refresh_token = auth_service.create_refresh_token(user, request)
     
+    # Resolve user URLs for token response
+    try:
+        user.resume_url = resolve_storage_url(getattr(user, "resume_url", None))
+        user.company_logo_url = resolve_storage_url(getattr(user, "company_logo_url", None))
+    except Exception:
+        logger.exception("Failed to resolve media URLs in login_user")
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -160,7 +203,15 @@ def login_user(login_data: UserLogin, request: Request, db: Session = Depends(ge
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_profile(current_user: User = Depends(get_current_user)):
-    """Get current user profile"""
+    """Get current user profile with resolved media URLs"""
+    # Resolve potentially private storage URLs
+    try:
+        if hasattr(current_user, "resume_url"):
+            current_user.resume_url = resolve_storage_url(getattr(current_user, "resume_url", None))
+        if hasattr(current_user, "company_logo_url"):
+            current_user.company_logo_url = resolve_storage_url(getattr(current_user, "company_logo_url", None))
+    except Exception:
+        logger.exception("Failed to resolve user media URLs in /auth/me")
     return current_user
 
 # Student-specific endpoints
@@ -278,6 +329,12 @@ def update_student_profile(
     db.commit()
     db.refresh(current_user)
     
+    # Resolve media URLs for response
+    try:
+        if hasattr(current_user, "resume_url"):
+            current_user.resume_url = resolve_storage_url(getattr(current_user, "resume_url", None))
+    except Exception:
+        logger.exception("Failed to resolve media URLs in update_student_profile")
     logger.info(f"Student {current_user.id} updated profile")
     return current_user
 
@@ -376,22 +433,51 @@ async def upload_job_document(
     # Save file
     unique_name = f"jobdoc_{uuid.uuid4()}{ext}"
     file_path = base_dir / unique_name
+    # Read once
     try:
         content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+
+    # Try Supabase first
+    doc_url_value = None
+    if supabase_configured():
+        try:
+            object_path = f"job_docs/{current_user.id}/{job_id}/doc_{uuid.uuid4()}{ext}"
+            uploaded = upload_public_object(
+                bucket=SUPABASE_STORAGE_BUCKET,
+                object_path=object_path,
+                data=content,
+                content_type="application/octet-stream",
+            )
+            if uploaded:
+                doc_url_value = uploaded
+        except Exception:
+            logger.exception("Supabase job document upload failed; will fallback to local storage")
+
+    # Fallback to local
+    if not doc_url_value:
+        upload_dir = Path("data/job_docs") / str(current_user.id) / str(job_id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_name = f"doc_{uuid.uuid4()}{ext}"
+        file_path = upload_dir / unique_name
+        try:
+            with open(file_path, "wb") as f:
+                f.write(content)
+            doc_url_value = f"/data/job_docs/{current_user.id}/{job_id}/{unique_name}"
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
     # Update DB
-    job.job_document_url = f"/data/job_docs/{current_user.id}/{job_id}/{unique_name}"
+    job.job_document_url = doc_url_value
     db.commit()
     db.refresh(job)
 
+    resolved_url = resolve_storage_url(job.job_document_url)
     logger.info(f"Employer {current_user.id} uploaded document for job {job_id}")
     return {
         "job_id": job.id,
-        "job_document_url": job.job_document_url,
+        "job_document_url": resolved_url,
         "file_name": file.filename,
         "file_size": len(content)
     }
@@ -444,7 +530,7 @@ def list_employer_applications(
             "university": user.university,
             "degree": user.degree,
             "graduation_year": user.graduation_year,
-            "resume_url": getattr(user, "resume_url", None),
+            "resume_url": resolve_storage_url(getattr(user, "resume_url", None)),
         }
         results.append(EmployerApplicationWithUser(
             id=app.id,
@@ -453,7 +539,7 @@ def list_employer_applications(
             applied_at=app.applied_at,
             updated_at=app.updated_at,
             cover_letter=app.cover_letter,
-            resume_url=app.resume_url,
+            resume_url=resolve_storage_url(app.resume_url),
             notes=app.notes,
             job=job_dict,
             user=user_dict,
@@ -510,25 +596,44 @@ async def upload_resume(
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail="Only PDF resumes are allowed")
 
-    # Create upload directory
-    upload_dir = Path("data/resumes") / str(current_user.id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    # Generate unique filename
-    unique_name = f"resume_{uuid.uuid4()}{ext}"
-    file_path = upload_dir / unique_name
-
-    # Save file
+    # Read content once
     try:
         content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+
+    # Try Supabase Storage first (public bucket)
+    resume_url_value = None
+    if supabase_configured():
+        try:
+            object_path = f"resumes/{current_user.id}/resume_{uuid.uuid4()}{ext}"
+            uploaded = upload_public_object(
+                bucket=SUPABASE_STORAGE_BUCKET,
+                object_path=object_path,
+                data=content,
+                content_type="application/pdf",
+            )
+            if uploaded:
+                resume_url_value = uploaded
+        except Exception:
+            logger.exception("Supabase resume upload failed; will fallback to local storage")
+
+    # Fallback to local filesystem if Supabase not configured or failed
+    if not resume_url_value:
+        upload_dir = Path("data/resumes") / str(current_user.id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_name = f"resume_{uuid.uuid4()}{ext}"
+        file_path = upload_dir / unique_name
+        try:
+            with open(file_path, "wb") as f:
+                f.write(content)
+            resume_url_value = f"/data/resumes/{current_user.id}/{unique_name}"
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
     # Update user profile
     try:
-        current_user.resume_url = f"/data/resumes/{current_user.id}/{unique_name}"
+        current_user.resume_url = resume_url_value
         db.commit()
         db.refresh(current_user)
     except Exception as e:
@@ -536,15 +641,17 @@ async def upload_resume(
         try:
             db.execute(text("ALTER TABLE users ADD COLUMN resume_url VARCHAR(500)"))
             db.commit()
-            current_user.resume_url = f"/data/resumes/{current_user.id}/{unique_name}"
+            current_user.resume_url = resume_url_value
             db.commit()
             db.refresh(current_user)
         except Exception:
             raise HTTPException(status_code=500, detail=f"Database error updating resume URL: {str(e)}")
 
-    logger.info(f"User {current_user.id} uploaded resume: {current_user.resume_url}")
+    # For response, resolve to public/signed URL
+    resolved_url = resolve_storage_url(current_user.resume_url)
+    logger.info(f"User {current_user.id} uploaded resume: {resolved_url}")
     return {
-        "resume_url": current_user.resume_url,
+        "resume_url": resolved_url,
         "file_name": file.filename,
         "file_size": len(content)
     }
@@ -560,28 +667,56 @@ async def upload_company_logo(
     ext = Path(file.filename).suffix.lower()
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail="Unsupported file type")
-
-    upload_dir = Path("data/company_logos") / str(current_user.id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    unique_name = f"logo_{uuid.uuid4()}{ext}"
-    file_path = upload_dir / unique_name
-
+    # Read once
     try:
         content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+
+    # Try Supabase first
+    logo_url_value = None
+    if supabase_configured():
+        try:
+            object_path = f"company_logos/{current_user.id}/logo_{uuid.uuid4()}{ext}"
+            uploaded = upload_public_object(
+                bucket=SUPABASE_STORAGE_BUCKET,
+                object_path=object_path,
+                data=content,
+                content_type={
+                    ".png": "image/png",
+                    ".jpg": "image/jpeg",
+                    ".jpeg": "image/jpeg",
+                    ".webp": "image/webp",
+                    ".svg": "image/svg+xml",
+                }.get(ext, "application/octet-stream"),
+            )
+            if uploaded:
+                logo_url_value = uploaded
+        except Exception:
+            logger.exception("Supabase logo upload failed; will fallback to local storage")
+
+    # Fallback to local storage
+    if not logo_url_value:
+        upload_dir = Path("data/company_logos") / str(current_user.id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_name = f"logo_{uuid.uuid4()}{ext}"
+        file_path = upload_dir / unique_name
+        try:
+            with open(file_path, "wb") as f:
+                f.write(content)
+            logo_url_value = f"/data/company_logos/{current_user.id}/{unique_name}"
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
     # Update user profile
-    current_user.company_logo_url = f"/data/company_logos/{current_user.id}/{unique_name}"
+    current_user.company_logo_url = logo_url_value
     db.commit()
     db.refresh(current_user)
 
-    logger.info(f"Employer {current_user.id} uploaded company logo: {current_user.company_logo_url}")
+    resolved_url = resolve_storage_url(current_user.company_logo_url)
+    logger.info(f"Employer {current_user.id} uploaded company logo: {resolved_url}")
     return {
-        "company_logo_url": current_user.company_logo_url,
+        "company_logo_url": resolved_url,
         "file_name": file.filename,
         "file_size": len(content)
     }
@@ -747,6 +882,12 @@ def update_employer_profile(
     db.commit()
     db.refresh(current_user)
     
+    # Resolve media URLs for response
+    try:
+        if hasattr(current_user, "company_logo_url"):
+            current_user.company_logo_url = resolve_storage_url(getattr(current_user, "company_logo_url", None))
+    except Exception:
+        logger.exception("Failed to resolve media URLs in update_employer_profile")
     logger.info(f"Employer {current_user.id} updated profile")
     return current_user
 

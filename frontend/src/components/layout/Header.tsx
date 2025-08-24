@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, User, Menu, X, ChevronDown } from 'lucide-react';
+import { LogOut, User, Menu, X, ChevronDown, Bookmark, ClipboardList, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../ui/Button';
 import LogoIcon from '../ui/LogoIcon';
@@ -49,6 +49,11 @@ const Header: React.FC = () => {
               <Link to="/jobs" className="text-slate-600 hover:text-primary-600 transition-colors">
                 Browse Jobs
               </Link>
+              {isAuthenticated && user?.role === 'student' && (
+                <Link to="/saved" className="text-slate-600 hover:text-primary-600 transition-colors">
+                  Saved Jobs
+                </Link>
+              )}
               {/* For Employers: only show the employer action to employers; unauthenticated users go to auth; students don't see it */}
               {!isAuthenticated && (
                 <Link to="/auth" className="text-slate-600 hover:text-primary-600 transition-colors">
@@ -84,29 +89,73 @@ const Header: React.FC = () => {
                   <ChevronDown className="h-4 w-4 text-slate-500" />
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-44 bg-white border border-slate-200 rounded-md shadow-lg py-1 z-50">
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-xl py-2 z-50">
+                    {/* Header: name and email */}
+                    <div className="px-3 pb-2">
+                      <div className="flex items-start gap-2">
+                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+                          <User className="h-4 w-4 text-slate-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-slate-900 truncate">{user?.full_name || 'User'}</div>
+                          <div className="text-xs text-slate-500 truncate">{user?.email}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="my-2 border-t border-slate-100" />
+
+                    {/* Student-specific items */}
+                    {user?.role === 'student' && (
+                      <>
+                        <Link
+                          to="/saved"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          <Bookmark className="h-4 w-4 text-slate-500" />
+                          My Saved Jobs
+                        </Link>
+                        <Link
+                          to="/applications"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          <ClipboardList className="h-4 w-4 text-slate-500" />
+                          My Applications
+                        </Link>
+                      </>
+                    )}
+
+                    {/* Profile & Visa Verification */}
                     <Link
                       to="/profile"
-                      className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                       onClick={() => setMenuOpen(false)}
                     >
-                      Profile
+                      <ShieldCheck className="h-4 w-4 text-slate-500" />
+                      Profile & Visa Verification
                     </Link>
-                    {user?.role === 'employer' && (
-                      <Link
-                        to="/employer/applications"
-                        className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                        onClick={() => setMenuOpen(false)}
+
+                    {/* Job Recommendations (placeholder) */}
+                    <div className="px-3 py-2">
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
+                        <Sparkles className="h-4 w-4 text-slate-500" />
+                        Job Recommendations
+                      </div>
+                      <div className="text-[11px] text-slate-400 ml-6">(Personalized jobs will appear here soon)</div>
+                    </div>
+
+                    <div className="my-2 border-t border-slate-100" />
+
+                    {/* Logout button */}
+                    <div className="px-3 pb-2">
+                      <button
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-md"
+                        onClick={() => { setMenuOpen(false); handleLogout(); }}
                       >
-                        Applications
-                      </Link>
-                    )}
-                    <button
-                      className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                      onClick={() => { setMenuOpen(false); handleLogout(); }}
-                    >
-                      <LogOut className="h-4 w-4" /> Logout
-                    </button>
+                        <LogOut className="h-4 w-4" /> Logout
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -155,6 +204,15 @@ const Header: React.FC = () => {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Find Jobs
+                </Link>
+              )}
+              {isAuthenticated && user?.role === 'student' && (
+                <Link
+                  to="/saved"
+                  className="text-slate-600 hover:text-primary-600 transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Saved Jobs
                 </Link>
               )}
               <Link

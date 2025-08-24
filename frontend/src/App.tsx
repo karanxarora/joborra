@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
 import { ToastProvider } from './contexts/ToastContext';
+import { FavoritesProvider } from './contexts/FavoritesContext';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
@@ -17,6 +18,7 @@ import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
 import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
 import SubmittedApplicationsPage from './pages/SubmittedApplicationsPage';
 import AccessDeniedPage from './pages/AccessDeniedPage';
+import SavedJobsPage from './pages/SavedJobsPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -102,6 +104,14 @@ const AppContent: React.FC = () => {
             }
           />
           <Route
+            path="/saved"
+            element={
+              <RoleProtectedRoute role="student">
+                <SavedJobsPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
             path="/employer/company"
             element={
               <RoleProtectedRoute role="employer">
@@ -145,7 +155,9 @@ function App() {
     <Router>
       <AuthProvider>
         <ToastProvider>
-          <AppContent />
+          <FavoritesProvider>
+            <AppContent />
+          </FavoritesProvider>
         </ToastProvider>
       </AuthProvider>
     </Router>

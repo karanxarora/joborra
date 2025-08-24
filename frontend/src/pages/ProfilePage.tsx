@@ -10,6 +10,7 @@ const ProfilePage: React.FC = () => {
   const { user: ctxUser, refreshUser } = useAuth();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [verifyLink, setVerifyLink] = useState<string | null>(null);
   // Sub-tab state
   const [activeTab, setActiveTab] = useState<'profile' | 'visa'>('profile');
   // Visa state
@@ -154,9 +155,6 @@ const ProfilePage: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Your Profile</h1>
           <div className="flex items-center gap-2">
-            {ctxUser?.role === 'student' && (
-              <a href="/applications" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">View Applications</a>
-            )}
             {ctxUser?.role === 'employer' && (
               <>
                 <a href="/employer/post-job" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">Post a Job</a>
@@ -194,10 +192,13 @@ const ProfilePage: React.FC = () => {
                   </div>
                 </div>
               )}
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='profile'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('profile')}>Profile</button>
                 {ctxUser?.role === 'student' && (
-                  <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='visa'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('visa')}>Visa</button>
+                  <>
+                    <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='visa'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('visa')}>Visa</button>
+                    <a href="/applications" className="px-3 py-2 text-sm rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">View Applications</a>
+                  </>
                 )}
               </div>
 
@@ -220,7 +221,7 @@ const ProfilePage: React.FC = () => {
           <section className="lg:col-span-8">
             {/* Sub-tabs (desktop hidden since we have sidebar buttons) */}
             <div className="border-b border-slate-200 mb-6 lg:hidden">
-              <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+              <nav className="-mb-px flex items-center justify-between" aria-label="Tabs">
                 <button
                   className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'profile' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
                   onClick={() => setActiveTab('profile')}
@@ -228,12 +229,15 @@ const ProfilePage: React.FC = () => {
                   Profile Details
                 </button>
                 {ctxUser?.role === 'student' && (
-                  <button
-                    className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'visa' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-                    onClick={() => setActiveTab('visa')}
-                  >
-                    Visa Verification
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      className={`whitespace-nowrap py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'visa' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
+                      onClick={() => setActiveTab('visa')}
+                    >
+                      Visa Verification
+                    </button>
+                    <a href="/applications" className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">View Applications</a>
+                  </div>
                 )}
               </nav>
             </div>
@@ -257,7 +261,8 @@ const ProfilePage: React.FC = () => {
                       try {
                         const res: any = await apiService.requestEmailVerification();
                         if ((res as any)?.verify_url) {
-                          setMessage('Verification link generated. Use the link to verify: ' + (res as any).verify_url);
+                          setVerifyLink((res as any).verify_url);
+                          setMessage('Verification link generated. Use the button below or copy the link.');
                         } else {
                           setMessage('If not already verified, a link has been issued.');
                         }
@@ -270,6 +275,38 @@ const ProfilePage: React.FC = () => {
                   >
                     Send verification link
                   </Button>
+                </div>
+              </div>
+            )}
+            {/* Show the verification link in a properly wrapped box with actions */}
+            {!ctxUser?.is_verified && verifyLink && (
+              <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-800 mb-1">Verification link</div>
+                    <a
+                      href={verifyLink}
+                      className="text-sm text-cyan-700 underline break-all"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {verifyLink}
+                    </a>
+                  </div>
+                  <div className="flex-shrink-0 flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        try { await navigator.clipboard.writeText(verifyLink); setMessage('Link copied to clipboard'); } catch { setMessage('Copy failed'); }
+                      }}
+                    >
+                      Copy link
+                    </Button>
+                    <a href={verifyLink} target="_blank" rel="noreferrer">
+                      <Button type="button">Open</Button>
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
@@ -306,7 +343,7 @@ const ProfilePage: React.FC = () => {
                 </div>
               )}
 
-              {message && <div className="text-sm text-slate-600">{message}</div>}
+              {message && <div className="text-sm text-slate-700">{message}</div>}
 
               <div className="flex justify-end">
                 <Button type="submit" loading={saving}>Save Changes</Button>

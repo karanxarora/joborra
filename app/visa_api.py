@@ -16,11 +16,19 @@ from .visa_schemas import (
     VisaVerificationSummary, DocumentUploadResponse
 )
 from .visa_service import VisaVerificationService
+from .supabase_utils import (
+    upload_public_object,
+    SUPABASE_STORAGE_BUCKET,
+    supabase_configured,
+    resolve_storage_url,
+)
+import logging
 import os
 import uuid
 from pathlib import Path
 
 router = APIRouter(prefix="/visa", tags=["visa"])
+logger = logging.getLogger(__name__)
 
 @router.get("/status", response_model=StudentVisaInfo)
 async def get_visa_status(
@@ -173,36 +181,65 @@ async def upload_visa_document(
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
         )
     
-    # Create upload directory
-    upload_dir = Path("data/visa_documents") / str(current_user.id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Generate unique filename
-    unique_filename = f"{document_type}_{uuid.uuid4()}{file_extension}"
-    file_path = upload_dir / unique_filename
-    
-    # Save file
+    # Read once
     try:
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
+        content = await file.read()
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save file: {str(e)}"
+            detail=f"Failed to read file: {str(e)}"
         )
+
+    # Try Supabase first
+    doc_url_value = None
+    if supabase_configured():
+        try:
+            object_path = f"visa_documents/{current_user.id}/{document_type}_{uuid.uuid4()}{file_extension}"
+            mime = {
+                ".pdf": "application/pdf",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".doc": "application/msword",
+                ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            }.get(file_extension, "application/octet-stream")
+            uploaded = upload_public_object(
+                bucket=SUPABASE_STORAGE_BUCKET,
+                object_path=object_path,
+                data=content,
+                content_type=mime,
+            )
+            if uploaded:
+                doc_url_value = uploaded
+        except Exception:
+            logger.exception("Supabase visa document upload failed; will fallback to local storage")
+
+    # Fallback to local storage
+    if not doc_url_value:
+        upload_dir = Path("data/visa_documents") / str(current_user.id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_filename = f"{document_type}_{uuid.uuid4()}{file_extension}"
+        file_path = upload_dir / unique_filename
+        try:
+            with open(file_path, "wb") as buffer:
+                buffer.write(content)
+            doc_url_value = f"/data/visa_documents/{current_user.id}/{unique_filename}"
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to save file: {str(e)}"
+            )
     
     # Update verification record with document URL
     service = VisaVerificationService(db)
     verification = service.get_user_visa_status(current_user.id)
     
     if verification:
-        document_url = f"/data/visa_documents/{current_user.id}/{unique_filename}"
-        update_data = {f"{document_type}_document_url": document_url}
+        update_data = {f"{document_type}_document_url": doc_url_value}
         service.update_visa_verification(verification.id, update_data)
     
     return DocumentUploadResponse(
-        document_url=f"/data/visa_documents/{current_user.id}/{unique_filename}",
+        document_url=resolve_storage_url(doc_url_value),
         document_type=document_type,
         upload_date=datetime.utcnow(),
         file_size=len(content),

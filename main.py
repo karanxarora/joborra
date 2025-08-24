@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -103,6 +106,8 @@ app.add_middleware(
         "http://127.0.0.1:8000",
         # Render deployed frontend
         "https://joborra-frontend.onrender.com",
+        # Production frontend
+        "https://joborra.com",
     ],  # React/Vite dev and backend
     allow_credentials=True,
     allow_methods=["*"],
