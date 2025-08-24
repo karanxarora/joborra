@@ -37,6 +37,8 @@ const Header: React.FC = () => {
             >
               {/* Brand icon, inherits theme color via Tailwind */}
               <LogoIcon className="h-8 w-8 text-primary-600 mr-3" />
+              {/* Brand name */}
+              <span className="text-xl font-bold text-slate-900 hidden sm:inline">Joborra</span>
             </div>
             <span className="ml-3 px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded-full hidden sm:inline">
               Australia's Job Portal

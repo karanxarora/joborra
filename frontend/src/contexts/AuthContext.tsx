@@ -65,8 +65,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: RegisterForm) => {
     setIsLoading(true);
     try {
-      const authResponse: AuthResponse = await apiService.register(userData);
-      setUser(authResponse.user);
+      // 1) Create account (returns user only)
+      await apiService.register(userData);
+      // 2) Immediately login to obtain tokens for subsequent requests
+      const loginResp: AuthResponse = await apiService.login({
+        email: userData.email,
+        password: userData.password,
+      });
+      setUser(loginResp.user);
     } finally {
       setIsLoading(false);
     }

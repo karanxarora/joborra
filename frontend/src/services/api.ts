@@ -68,13 +68,13 @@ class ApiService {
     return response.data;
   }
 
-  async register(userData: RegisterForm): Promise<AuthResponse> {
+  async register(userData: RegisterForm): Promise<any> {
     // Backend expects username; derive from email if UI omits it
     const email = userData.email || '';
     const derived = email.includes('@') ? email.split('@')[0] : email;
     const payload: any = { username: derived, ...userData };
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', payload);
-    this.setAuth(response.data);
+    // Backend returns user object (no tokens)
+    const response = await this.api.post('/auth/register', payload);
     return response.data;
   }
 

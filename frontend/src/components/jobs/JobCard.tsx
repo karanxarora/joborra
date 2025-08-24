@@ -16,6 +16,21 @@ interface JobCardProps {
 const badgeBase = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium';
 
 const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick, isSaved, onToggleSave, saving }) => {
+  const snippet = React.useMemo(() => {
+    const raw = (job.description || '').replace(/\r\n/g, '\n');
+    const lines = raw.split('\n')
+      .map(l => l.trim())
+      .filter(l => !!l)
+      .map(l => l.replace(/^[-*•]\s+/, ''));
+    const first = lines[0] || '';
+    // Trim overly long first line but keep sentence boundary if possible
+    if (first.length > 220) {
+      const cut = first.slice(0, 220);
+      const lastPeriod = cut.lastIndexOf('.');
+      return (lastPeriod > 80 ? cut.slice(0, lastPeriod + 1) : cut) + (cut.length < first.length ? '…' : '');
+    }
+    return first;
+  }, [job.description]);
   return (
     <Card
       className={`relative cursor-pointer border rounded-xl transition-all duration-200
@@ -69,7 +84,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick, isSaved, onTo
           </div>
 
           {/* Snippet */}
-          <p className="mt-2 text-[13.5px] text-gray-700 leading-relaxed line-clamp-2">{job.description}</p>
+          <p className="mt-2 text-[13.5px] text-gray-700 leading-relaxed line-clamp-2">{snippet}</p>
         </div>
       </div>
 

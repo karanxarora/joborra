@@ -31,7 +31,7 @@ const DashboardPage: React.FC = () => {
   const [filters, setFilters] = useState<Partial<JobFilters>>({
     search: '',
     location: '',
-    visa_sponsorship: null,
+    visa_sponsorship: true, // enforce visa-only jobs
     student_friendly: false,
     experience_level: '',
     source: '',
@@ -113,7 +113,7 @@ const DashboardPage: React.FC = () => {
     setFilters({
       search: '',
       location: '',
-      visa_sponsorship: null,
+      visa_sponsorship: true, // keep enforced
       student_friendly: false,
       experience_level: '',
       source: '',
@@ -280,13 +280,13 @@ const DashboardPage: React.FC = () => {
 
             <div>
               <select
-                value={filters.visa_sponsorship == null ? '' : filters.visa_sponsorship.toString()}
-                onChange={(e) => handleFilterChange('visa_sponsorship', e.target.value === '' ? null : e.target.value === 'true')}
-                className="input-field"
+                value={'true'}
+                disabled
+                className="input-field cursor-not-allowed opacity-75"
+                aria-label="Visa Friendly Only"
+                title="Visa Friendly Only"
               >
-                <option value="">All Jobs</option>
                 <option value="true">Visa Friendly Only</option>
-                <option value="false">No Visa Sponsorship</option>
               </select>
             </div>
 

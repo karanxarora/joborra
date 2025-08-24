@@ -10,6 +10,7 @@ import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 import { Job, JobFilters } from '../types';
 import JobCard from '../components/jobs/JobCard';
+import FormattedText from '../components/common/FormattedText';
 import apiService from '../services/api';
 import { useFavorites } from '../contexts/FavoritesContext';
 import { useToast } from '../contexts/ToastContext';
@@ -28,7 +29,7 @@ const JobsPage: React.FC = () => {
   const [filters, setFilters] = useState<Partial<JobFilters>>({
     search: '',
     location: '',
-    visa_sponsorship: null,
+    visa_sponsorship: true, // Show only visa-accepting jobs by default
     student_friendly: false,
     category: undefined,
     work_type: undefined,
@@ -182,7 +183,7 @@ const JobsPage: React.FC = () => {
     setFilters({
       search: '',
       location: '',
-      visa_sponsorship: null,
+      visa_sponsorship: true, // Keep visa filter enforced
       student_friendly: false,
       category: undefined,
       work_type: undefined,
@@ -438,9 +439,10 @@ const JobsPage: React.FC = () => {
 
                       {/* Description */}
                       <div className="mt-5 border-t border-slate-200 pt-5">
-                        <div className="text-[15px] md:text-[16px] leading-7 text-slate-800 whitespace-pre-line">
-                          {selectedJob.description}
-                        </div>
+                        <FormattedText
+                          text={selectedJob.description}
+                          className="text-[15px] md:text-[16px] leading-7 text-slate-800"
+                        />
                       </div>
                     </div>
                   ) : (

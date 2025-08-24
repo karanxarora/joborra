@@ -7,6 +7,7 @@ import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 import { LoginForm, RegisterForm } from '../types';
 import { AU_UNIVERSITIES } from '../constants/universities';
+import { DEGREES } from '../constants/degrees';
 import { useToast } from '../contexts/ToastContext';
 import apiService from '../services/api';
 
@@ -22,6 +23,9 @@ const AuthPage: React.FC = () => {
     email: '',
     password: '',
   });
+
+  // Local-only field (not sent to backend yet)
+  const [dob, setDob] = useState<string>('');
 
   const [registerForm, setRegisterForm] = useState<RegisterForm>({
     email: '',
@@ -263,6 +267,13 @@ const AuthPage: React.FC = () => {
                   
                   className="space-y-6"
                 >
+                  <Input
+                    label="Date of Birth"
+                    type="date"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    helperText="We currently don't store DOB. This is for future profile enhancements."
+                  />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       University
@@ -281,11 +292,20 @@ const AuthPage: React.FC = () => {
                       <GraduationCap className="h-4 w-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
-                  <Input
-                    label="Degree/Course"
-                    value={registerForm.degree || ''}
-                    onChange={(e) => setRegisterForm({ ...registerForm, degree: e.target.value })}
-                  />
+                  {/* Degree with autocomplete suggestions */}
+                  <div>
+                    <Input
+                      label="Degree/Course"
+                      value={registerForm.degree || ''}
+                      onChange={(e) => setRegisterForm({ ...registerForm, degree: e.target.value })}
+                      list="degree-options"
+                    />
+                    <datalist id="degree-options">
+                      {DEGREES.map((d) => (
+                        <option key={d} value={d} />
+                      ))}
+                    </datalist>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Graduation Year</label>
                     <div className="relative">

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, FastAPI
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 from typing import List, Optional
@@ -13,6 +13,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Provide a FastAPI instance for test clients that import `app` from this module
+# This keeps backward-compatibility with tests expecting `from app.api import app`
+app = FastAPI()
+app.include_router(router)
 
 # Restrict surfaced jobs to these sources
 ALLOWED_SOURCES = [
