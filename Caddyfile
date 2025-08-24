@@ -1,0 +1,16 @@
+# Replace example.com with your domain
+joborra.com {
+  encode gzip
+
+  # Proxy API (both prefixes are used by FastAPI in main.py)
+  @api path /api* /auth*
+  reverse_proxy @api api:8000
+
+  # Everything else goes to the frontend
+  reverse_proxy frontend:80
+}
+
+# Optional: redirect www to apex
+www.joborra.com {
+  redir https://joborra.com{uri} permanent
+}

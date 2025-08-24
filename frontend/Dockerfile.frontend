@@ -1,0 +1,14 @@
+# Build stage
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+# Build Tailwind then CRA
+RUN npm run build
+
+# Serve with Nginx
+FROM nginx:alpine
+COPY --from=build /app/build /usr/share/nginx/html
+# Basic cache headers can be tuned via a custom nginx.conf if needed
+EXPOSE 80
