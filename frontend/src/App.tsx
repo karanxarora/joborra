@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
 import { ToastProvider } from './contexts/ToastContext';
@@ -16,6 +16,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
 import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
 import SubmittedApplicationsPage from './pages/SubmittedApplicationsPage';
+import AccessDeniedPage from './pages/AccessDeniedPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -30,6 +31,41 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
   
   return isAuthenticated ? <>{children}</> : <Navigate to="/auth" replace />;
+};
+
+// Role-protected Route Component
+const RoleProtectedRoute: React.FC<{ children: React.ReactNode; role: 'student' | 'employer' }> = ({ children, role }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // user?.role is expected to be 'student' or 'employer'
+  if (user?.role !== role) {
+    return (
+      <Navigate
+        to="/access-denied"
+        replace
+        state={{
+          from: location.pathname,
+          requiredRole: role,
+          currentRole: user?.role ?? null,
+        }}
+      />
+    );
+  }
+
+  return <>{children}</>;
 };
 
 // Main App Component
@@ -52,38 +88,39 @@ const AppContent: React.FC = () => {
           <Route
             path="/employer/post-job"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute role="employer">
                 <EmployerPostJobPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/applications"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute role="student">
                 <SubmittedApplicationsPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/employer/company"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute role="employer">
                 <EmployerCompanyInfoPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/employer/applications"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute role="employer">
                 <EmployerApplicationsPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/access-denied" element={<AccessDeniedPage />} />
           {/** Dashboard disabled for now */}
           {/**
           <Route 

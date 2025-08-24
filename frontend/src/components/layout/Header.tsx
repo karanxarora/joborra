@@ -49,9 +49,17 @@ const Header: React.FC = () => {
               <Link to="/jobs" className="text-slate-600 hover:text-primary-600 transition-colors">
                 Browse Jobs
               </Link>
-              <Link to="/employer/post-job" className="text-slate-600 hover:text-primary-600 transition-colors">
-                For Employers
-              </Link>
+              {/* For Employers: only show the employer action to employers; unauthenticated users go to auth; students don't see it */}
+              {!isAuthenticated && (
+                <Link to="/auth" className="text-slate-600 hover:text-primary-600 transition-colors">
+                  For Employers
+                </Link>
+              )}
+              {isAuthenticated && user?.role === 'employer' && (
+                <Link to="/employer/post-job" className="text-slate-600 hover:text-primary-600 transition-colors">
+                  For Employers
+                </Link>
+              )}
               {isAuthenticated && user?.role === 'employer' && (
                 <Link to="/employer/applications" className="text-slate-600 hover:text-primary-600 transition-colors">
                   Applications

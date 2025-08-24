@@ -17,6 +17,9 @@ Base.metadata.create_all(bind=engine)
 
 # SQLite compatibility: ensure new columns exist when models are updated without migrations
 def ensure_schema_compatibility():
+    # Only perform when running on SQLite. Skip for Postgres/Supabase.
+    if engine.dialect.name != 'sqlite':
+        return
     try:
         with engine.connect() as conn:
             # Check if resume_url exists on users table

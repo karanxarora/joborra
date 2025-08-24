@@ -18,10 +18,13 @@ if DATABASE_URL.startswith("sqlite"):
         echo=os.getenv("DEBUG", "False").lower() == "true"
     )
 else:
+    # For Postgres (e.g., Supabase), use default pooling and require SSL
+    # Ensure your DATABASE_URL includes credentials and host, optionally with `?sslmode=require`.
+    # We also pass sslmode via connect_args for safety.
     engine = create_engine(
         DATABASE_URL,
-        poolclass=StaticPool,
         pool_pre_ping=True,
+        connect_args={"sslmode": "require"},
         echo=os.getenv("DEBUG", "False").lower() == "true"
     )
 

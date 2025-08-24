@@ -12,10 +12,14 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-import sqlite3
 import os
 from typing import Set, List, Dict
 import json
+from sqlalchemy import func
+
+# Use the shared SQLAlchemy session and models (points to Supabase when DATABASE_URL is Postgres)
+from app.database import SessionLocal
+from app.models import Job
 
 # Setup logging
 logging.basicConfig(
@@ -38,16 +42,19 @@ class JobScrapingScheduler:
         
     def get_existing_job_urls(self) -> Set[str]:
         """Get all existing job URLs from database to avoid duplicates"""
-        existing_urls = set()
+        existing_urls: Set[str] = set()
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT source_url FROM jobs WHERE source_url IS NOT NULL")
-            existing_urls = {row[0] for row in cursor.fetchall()}
-            conn.close()
+            db = SessionLocal()
+            urls = db.query(Job.source_url).filter(Job.source_url.isnot(None)).all()
+            existing_urls = {u[0] for u in urls if u and u[0]}
             logger.info(f"Found {len(existing_urls)} existing job URLs in database")
         except Exception as e:
             logger.error(f"Error fetching existing job URLs: {e}")
+        finally:
+            try:
+                db.close()
+            except Exception:
+                pass
         return existing_urls
     
     def get_last_run_info(self) -> Dict:
@@ -105,16 +112,20 @@ class JobScrapingScheduler:
     
     def get_job_count_before_scraping(self) -> int:
         """Get current job count before scraping"""
+        db = None
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM jobs")
-            count = cursor.fetchone()[0]
-            conn.close()
-            return count
+            db = SessionLocal()
+            count = db.query(func.count(Job.id)).scalar() or 0
+            return int(count)
         except Exception as e:
             logger.error(f"Error getting job count: {e}")
             return 0
+        finally:
+            if db:
+                try:
+                    db.close()
+                except Exception:
+                    pass
     
     def run_scraping_job(self):
         """Execute the scraping job"""
@@ -171,26 +182,27 @@ class JobScrapingScheduler:
     
     def cleanup_old_jobs(self):
         """Remove jobs older than 30 days to keep database fresh"""
+        db = None
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Delete jobs older than 30 days
-            thirty_days_ago = datetime.now() - timedelta(days=30)
-            cursor.execute(
-                "DELETE FROM jobs WHERE scraped_at < ?",
-                (thirty_days_ago.isoformat(),)
-            )
-            
-            deleted_count = cursor.rowcount
-            conn.commit()
-            conn.close()
-            
-            if deleted_count > 0:
+            db = SessionLocal()
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            deleted_count = db.query(Job).filter(Job.scraped_at < thirty_days_ago).delete(synchronize_session=False)
+            db.commit()
+            if deleted_count:
                 logger.info(f"Cleaned up {deleted_count} jobs older than 30 days")
-                
         except Exception as e:
             logger.error(f"Error cleaning up old jobs: {e}")
+            try:
+                if db:
+                    db.rollback()
+            except Exception:
+                pass
+        finally:
+            if db:
+                try:
+                    db.close()
+                except Exception:
+                    pass
     
     def run_daily_maintenance(self):
         """Run daily maintenance tasks"""
@@ -200,36 +212,26 @@ class JobScrapingScheduler:
         self.cleanup_old_jobs()
         
         # Log current database statistics
+        db = None
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Get total job count
-            cursor.execute("SELECT COUNT(*) FROM jobs")
-            total_jobs = cursor.fetchone()[0]
-            
-            # Get visa-friendly job count
-            cursor.execute("SELECT COUNT(*) FROM jobs WHERE visa_sponsorship = 1")
-            visa_jobs = cursor.fetchone()[0]
-            
-            # Get jobs by state
-            cursor.execute("""
-                SELECT state, COUNT(*) 
-                FROM jobs 
-                GROUP BY state 
-                ORDER BY COUNT(*) DESC
-            """)
-            jobs_by_state = cursor.fetchall()
-            
-            conn.close()
-            
-            logger.info(f"Database statistics:")
-            logger.info(f"  Total jobs: {total_jobs}")
-            logger.info(f"  Visa-friendly jobs: {visa_jobs}")
-            logger.info(f"  Jobs by state: {dict(jobs_by_state)}")
-            
+            db = SessionLocal()
+            total_jobs = db.query(func.count(Job.id)).scalar() or 0
+            visa_jobs = db.query(func.count(Job.id)).filter(Job.visa_sponsorship.is_(True)).scalar() or 0
+            rows = db.query(Job.state, func.count(Job.id)).group_by(Job.state).order_by(func.count(Job.id).desc()).all()
+            jobs_by_state = {state: count for state, count in rows if state is not None}
+
+            logger.info("Database statistics:")
+            logger.info(f"  Total jobs: {int(total_jobs)}")
+            logger.info(f"  Visa-friendly jobs: {int(visa_jobs)}")
+            logger.info(f"  Jobs by state: {jobs_by_state}")
         except Exception as e:
             logger.error(f"Error getting database statistics: {e}")
+        finally:
+            if db:
+                try:
+                    db.close()
+                except Exception:
+                    pass
         
         logger.info("=== DAILY MAINTENANCE COMPLETED ===")
     
