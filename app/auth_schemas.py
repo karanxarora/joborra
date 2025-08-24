@@ -20,6 +20,12 @@ class UserCreate(BaseModel):
     degree: Optional[str] = None
     graduation_year: Optional[int] = None
     visa_status: Optional[str] = None
+    # Study details (moved from visa verification)
+    course_name: Optional[str] = None
+    institution_name: Optional[str] = None
+    course_start_date: Optional[datetime] = None
+    course_end_date: Optional[datetime] = None
+    coe_number: Optional[str] = None
     
     # Employer-specific fields
     company_name: Optional[str] = None
@@ -70,6 +76,12 @@ class UserResponse(BaseModel):
     portfolio_url: Optional[str]
     bio: Optional[str]
     resume_url: Optional[str]
+    # Study details (moved from visa verification)
+    course_name: Optional[str]
+    institution_name: Optional[str]
+    course_start_date: Optional[datetime]
+    course_end_date: Optional[datetime]
+    coe_number: Optional[str]
     
     # Employer fields
     company_name: Optional[str]
@@ -223,6 +235,12 @@ class StudentProfileUpdate(BaseModel):
     github_profile: Optional[str] = None
     portfolio_url: Optional[str] = None
     bio: Optional[str] = None
+    # Study details (moved from visa verification)
+    course_name: Optional[str] = None
+    institution_name: Optional[str] = None
+    course_start_date: Optional[datetime] = None
+    course_end_date: Optional[datetime] = None
+    coe_number: Optional[str] = None
 
 class EmployerProfileUpdate(BaseModel):
     full_name: Optional[str] = None

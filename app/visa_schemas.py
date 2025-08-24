@@ -37,12 +37,7 @@ class VisaVerificationCreate(BaseModel):
     passport_country: str = Field(..., max_length=3, description="Passport country (ISO 3-letter code)")
     passport_expiry: Optional[datetime] = Field(None, description="Passport expiry date")
     
-    # Study Details
-    course_name: Optional[str] = Field(None, max_length=200, description="Course name")
-    institution_name: Optional[str] = Field(None, max_length=200, description="Institution name")
-    course_start_date: Optional[datetime] = Field(None, description="Course start date")
-    course_end_date: Optional[datetime] = Field(None, description="Course end date")
-    coe_number: Optional[str] = Field(None, max_length=50, description="Confirmation of Enrolment number")
+    # Study Details moved to user profile
     
     @validator('passport_country')
     def validate_passport_country(cls, v):
@@ -61,11 +56,7 @@ class VisaVerificationUpdate(BaseModel):
     visa_grant_number: Optional[str] = None
     transaction_reference_number: Optional[str] = None
     passport_expiry: Optional[datetime] = None
-    course_name: Optional[str] = None
-    institution_name: Optional[str] = None
-    course_start_date: Optional[datetime] = None
-    course_end_date: Optional[datetime] = None
-    coe_number: Optional[str] = None
+    # Study details removed from visa verification
 
 class VisaVerificationResponse(BaseModel):
     """Schema for visa verification response"""
@@ -88,12 +79,7 @@ class VisaVerificationResponse(BaseModel):
     work_hours_limit: Optional[int]
     work_rights_details: Optional[str]
     
-    # Study Details
-    course_name: Optional[str]
-    institution_name: Optional[str]
-    course_start_date: Optional[datetime]
-    course_end_date: Optional[datetime]
-    coe_number: Optional[str]
+    # Study details are part of user profile
     
     # Verification Details
     verification_method: Optional[str]

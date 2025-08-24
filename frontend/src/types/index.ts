@@ -10,6 +10,12 @@ export interface User {
   degree?: string;
   graduation_year?: number;
   visa_status?: string;
+  // Study details (moved from visa verification)
+  course_name?: string;
+  institution_name?: string;
+  course_start_date?: string; // ISO datetime string
+  course_end_date?: string;   // ISO datetime string
+  coe_number?: string;
   company_name?: string;
   company_website?: string;
   company_size?: string;
@@ -98,6 +104,12 @@ export interface RegisterForm {
   degree?: string;
   graduation_year?: number;
   visa_status?: string;
+  // Study details for students
+  course_name?: string;
+  institution_name?: string;
+  course_start_date?: string; // ISO datetime string
+  course_end_date?: string;   // ISO datetime string
+  coe_number?: string;
   company_name?: string;
   company_website?: string;
   company_size?: string;

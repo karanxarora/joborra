@@ -52,7 +52,7 @@ async def get_visa_status(
         visa_subclass=verification.visa_subclass,
         work_hours_limit=verification.work_hours_limit,
         visa_expiry_date=verification.visa_expiry_date,
-        course_end_date=verification.course_end_date,
+        course_end_date=getattr(current_user, "course_end_date", None),
         verification_required=verification.visa_status.value in ['pending', 'rejected'],
         verification_message=_get_status_message(verification)
     )

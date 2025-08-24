@@ -53,12 +53,7 @@ class VisaVerification(Base):
     work_hours_limit = Column(Integer, nullable=True)  # Hours per fortnight
     work_rights_details = Column(Text, nullable=True)
     
-    # Study Details
-    course_name = Column(String(200), nullable=True)
-    institution_name = Column(String(200), nullable=True)
-    course_start_date = Column(DateTime, nullable=True)
-    course_end_date = Column(DateTime, nullable=True)
-    coe_number = Column(String(50), nullable=True)  # Confirmation of Enrolment
+    # Study details moved to user profile (removed from visa verification)
     
     # Verification Details
     verification_method = Column(String(50), nullable=True)  # VEVO, Manual, API

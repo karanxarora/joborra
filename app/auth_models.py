@@ -41,6 +41,12 @@ class User(Base):
     degree = Column(String(255), nullable=True)
     graduation_year = Column(Integer, nullable=True)
     visa_status = Column(String(100), nullable=True)  # e.g., "student_visa", "work_visa", "citizen"
+    # Study details (moved from visa verification)
+    course_name = Column(String(200), nullable=True)
+    institution_name = Column(String(200), nullable=True)
+    course_start_date = Column(DateTime, nullable=True)
+    course_end_date = Column(DateTime, nullable=True)
+    coe_number = Column(String(50), nullable=True)
     
     # Enhanced student profile fields
     skills = Column(Text, nullable=True)  # JSON string of skills

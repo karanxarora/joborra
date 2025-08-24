@@ -47,11 +47,6 @@ class VisaVerificationService:
             passport_number=visa_data['passport_number'],
             passport_country=visa_data['passport_country'],
             passport_expiry=visa_data.get('passport_expiry'),
-            course_name=visa_data.get('course_name'),
-            institution_name=visa_data.get('institution_name'),
-            course_start_date=visa_data.get('course_start_date'),
-            course_end_date=visa_data.get('course_end_date'),
-            coe_number=visa_data.get('coe_number'),
             visa_status=VisaStatus.PENDING
         )
         

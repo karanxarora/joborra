@@ -32,6 +32,12 @@ const ProfilePage: React.FC = () => {
     degree: '',
     graduation_year: '' as number | string,
     visa_status: '',
+    // Study details (student)
+    course_name: '',
+    institution_name: '',
+    course_start_date: '',
+    course_end_date: '',
+    coe_number: '',
     company_name: '',
     company_website: '',
     company_size: '',
@@ -53,6 +59,11 @@ const ProfilePage: React.FC = () => {
       degree: ctxUser?.degree || '',
       graduation_year: ctxUser?.graduation_year || '',
       visa_status: ctxUser?.visa_status || '',
+      course_name: ctxUser?.course_name || '',
+      institution_name: ctxUser?.institution_name || '',
+      course_start_date: ctxUser?.course_start_date ? ctxUser.course_start_date.substring(0, 10) : '',
+      course_end_date: ctxUser?.course_end_date ? ctxUser.course_end_date.substring(0, 10) : '',
+      coe_number: ctxUser?.coe_number || '',
       company_name: ctxUser?.company_name || '',
       company_website: ctxUser?.company_website || '',
       company_size: ctxUser?.company_size || '',
@@ -132,6 +143,12 @@ const ProfilePage: React.FC = () => {
         degree: form.degree || undefined,
         graduation_year: form.graduation_year ? Number(form.graduation_year) : undefined,
         visa_status: form.visa_status || undefined,
+        // Study (only include for students)
+        course_name: ctxUser?.role === 'student' && form.course_name ? form.course_name : undefined,
+        institution_name: ctxUser?.role === 'student' && form.institution_name ? form.institution_name : undefined,
+        course_start_date: ctxUser?.role === 'student' && form.course_start_date ? new Date(form.course_start_date).toISOString() : undefined,
+        course_end_date: ctxUser?.role === 'student' && form.course_end_date ? new Date(form.course_end_date).toISOString() : undefined,
+        coe_number: ctxUser?.role === 'student' && form.coe_number ? form.coe_number : undefined,
         company_name: form.company_name || undefined,
         company_website: form.company_website || undefined,
         company_size: form.company_size || undefined,
@@ -333,6 +350,12 @@ const ProfilePage: React.FC = () => {
                   </div>
                   <Input label="Degree" value={form.degree} onChange={(e) => setForm({ ...form, degree: e.target.value })} />
                   <Input label="Graduation Year" type="number" value={form.graduation_year} onChange={(e) => setForm({ ...form, graduation_year: e.target.value })} />
+                  {/* Study details */}
+                  <Input label="Course Name" value={form.course_name} onChange={(e) => setForm({ ...form, course_name: e.target.value })} />
+                  <Input label="Institution Name" value={form.institution_name} onChange={(e) => setForm({ ...form, institution_name: e.target.value })} />
+                  <Input label="Course Start Date" type="date" value={form.course_start_date} onChange={(e) => setForm({ ...form, course_start_date: e.target.value })} />
+                  <Input label="Course End Date" type="date" value={form.course_end_date} onChange={(e) => setForm({ ...form, course_end_date: e.target.value })} />
+                  <Input label="COE Number" value={form.coe_number} onChange={(e) => setForm({ ...form, coe_number: e.target.value })} />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

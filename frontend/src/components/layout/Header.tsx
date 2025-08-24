@@ -128,15 +128,37 @@ const Header: React.FC = () => {
                       </>
                     )}
 
-                    {/* Profile & Visa Verification */}
+                    {/* Profile */}
                     <Link
                       to="/profile"
                       className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                       onClick={() => setMenuOpen(false)}
                     >
-                      <ShieldCheck className="h-4 w-4 text-slate-500" />
-                      Profile & Visa Verification
+                      <User className="h-4 w-4 text-slate-500" />
+                      Profile
                     </Link>
+
+                    {/* Employer-specific items */}
+                    {user?.role === 'employer' && (
+                      <>
+                        <Link
+                          to="/employer/post-job"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          <ClipboardList className="h-4 w-4 text-slate-500" />
+                          Post a Job
+                        </Link>
+                        <Link
+                          to="/employer/applications"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          <ClipboardList className="h-4 w-4 text-slate-500" />
+                          Applications
+                        </Link>
+                      </>
+                    )}
 
                     {/* Job Recommendations (placeholder) */}
                     <div className="px-3 py-2">
