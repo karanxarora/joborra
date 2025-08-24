@@ -2,8 +2,8 @@
 joborra.com {
   encode gzip
 
-  # Proxy API (both prefixes are used by FastAPI in main.py)
-  @api path /api* /auth*
+  # Proxy API (only /api*, let React handle /auth as a client route)
+  @api path /api*
   reverse_proxy @api api:8000
 
   # Everything else goes to the frontend
