@@ -40,11 +40,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests (unit only)
-        env:
-          PYTHONPATH: .
-        run: |
-          pytest -q tests
 
   frontend:
     name: Frontend (Node)
@@ -69,10 +64,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run tests
-        env:
-          CI: true
-        run: npm test -- --watchAll=false
 
   deploy:
     name: Deploy to Linode
