@@ -35,6 +35,13 @@ def ensure_schema_compatibility():
             if 'company_logo_url' not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN company_logo_url VARCHAR(500)"))
                 logger.info("Added missing column users.company_logo_url for compatibility")
+            # OAuth columns for Google Sign-In
+            if 'oauth_provider' not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(50)"))
+                logger.info("Added missing column users.oauth_provider for compatibility")
+            if 'oauth_sub' not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN oauth_sub VARCHAR(255)"))
+                logger.info("Added missing column users.oauth_sub for compatibility")
 
             # Ensure new employer posting fields on jobs table
             result_jobs = conn.execute(text("PRAGMA table_info(jobs);"))

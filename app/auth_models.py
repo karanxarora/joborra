@@ -36,6 +36,10 @@ class User(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
     
+    # OAuth fields (for Google Sign-In / account linking)
+    oauth_provider = Column(String(50), nullable=True)  # e.g., 'google'
+    oauth_sub = Column(String(255), unique=True, index=True, nullable=True)  # provider user id (Google 'sub')
+    
     # Student-specific fields
     university = Column(String(255), nullable=True)
     degree = Column(String(255), nullable=True)

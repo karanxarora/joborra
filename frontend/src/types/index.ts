@@ -6,6 +6,9 @@ export interface User {
   full_name: string;
   role: 'student' | 'employer';
   is_verified?: boolean;
+  // OAuth fields
+  oauth_provider?: string | null;
+  oauth_sub?: string | null;
   university?: string;
   degree?: string;
   graduation_year?: number;

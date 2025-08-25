@@ -68,6 +68,33 @@ class ApiService {
     return response.data;
   }
 
+  // Google OAuth helpers
+  getGoogleLoginUrl(): string {
+    try {
+      const url = new URL(this.baseURL);
+      const origin = `${url.protocol}//${url.host}`;
+      return `${origin}/api/auth/google/login`;
+    } catch {
+      return `${this.baseURL.replace(/\/$/, '')}/auth/google/login`;
+    }
+  }
+
+  async googleLoginWithIdToken(id_token: string): Promise<AuthResponse> {
+    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/oauth/google', { id_token });
+    this.setAuth(response.data);
+    return response.data;
+  }
+
+  async linkGoogleWithIdToken(id_token: string): Promise<User> {
+    const response: AxiosResponse<User> = await this.api.post('/auth/oauth/google/link', { id_token });
+    // Update local user cache
+    const stored = this.getCurrentUserFromStorage();
+    if (stored) {
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
+    return response.data;
+  }
+
   async register(userData: RegisterForm): Promise<any> {
     // Backend expects username; derive from email if UI omits it
     const email = userData.email || '';

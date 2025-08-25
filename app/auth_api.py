@@ -3,10 +3,12 @@ Authentication API Endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import List, Optional
 import os
+import secrets
 
 from .database import get_db
 from .auth import AuthService, get_current_user, get_current_student, get_current_employer
@@ -44,6 +46,10 @@ RATE_LIMIT_SECONDS = 60  # min interval between requests per user
 def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user (Student or Employer)"""
     auth_service = AuthService(db)
+    # Prevent registering a password account if email belongs to an OAuth account
+    existing = db.query(User).filter(User.email == user_data.email.lower().strip()).first()
+    if existing and existing.oauth_sub:
+        raise HTTPException(status_code=409, detail="This email is registered with Google. Use Google Sign-In.")
     user = auth_service.create_user(user_data)
     return user
 
@@ -177,7 +183,11 @@ def confirm_email_verification(token: str, db: Session = Depends(get_db)):
 def login_user(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     """Login user and return tokens with session management"""
     auth_service = AuthService(db)
-    
+    # Block password login if the account is Google-linked only
+    existing = db.query(User).filter(User.email == login_data.email.lower().strip()).first()
+    if existing and existing.oauth_sub:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This email uses Google Sign-In. Please continue with Google.")
+
     user = auth_service.authenticate_user(login_data.email, login_data.password)
     if not user:
         raise HTTPException(
@@ -200,6 +210,242 @@ def login_user(login_data: UserLogin, request: Request, db: Session = Depends(ge
         expires_in=1800,  # 30 minutes
         user=UserResponse.from_orm(user)
     )
+
+# ----------------------------
+# Google OAuth 2.0 Endpoints
+# ----------------------------
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+def _default_google_redirect_base(request: Request) -> str:
+    # Prefer FRONTEND_ORIGIN for building absolute URLs, fallback to request base
+    frontend_origin = os.getenv("FRONTEND_ORIGIN")
+    if frontend_origin:
+        return frontend_origin.rstrip('/')
+    return str(request.base_url).rstrip('/')
+
+def _get_google_redirect_uri(request: Request) -> str:
+    # Use explicit env override if provided, else try to infer API base + path
+    explicit = os.getenv("GOOGLE_REDIRECT_URI")
+    if explicit:
+        return explicit
+    # Infer based on current request host to support local/prod without config changes
+    base = str(request.base_url).rstrip('/')
+    return f"{base}/api/auth/google/callback"
+
+@router.get("/google/login")
+def google_login(request: Request):
+    """Initiate Google OAuth by redirecting to Google's consent screen."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Google OAuth not configured: missing GOOGLE_CLIENT_ID")
+
+    redirect_uri = _get_google_redirect_uri(request)
+    state = secrets.token_urlsafe(16)
+    nonce = secrets.token_urlsafe(16)
+
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "nonce": nonce,
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    from urllib.parse import urlencode
+    url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    return RedirectResponse(url)
+
+@router.get("/google/callback", response_model=TokenResponse)
+def google_callback(code: Optional[str] = None, error: Optional[str] = None, request: Request = None, db: Session = Depends(get_db)):
+    """Handle Google's OAuth redirect: exchange code for tokens, upsert/link user, and return Joborra tokens."""
+    if error:
+        raise HTTPException(status_code=400, detail=f"Google OAuth error: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+    if not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET):
+        raise HTTPException(status_code=500, detail="Google OAuth not configured")
+
+    redirect_uri = _get_google_redirect_uri(request)
+
+    # Exchange authorization code for tokens
+    import requests
+    token_resp = requests.post("https://oauth2.googleapis.com/token", data={
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    })
+    if token_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail=f"Failed to exchange code: {token_resp.text}")
+    token_data = token_resp.json()
+    id_token = token_data.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=400, detail="No id_token in Google response")
+
+    # Validate ID token and extract user info via Google tokeninfo
+    info_resp = requests.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": id_token})
+    if info_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Invalid Google id_token")
+    info = info_resp.json()
+
+    aud = info.get("aud")
+    if aud != GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Google token audience mismatch")
+    sub = info.get("sub")
+    email = (info.get("email") or "").lower().strip()
+    email_verified = info.get("email_verified") in (True, "true", "1", 1)
+    name = info.get("name") or email.split('@')[0]
+
+    if not sub or not email:
+        raise HTTPException(status_code=400, detail="Google token missing subject or email")
+
+    # Upsert/link user according to rules
+    auth_service = AuthService(db)
+    user_by_sub = db.query(User).filter(User.oauth_sub == sub).first()
+    if user_by_sub:
+        user = user_by_sub
+    else:
+        user_by_email = db.query(User).filter(User.email == email).first()
+        if user_by_email:
+            # If existing standalone account, require linking first
+            if not user_by_email.oauth_sub:
+                raise HTTPException(status_code=409, detail="link_required")
+            user = user_by_email
+        else:
+            # Create new Google user
+            from app.auth_models import UserRole
+            random_password = secrets.token_urlsafe(24)
+            user = User(
+                email=email,
+                username=email.split('@')[0],
+                hashed_password=User.hash_password(random_password),
+                full_name=name,
+                role=UserRole.STUDENT,
+                is_active=True,
+                is_verified=bool(email_verified),
+                oauth_provider="google",
+                oauth_sub=sub,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+    # Issue Joborra tokens
+    access_token = auth_service.create_access_token(user)
+    refresh_token = auth_service.create_refresh_token(user, request)
+    try:
+        user.resume_url = resolve_storage_url(getattr(user, "resume_url", None))
+        user.company_logo_url = resolve_storage_url(getattr(user, "company_logo_url", None))
+    except Exception:
+        logger.exception("Failed to resolve media URLs in google_callback")
+    # If FRONTEND_ORIGIN is configured, redirect to frontend with tokens
+    frontend_origin = os.getenv("FRONTEND_ORIGIN")
+    if frontend_origin:
+        from urllib.parse import urlencode
+        q = urlencode({
+            "oauth": "success",
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": 1800,
+        })
+        return RedirectResponse(url=f"{frontend_origin.rstrip('/')}/auth?{q}")
+
+    # Fallback to JSON response (useful for local testing)
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=1800,
+        user=UserResponse.from_orm(user)
+    )
+
+@router.post("/oauth/google", response_model=TokenResponse)
+def oauth_google_login(payload: dict, request: Request, db: Session = Depends(get_db)):
+    """Login or signup via Google ID token posted by frontend (Google Identity Services)."""
+    id_token = payload.get("id_token") if isinstance(payload, dict) else None
+    if not id_token:
+        raise HTTPException(status_code=400, detail="id_token is required")
+    import requests
+    info_resp = requests.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": id_token})
+    if info_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Invalid Google id_token")
+    info = info_resp.json()
+    if info.get("aud") != GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Google token audience mismatch")
+    sub = info.get("sub")
+    email = (info.get("email") or "").lower().strip()
+    email_verified = info.get("email_verified") in (True, "true", "1", 1)
+    name = info.get("name") or email.split('@')[0]
+    if not sub or not email:
+        raise HTTPException(status_code=400, detail="Google token missing subject or email")
+
+    auth_service = AuthService(db)
+    user = db.query(User).filter(User.oauth_sub == sub).first()
+    if not user:
+        user_by_email = db.query(User).filter(User.email == email).first()
+        if user_by_email and not user_by_email.oauth_sub:
+            raise HTTPException(status_code=409, detail="link_required")
+        if not user_by_email:
+            from app.auth_models import UserRole
+            random_password = secrets.token_urlsafe(24)
+            user = User(
+                email=email,
+                username=email.split('@')[0],
+                hashed_password=User.hash_password(random_password),
+                full_name=name,
+                role=UserRole.STUDENT,
+                is_active=True,
+                is_verified=bool(email_verified),
+                oauth_provider="google",
+                oauth_sub=sub,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            user = user_by_email
+    access_token = auth_service.create_access_token(user)
+    refresh_token = auth_service.create_refresh_token(user, request)
+    try:
+        user.resume_url = resolve_storage_url(getattr(user, "resume_url", None))
+        user.company_logo_url = resolve_storage_url(getattr(user, "company_logo_url", None))
+    except Exception:
+        logger.exception("Failed to resolve media URLs in oauth_google_login")
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token, expires_in=1800, user=UserResponse.from_orm(user))
+
+@router.post("/oauth/google/link", response_model=UserResponse)
+def oauth_google_link(payload: dict, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Link Google account to an existing standalone account using an ID token."""
+    id_token = payload.get("id_token") if isinstance(payload, dict) else None
+    if not id_token:
+        raise HTTPException(status_code=400, detail="id_token is required")
+    if current_user.oauth_sub:
+        return current_user
+    import requests
+    info_resp = requests.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": id_token})
+    if info_resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="Invalid Google id_token")
+    info = info_resp.json()
+    if info.get("aud") != GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="Google token audience mismatch")
+    sub = info.get("sub")
+    email = (info.get("email") or "").lower().strip()
+    if not sub or not email:
+        raise HTTPException(status_code=400, detail="Google token missing subject or email")
+    if email != (current_user.email or "").lower().strip():
+        raise HTTPException(status_code=400, detail="Google email does not match your account email")
+    # Ensure no other account is already linked with this sub
+    existing = db.query(User).filter(User.oauth_sub == sub).first()
+    if existing and existing.id != current_user.id:
+        raise HTTPException(status_code=409, detail="This Google account is already linked to another user")
+    current_user.oauth_provider = "google"
+    current_user.oauth_sub = sub
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_profile(current_user: User = Depends(get_current_user)):

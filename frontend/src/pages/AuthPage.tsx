@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Building, GraduationCap, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -56,6 +56,113 @@ const AuthPage: React.FC = () => {
     for (let y = current - 10; y <= current + 6; y++) years.push(y);
     return years;
   }, []);
+
+  // Handle OAuth redirect tokens (?oauth=success&access_token=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === 'success' && params.get('access_token')) {
+      const access = params.get('access_token')!;
+      const refresh = params.get('refresh_token') || '';
+      localStorage.setItem('token', access);
+      if (refresh) localStorage.setItem('refresh_token', refresh);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Fetch user and finalize login
+      (async () => {
+        try {
+          const me = await apiService.getCurrentUser();
+          localStorage.setItem('user', JSON.stringify(me));
+          toast('Signed in with Google', 'success');
+          navigate('/');
+        } catch (e) {
+          setError('Failed to complete Google sign-in');
+        }
+      })();
+    }
+  }, [navigate, toast]);
+
+  // Google Identity Services sign-in (ID token flow)
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const ensureGoogleScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).google?.accounts?.id) return resolve();
+      const existing = document.getElementById('google-identity-services');
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.id = 'google-identity-services';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+      document.head.appendChild(script);
+    });
+  };
+
+  const onGoogleSignIn = async () => {
+    setError(null);
+    setGoogleLoading(true);
+    try {
+      await ensureGoogleScript();
+      const google: any = (window as any).google;
+      const clientId = (process as any).env.REACT_APP_GOOGLE_CLIENT_ID || (window as any).REACT_APP_GOOGLE_CLIENT_ID;
+      if (!clientId) throw new Error('Google Client ID not configured');
+
+      let settled = false;
+      await new Promise<void>((resolve, reject) => {
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: async (resp: any) => {
+              if (settled) return;
+              settled = true;
+              const id_token = resp?.credential;
+              if (!id_token) {
+                reject(new Error('No ID token received'));
+                return;
+              }
+              try {
+                await apiService.googleLoginWithIdToken(id_token);
+                toast('Signed in with Google', 'success');
+                navigate('/');
+                resolve();
+              } catch (err: any) {
+                const detail = err?.response?.data?.detail || '';
+                if (detail === 'link_required' || /link_required/i.test(detail)) {
+                  toast('An account with this email exists. Sign in with password, then link Google in Profile.', 'error');
+                } else if (detail) {
+                  toast(detail, 'error');
+                } else {
+                  toast('Google sign-in failed', 'error');
+                }
+                reject(err);
+              }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            context: 'signin',
+          });
+          // Trigger a prompt; if not displayed, render a fallback button moment
+          google.accounts.id.prompt((notification: any) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              const container = document.createElement('div');
+              document.body.appendChild(container);
+              google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+            }
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    } catch (e: any) {
+      if (e?.message) setError(e.message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +230,23 @@ const AuthPage: React.FC = () => {
         </div>
 
         <Card className="p-8">
+          {/* OAuth quick sign-in (GIS ID token flow) */}
+          <div className="mb-6">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={onGoogleSignIn}
+              loading={googleLoading}
+            >
+              Continue with Google
+            </Button>
+            <div className="flex items-center my-6">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="px-3 text-xs uppercase tracking-wide text-slate-500">or</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+          </div>
           {/* Tab Navigation */}
           <div className="flex space-x-2 bg-slate-100 p-1 rounded-xl mb-8">
             <button

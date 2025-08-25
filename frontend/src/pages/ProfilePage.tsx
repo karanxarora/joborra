@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
 import { AU_UNIVERSITIES } from '../constants/universities';
+import { useToast } from '../contexts/ToastContext';
 
 const ProfilePage: React.FC = () => {
   const { user: ctxUser, refreshUser } = useAuth();
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
@@ -71,6 +73,100 @@ const ProfilePage: React.FC = () => {
     });
     // TODO: hydrate education/experience from backend when available
   }, [ctxUser]);
+
+  // Google Account Linking
+  const [linking, setLinking] = useState(false);
+  const isGoogleLinked = useMemo(() => ctxUser?.oauth_provider === 'google', [ctxUser]);
+
+  const ensureGoogleScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).google?.accounts?.id) return resolve();
+      const existing = document.getElementById('google-identity-services');
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.id = 'google-identity-services';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+      document.head.appendChild(script);
+    });
+  };
+
+  const onLinkGoogle = async () => {
+    setMessage(null);
+    setLinking(true);
+    try {
+      await ensureGoogleScript();
+      const google: any = (window as any).google;
+      const clientId = (process as any).env.REACT_APP_GOOGLE_CLIENT_ID || (window as any).REACT_APP_GOOGLE_CLIENT_ID;
+      if (!clientId) throw new Error('Google Client ID not configured');
+      let resolved = false;
+      await new Promise<void>((resolve, reject) => {
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: async (resp: any) => {
+              if (resolved) return;
+              resolved = true;
+              const id_token = resp?.credential;
+              if (!id_token) {
+                reject(new Error('No ID token received'));
+                return;
+              }
+              try {
+                await apiService.linkGoogleWithIdToken(id_token);
+                await refreshUser();
+                setMessage('Google account linked successfully');
+                toast('Google account linked', 'success');
+                resolve();
+              } catch (err: any) {
+                const detail = err?.response?.data?.detail || '';
+                if (detail === 'link_required' || /link_required/i.test(detail)) {
+                  toast('This email is already in use. Sign in with password, then link Google here.', 'error');
+                } else if (/email/i.test(detail) && /mismatch|different/i.test(detail)) {
+                  toast('Email mismatch between your account and Google profile.', 'error');
+                } else if (detail) {
+                  toast(detail, 'error');
+                } else {
+                  toast('Failed to link Google account', 'error');
+                }
+                setMessage(detail || 'Failed to link Google account');
+                reject(err);
+              }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            context: 'use',
+          });
+          // Use the prompt flow to get an ID token popup
+          google.accounts.id.prompt((notification: any) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              // As a fallback, render a one-time button and simulate click
+              const container = document.createElement('div');
+              document.body.appendChild(container);
+              google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+              const btn = container.querySelector('div[role="button"]') as HTMLElement | null;
+              if (!btn) {
+                setMessage('Google Sign-In not available');
+                reject(new Error('GIS button render failed'));
+              }
+            }
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    } catch (e: any) {
+      if (!message) setMessage(e?.message || 'Failed to start Google linking');
+    } finally {
+      setLinking(false);
+    }
+  };
 
   // Derive avatar initials from name/email
   const initials = React.useMemo(() => {
@@ -327,6 +423,21 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
             )}
+            {/* Google Account Linking */}
+            <div className="rounded-md border border-slate-200 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-900">Google Account</div>
+                  <div className="text-sm text-slate-600 mt-1">
+                    {isGoogleLinked ? 'Your account is linked with Google Sign-In.' : 'Link your Google account to sign in seamlessly and enhance security.'}
+                  </div>
+                </div>
+                <Button type="button" variant="outline" onClick={onLinkGoogle} disabled={isGoogleLinked} loading={linking}>
+                  {isGoogleLinked ? 'Linked' : 'Link Google Account'}
+                </Button>
+              </div>
+            </div>
+
             <form onSubmit={onSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input label="Full Name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
