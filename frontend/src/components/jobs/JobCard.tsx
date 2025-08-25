@@ -1,7 +1,6 @@
 import React from 'react';
 import { MapPin, ShieldCheck, GraduationCap, DollarSign, Clock, Building2, Bookmark } from 'lucide-react';
 import Card from '../ui/Card';
-import Button from '../ui/Button';
 import { Job } from '../../types';
 
 interface JobCardProps {

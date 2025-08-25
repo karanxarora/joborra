@@ -16,16 +16,16 @@ const Footer: React.FC = () => {
             <h4 className="text-sm font-semibold text-slate-900 mb-3">Product</h4>
             <ul className="space-y-2 text-sm">
               <li><Link to="/jobs" className="text-slate-600 hover:text-cyan-600">Find Jobs</Link></li>
-              <li><Link to="/dashboard" className="text-slate-600 hover:text-cyan-600">Dashboard</Link></li>
+              <li><Link to="/saved" className="text-slate-600 hover:text-cyan-600">Saved Jobs</Link></li>
               <li><Link to="/profile" className="text-slate-600 hover:text-cyan-600">Profile</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-sm font-semibold text-slate-900 mb-3">Resources</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="text-slate-600 hover:text-cyan-600">Visa Guide</a></li>
-              <li><a href="#" className="text-slate-600 hover:text-cyan-600">Employer Sponsors</a></li>
-              <li><a href="#" className="text-slate-600 hover:text-cyan-600">Support</a></li>
+              <li><Link to="/about" className="text-slate-600 hover:text-cyan-600">Visa Guide</Link></li>
+              <li><Link to="/about" className="text-slate-600 hover:text-cyan-600">Employer Sponsors</Link></li>
+              <li><Link to="/about" className="text-slate-600 hover:text-cyan-600">Support</Link></li>
             </ul>
           </div>
           <div>
@@ -40,9 +40,9 @@ const Footer: React.FC = () => {
         <div className="mt-8 pt-6 border-t flex flex-col md:flex-row items-center justify-between text-sm text-slate-500">
           <p>© {new Date().getFullYear()} Joborra. All rights reserved.</p>
           <div className="space-x-4 mt-2 md:mt-0">
-            <a href="#" className="hover:text-cyan-600">Privacy</a>
-            <a href="#" className="hover:text-cyan-600">Terms</a>
-            <a href="#" className="hover:text-cyan-600">Contact</a>
+            <Link to="/about" className="hover:text-cyan-600">Privacy</Link>
+            <Link to="/about" className="hover:text-cyan-600">Terms</Link>
+            <a href="mailto:support@joborra.com" className="hover:text-cyan-600">Contact</a>
           </div>
         </div>
       </div>

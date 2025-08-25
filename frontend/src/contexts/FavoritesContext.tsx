@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import apiService from '../services/api';
-import { Job, JobFavoriteWithJob } from '../types';
+import { JobFavoriteWithJob } from '../types';
 
 interface FavoritesState {
   favorites: JobFavoriteWithJob[];
@@ -30,7 +30,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return m;
   };
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const items = await apiService.listFavorites();
@@ -47,15 +47,14 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Preload on app start; auth interceptor will redirect if unauthenticated
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refresh]);
 
-  const add = async (jobId: number, notes?: string | null) => {
+  const add = useCallback(async (jobId: number, notes?: string | null) => {
     try {
       const created = await apiService.addFavorite(jobId, notes);
       // Only minimal update to avoid needing job object; callers often don't need full list here
@@ -66,9 +65,9 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (e) {
       return null;
     }
-  };
+  }, [refresh]);
 
-  const remove = async (favoriteId: number) => {
+  const remove = useCallback(async (favoriteId: number) => {
     try {
       await apiService.removeFavorite(favoriteId);
       setFavorites((prev) => prev.filter((f) => f.id !== favoriteId));
@@ -83,9 +82,12 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (e) {
       return false;
     }
-  };
+  }, []);
 
-  const value = useMemo(() => ({ favorites, map, loading, refresh, add, remove }), [favorites, map, loading]);
+  const value = useMemo(
+    () => ({ favorites, map, loading, refresh, add, remove }),
+    [favorites, map, loading, refresh, add, remove]
+  );
 
   return (
     <FavoritesContext.Provider value={value}>

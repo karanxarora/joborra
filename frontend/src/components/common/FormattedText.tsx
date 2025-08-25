@@ -24,7 +24,7 @@ export const FormattedText: React.FC<Props> = ({ text, className = '' }) => {
   const blocks: Block[] = [];
 
   const bulletRegex = /^[-*•]\s+/; // -, *, •
-  const orderedRegex = /^(\d+)[\.)]\s+/; // 1.  or  1)
+  const orderedRegex = /^(\d+)[.)]\s+/; // 1.  or  1)
 
   let i = 0;
   while (i < lines.length) {

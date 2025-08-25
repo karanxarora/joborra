@@ -9,7 +9,7 @@ import apiService from '../services/api';
 
 const HomePage: React.FC = () => {
   const [stats, setStats] = useState<JobStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  // removed unused loading state
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -19,7 +19,7 @@ const HomePage: React.FC = () => {
       } catch (error) {
         console.error('Failed to fetch job stats:', error);
       } finally {
-        setLoading(false);
+        // no-op
       }
     };
 

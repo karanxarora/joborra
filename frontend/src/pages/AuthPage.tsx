@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Building, GraduationCap, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
@@ -524,13 +524,13 @@ const AuthPage: React.FC = () => {
         <div className="text-center text-sm text-slate-600">
           <p>
             By signing up, you agree to our{' '}
-            <a href="#" className="text-primary-600 hover:text-primary-500">
+            <Link to="/about" className="text-primary-600 hover:text-primary-500">
               Terms of Service
-            </a>{' '}
+            </Link>{' '}
             and{' '}
-            <a href="#" className="text-primary-600 hover:text-primary-500">
+            <Link to="/about" className="text-primary-600 hover:text-primary-500">
               Privacy Policy
-            </a>
+            </Link>
           </p>
         </div>
       </div>

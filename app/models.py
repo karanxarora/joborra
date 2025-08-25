@@ -5,6 +5,8 @@ from app.database import Base
 
 # Import auth models to ensure they're available for relationships
 from app.auth_models import User, JobFavorite, JobApplication
+# Import visa models to ensure relationships like User.visa_verification resolve
+from app.visa_models import VisaVerification, VisaVerificationHistory, VEVOApiLog  # noqa: F401
 
 from datetime import datetime
 from typing import List, Optional

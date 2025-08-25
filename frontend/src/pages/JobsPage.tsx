@@ -44,39 +44,7 @@ const JobsPage: React.FC = () => {
   const [locLoading, setLocLoading] = useState<boolean>(false);
   const [showLocDropdown, setShowLocDropdown] = useState<boolean>(false);
 
-  // Keep input in sync if filters reset
-  useEffect(() => {
-    setLocationInput(String(filters.location || ''));
-  }, [filters.location]);
-
-  useEffect(() => {
-    loadJobs();
-  }, [filters, currentPage]);
-
-  // favorites are preloaded by FavoritesProvider
-
-  // Debounced fetch for location suggestions
-  useEffect(() => {
-    const q = locationInput?.trim() || '';
-    if (!q) {
-      setLocSuggestions([]);
-      return;
-    }
-    setLocLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const items = await apiService.getLocationSuggestions(q, 8);
-        setLocSuggestions(items);
-      } catch (e) {
-        setLocSuggestions([]);
-      } finally {
-        setLocLoading(false);
-      }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [locationInput]);
-
-  const loadJobs = async () => {
+  const loadJobs = React.useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiService.getJobs(filters, currentPage, 12);
@@ -154,7 +122,41 @@ const JobsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, currentPage]);
+
+  // Keep input in sync if filters reset
+  useEffect(() => {
+    setLocationInput(String(filters.location || ''));
+  }, [filters.location]);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
+
+  // favorites are preloaded by FavoritesProvider
+
+  // Debounced fetch for location suggestions
+  useEffect(() => {
+    const q = locationInput?.trim() || '';
+    if (!q) {
+      setLocSuggestions([]);
+      return;
+    }
+    setLocLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const items = await apiService.getLocationSuggestions(q, 8);
+        setLocSuggestions(items);
+      } catch (e) {
+        setLocSuggestions([]);
+      } finally {
+        setLocLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [locationInput]);
+
+  
 
   const isSaved = (jobId: number) => !!favoritesMap[jobId];
 
@@ -300,7 +302,7 @@ const JobsPage: React.FC = () => {
           <div>
             <select
               className="px-3 py-2 rounded-md border text-sm text-slate-700"
-              value={filters.visa_types && (filters.visa_types as string[])[0] || ''}
+              value={(filters.visa_types && (filters.visa_types as string[])[0]) || ''}
               onChange={(e) => handleFilterChange('visa_types', e.target.value ? [e.target.value] : undefined)}
             >
               <option value="">Visa Accepted</option>
@@ -422,9 +424,13 @@ const JobsPage: React.FC = () => {
 
                       {/* Actions */}
                       <div className="mt-5 flex gap-2">
-                        <a href={selectedJob.source_url} target="_blank" rel="noopener noreferrer">
-                          <Button icon={<ExternalLink className="h-4 w-4" />}>Apply</Button>
-                        </a>
+                        {selectedJob.source_url ? (
+                          <a href={selectedJob.source_url} target="_blank" rel="noopener noreferrer">
+                            <Button icon={<ExternalLink className="h-4 w-4" />}>Apply</Button>
+                          </a>
+                        ) : (
+                          <Button variant="outline" disabled icon={<ExternalLink className="h-4 w-4" />}>Apply</Button>
+                        )}
                         <Button variant="outline" onClick={() => toggleSave(selectedJob)} disabled={!!saving[selectedJob.id]} aria-busy={!!saving[selectedJob.id]}>
                           <Bookmark
                             className={

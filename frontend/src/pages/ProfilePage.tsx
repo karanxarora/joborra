@@ -18,7 +18,7 @@ const ProfilePage: React.FC = () => {
   // Visa state
   const [loadingVisa, setLoadingVisa] = useState(false);
   const [visaInfo, setVisaInfo] = useState<any | null>(null);
-  const [visaSubmitting, setVisaSubmitting] = useState(false);
+  
   const [visaMsg, setVisaMsg] = useState<string | null>(null);
   // Visa document upload state
   const [visaDocType, setVisaDocType] = useState<'passport' | 'visa_grant' | 'coe' | 'vevo'>('vevo');
