@@ -113,11 +113,15 @@ const HomePage: React.FC = () => {
                 ))}
               </div>
             </div>
-            {/* Right: Visual placeholder */}
+            {/* Right: Hero image */}
             <div className="hidden lg:block">
-              <div className="rounded-2xl bg-slate-100 h-[420px] border border-slate-200 shadow-sm flex items-center justify-center text-slate-500">
-                {/* Placeholder for hero image */}
-                <span className="text-sm">Hero Image</span>
+              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                <img
+                  src="/hero-home.jpg"
+                  alt="Students finding visa-friendly jobs in Australia"
+                  className="w-full h-[420px] object-cover"
+                  loading="eager"
+                />
               </div>
             </div>
           </div>
