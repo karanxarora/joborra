@@ -2,6 +2,8 @@
 """
 Test script to verify all frontend-backend API connections
 """
+import pytest
+pytestmark = pytest.mark.skip(reason="Manual connectivity script; skip in unit test runs")
 import requests
 import json
 from datetime import datetime

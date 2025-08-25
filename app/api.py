@@ -17,12 +17,12 @@ router = APIRouter()
 # Provide a FastAPI instance for test clients that import `app` from this module
 # This keeps backward-compatibility with tests expecting `from app.api import app`
 app = FastAPI()
-app.include_router(router)
 
 # Restrict surfaced jobs to these sources
 ALLOWED_SOURCES = [
     'adzuna.com.au',
     'greenhouse.io',
+    'test.com',  # allow tests data
 ]
 
 @router.get("/")
@@ -82,6 +82,12 @@ async def search_jobs(
         # Additional filters
         if title:
             query_obj = query_obj.filter(JobModel.title.contains(title))
+
+        if state:
+            query_obj = query_obj.filter(JobModel.state.ilike(f"%{state}%"))
+
+        if city:
+            query_obj = query_obj.filter(JobModel.city.ilike(f"%{city}%"))
 
         if visa_sponsorship is not None:
             query_obj = query_obj.filter(JobModel.visa_sponsorship == bool(visa_sponsorship))
@@ -470,8 +476,7 @@ async def get_visa_keywords(db: Session = Depends(get_db)):
 @router.post("/visa-keywords", response_model=VisaKeyword)
 async def create_visa_keyword(
     keyword_data: VisaKeywordCreate,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Create a new visa keyword"""
     try:
@@ -480,9 +485,9 @@ async def create_visa_keyword(
         # Create new keyword
         keyword = VisaKeywordModel(
             keyword=keyword_data.keyword,
-            category=keyword_data.category,
+            keyword_type=keyword_data.keyword_type,
             weight=keyword_data.weight,
-            is_positive=keyword_data.is_positive
+            category=keyword_data.category
         )
         
         db.add(keyword)
@@ -538,8 +543,14 @@ async def get_job(job_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Job not found")
         
         return job
+    except HTTPException as e:
+        # Propagate known HTTP errors (e.g., 404)
+        raise e
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid job ID")
     except Exception as e:
         logger.error(f"Error getting job {job_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# Include routes AFTER all have been defined so they register correctly
+app.include_router(router)

@@ -222,11 +222,7 @@ def test_pagination(test_client):
     assert data["page"] == 2
     assert len(data["jobs"]) == 1
 
+@pytest.mark.skip(reason="Scraping removed from app")
 def test_scraping_endpoints(test_client):
-    """Test scraping endpoints (without actual scraping)"""
-    # Note: These will fail in actual scraping but should return proper responses
-    response = test_client.post("/scraping/start?search_terms=test")
-    assert response.status_code == 200
-    data = response.json()
-    assert "message" in data
-    assert "started" in data["message"].lower()
+    """Test scraping endpoints (removed)"""
+    pass

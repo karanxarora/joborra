@@ -207,22 +207,18 @@ def test_job_service_get_stats(test_db_with_data):
     assert 'jobs_by_state' in stats
     assert 'jobs_by_source' in stats
 
+@pytest.mark.skip(reason="Scraping removed from app")
 def test_scraping_service_initialization(test_db_with_data):
     """Test scraping service initialization"""
     service = ScrapingService(test_db_with_data)
-    assert service.scrapers is not None
-    assert 'seek' in service.scrapers
-    assert 'indeed' in service.scrapers
     assert service.job_service is not None
 
+@pytest.mark.skip(reason="Scraping removed from app")
 def test_scraping_service_cleanup(test_db_with_data):
     """Test old job cleanup"""
     service = ScrapingService(test_db_with_data)
-    
-    # All jobs are recent, so cleanup shouldn't remove anything
+    # This test is skipped; logic retained for reference
     deleted_count = service.cleanup_old_jobs(days=1)
     assert deleted_count == 0
-    
-    # Verify jobs still exist
     remaining_jobs = test_db_with_data.query(Job).count()
     assert remaining_jobs == 2

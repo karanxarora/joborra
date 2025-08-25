@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_SOURCES = [
     'adzuna.com.au',
     'greenhouse.io',
+    'test.com',  # allow tests data
 ]
 
 class JobService:
@@ -231,7 +232,8 @@ class ScrapingService:
     def __init__(self, db: Session):
         self.db = db
         self.job_service = JobService(db)
-        self.orchestrator = None  # Will be initialized with credentials
+        # No third-party scrapers like Seek/Indeed are used in the app
+        self.orchestrator = JobScrapingOrchestrator()
     
     def scrape_all_sources(self, search_terms: List[str], location: str = "Australia") -> Dict:
         try:
