@@ -5,7 +5,7 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 # Build Tailwind then CRA
-RUN npm run build
+RUN CI=false npm run build
 
 # Serve with Nginx
 FROM nginx:alpine
