@@ -1,4 +1,5 @@
 import pytest
+pytest.skip("Seek/Indeed scrapers removed; skipping legacy tests", allow_module_level=True)
 from unittest.mock import Mock, patch
 from app.scrapers.base_scraper import BaseScraper
 from app.scrapers.seek_scraper import SeekScraper
