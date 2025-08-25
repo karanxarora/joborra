@@ -232,7 +232,6 @@ class ScrapingService:
     def __init__(self, db: Session):
         self.db = db
         self.job_service = JobService(db)
-        # No third-party scrapers like Seek/Indeed are used in the app
         self.orchestrator = JobScrapingOrchestrator()
     
     def scrape_all_sources(self, search_terms: List[str], location: str = "Australia") -> Dict:
