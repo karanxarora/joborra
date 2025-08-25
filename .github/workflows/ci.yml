@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests (unit only)
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest -q tests
+
+  frontend:
+    name: Frontend (Node)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        env:
+          CI: true
+        run: npm test -- --watchAll=false
+
+  deploy:
+    name: Deploy to Linode
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare artifact (filter out dev caches)
+        run: |
+          rm -rf .git
+
+      - name: Upload project to server (key or password)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: "."
+          target: "${{ secrets.REMOTE_APP_DIR }}"
+
+      - name: Run remote deployment (key or password)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export APP_DIR=${{ secrets.REMOTE_APP_DIR }}
+            # Install Docker & Compose if missing
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com | sh
+              systemctl enable docker || true
+              systemctl start docker || true
+            fi
+            if ! docker compose version >/dev/null 2>&1; then
+              DOCKER_CONFIG=${HOME}/.docker mkdir -p ${DOCKER_CONFIG}/cli-plugins
+              curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m) -o ${DOCKER_CONFIG}/cli-plugins/docker-compose
+              chmod +x ${DOCKER_CONFIG}/cli-plugins/docker-compose
+            fi
+
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
+
+            # Ensure env files exist (backend .env)
+            if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
+              echo "${{ secrets.BACKEND_ENV }}" > .env
+            fi
+            # Frontend env
+            if [ -n "${{ secrets.FRONTEND_ENV }}" ]; then
+              echo "${{ secrets.FRONTEND_ENV }}" > frontend/.env.production
+            elif [ ! -f frontend/.env.production ]; then
+              echo "REACT_APP_API_URL=/api" > frontend/.env.production
+            fi
+
+            # Build and start services
+            docker compose -f docker-compose.yml build --no-cache
+            docker compose -f docker-compose.yml up -d
+            # Cleanup old images
+            docker image prune -f || true

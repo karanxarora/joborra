@@ -14,3 +14,14 @@ joborra.com {
 www.joborra.com {
   redir https://joborra.com{uri} permanent
 }
+
+# Fallback HTTP site for IP-based or non-DNS deployments
+# This does not provision TLS. Useful when accessing via server IP.
+:80 {
+  encode gzip
+
+  @api path /api*
+  reverse_proxy @api api:8000
+
+  reverse_proxy frontend:80
+}
