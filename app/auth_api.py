@@ -17,7 +17,7 @@ from .auth_schemas import (
     UserCreate, UserLogin, TokenResponse, UserResponse, 
     JobFavoriteCreate, JobFavoriteResponse, JobFavoriteWithJob, JobApplicationCreate, JobApplicationResponse,
     StudentProfileUpdate, EmployerProfileUpdate, JobViewCreate, JobViewResponse, JobAnalytics, 
-    EmployerJobCreate, EmployerJobUpdate, JobApplicationWithJob, EmployerApplicationWithUser
+    EmployerJobCreate, EmployerJobUpdate, JobApplicationWithJob, EmployerApplicationWithUser, ApplicationStatusUpdate
 )
 from .models import Job, Company
 from .schemas import Job as JobSchema
@@ -562,6 +562,81 @@ def remove_job_favorite(
     logger.info(f"Student {current_user.id} removed favorite {favorite_id}")
     return {"message": "Favorite removed successfully"}
 
+@student_router.post("/applications", response_model=JobApplicationResponse)
+def submit_job_application(
+    app_data: JobApplicationCreate,
+    current_user: User = Depends(get_current_student),
+    db: Session = Depends(get_db)
+):
+    """Student submits an application to a job."""
+    # Validate job exists
+    job = db.query(Job).filter(Job.id == app_data.job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Prevent duplicate applications
+    existing = db.query(JobApplication).filter(
+        JobApplication.user_id == current_user.id,
+        JobApplication.job_id == app_data.job_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already applied to this job")
+
+    application = JobApplication(
+        user_id=current_user.id,
+        job_id=app_data.job_id,
+        cover_letter=app_data.cover_letter,
+        resume_url=app_data.resume_url,
+        notes=app_data.notes,
+        status="applied",
+        applied_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    logger.info(f"Student {current_user.id} applied to job {app_data.job_id}")
+    return application
+
+@student_router.get("/applications", response_model=List[JobApplicationWithJob])
+def list_student_applications(
+    current_user: User = Depends(get_current_student),
+    db: Session = Depends(get_db)
+):
+    """List applications submitted by the current student with job info."""
+    apps = db.query(JobApplication).filter(JobApplication.user_id == current_user.id).all()
+    results: List[JobApplicationWithJob] = []
+    for app in apps:
+        job = db.query(Job).filter(Job.id == app.job_id).first()
+        if not job:
+            continue
+        job_dict = {
+            "id": job.id,
+            "title": job.title,
+            "location": job.location,
+            "city": job.city,
+            "state": job.state,
+            "company": {
+                "id": job.company.id if job.company else None,
+                "name": job.company.name if job.company else None,
+                "website": job.company.website if job.company else None,
+            },
+        }
+        results.append(JobApplicationWithJob(
+            id=app.id,
+            job_id=app.job_id,
+            status=app.status,
+            applied_at=app.applied_at,
+            updated_at=app.updated_at,
+            cover_letter=app.cover_letter,
+            resume_url=resolve_storage_url(app.resume_url),
+            notes=app.notes,
+            job=job_dict,
+        ))
+    return results
+
+ 
+
 @student_router.put("/profile", response_model=UserResponse)
 def update_student_profile(
     profile_data: StudentProfileUpdate,
@@ -586,6 +661,88 @@ def update_student_profile(
 
 # Employer-specific endpoints
 employer_router = APIRouter(prefix="/employer", tags=["employer"])
+
+
+@employer_router.get("/candidates/recommended")
+def recommended_candidates(
+    job_id: int,
+    limit: int = 20,
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Return top student candidates recommended for an employer-owned job.
+    Basic scoring uses skills overlap and visa/international-friendly flags.
+    """
+    # Ensure job is owned by employer
+    job = db.query(Job).filter(Job.id == job_id, Job.posted_by_user_id == current_user.id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Prepare job skill sets
+    req_skills = set((job.required_skills or []) if isinstance(job.required_skills, list) else [])
+    pref_skills = set((job.preferred_skills or []) if isinstance(job.preferred_skills, list) else [])
+
+    # Fetch students
+    from .auth_models import UserRole
+    students = db.query(User).filter(User.role == UserRole.STUDENT).all()
+
+    def parse_skills(s: str | None) -> set[str]:
+        if not s:
+            return set()
+        try:
+            # stored as comma-separated or JSON; try JSON first
+            import json
+            if s.strip().startswith('['):
+                return set(x.strip().lower() for x in json.loads(s) if isinstance(x, str))
+        except Exception:
+            pass
+        # fallback: comma-separated
+        return set(x.strip().lower() for x in s.split(',') if x.strip())
+
+    def score_user(u: User) -> float:
+        score = 0.0
+        u_skills = parse_skills(getattr(u, 'skills', None))
+        # required skills: +3 each
+        score += 3.0 * len(u_skills & set(map(str.lower, req_skills)))
+        # preferred skills: +1 each
+        score += 1.0 * len(u_skills & set(map(str.lower, pref_skills)))
+        # visa/international fit
+        if job.international_student_friendly:
+            score += 0.5
+        if job.visa_sponsorship and (getattr(u, 'work_authorization', '') or '').lower() in {"student_visa", "work_visa"}:
+            score += 0.5
+        # location preference simple boost
+        try:
+            prefs = parse_skills(getattr(u, 'preferred_locations', None))
+            loc_tokens = {t.strip().lower() for t in [job.city or '', job.state or '', job.location or ''] if t}
+            if prefs and (prefs & loc_tokens):
+                score += 0.5
+        except Exception:
+            pass
+        return score
+
+    ranked = []
+    for stu in students:
+        ranked.append((score_user(stu), stu))
+    ranked.sort(key=lambda x: x[0], reverse=True)
+    ranked = [r for r in ranked if r[0] > 0][: max(1, min(limit, 100))]
+
+    results = []
+    for sc, stu in ranked:
+        results.append({
+            "score": sc,
+            "user": {
+                "id": stu.id,
+                "full_name": stu.full_name,
+                "email": stu.email,
+                "university": getattr(stu, 'university', None),
+                "degree": getattr(stu, 'degree', None),
+                "graduation_year": getattr(stu, 'graduation_year', None),
+                "skills": getattr(stu, 'skills', None),
+                "resume_url": resolve_storage_url(getattr(stu, 'resume_url', None)),
+            }
+        })
+    return {"job_id": job.id, "count": len(results), "items": results}
 
 @employer_router.post("/jobs", response_model=JobSchema)
 def create_job_posting(
@@ -792,6 +949,34 @@ def list_employer_applications(
         ))
     return results
 
+@employer_router.put("/applications/{application_id}/status", response_model=JobApplicationResponse)
+def update_application_status(
+    application_id: int,
+    update: ApplicationStatusUpdate,
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Employer updates the status (and optional notes) of an application they own."""
+    # Find application joined to a job owned by employer
+    app = db.query(JobApplication).join(Job, JobApplication.job_id == Job.id).filter(
+        JobApplication.id == application_id,
+        Job.posted_by_user_id == current_user.id
+    ).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    allowed_status = {"applied", "reviewed", "interviewed", "rejected", "offered"}
+    if update.status not in allowed_status:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(sorted(allowed_status))}")
+
+    app.status = update.status
+    if update.notes is not None:
+        app.notes = update.notes
+    app.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(app)
+    return app
+
 # Profile Management Endpoints
 @router.put("/profile/student", response_model=UserResponse)
 def update_student_profile(
@@ -801,8 +986,18 @@ def update_student_profile(
 ):
     """Update student profile with enhanced fields"""
     # Update user fields
+    import json
     for field, value in profile_data.dict(exclude_unset=True).items():
-        if hasattr(current_user, field):
+        if not hasattr(current_user, field):
+            continue
+        # Normalize education/experience to JSON strings if lists/objects are sent
+        if field in {"education", "experience"} and value is not None and not isinstance(value, str):
+            try:
+                setattr(current_user, field, json.dumps(value))
+            except Exception:
+                # Fallback to string cast
+                setattr(current_user, field, str(value))
+        else:
             setattr(current_user, field, value)
     
     db.commit()

@@ -246,6 +246,10 @@ class ApiService {
       ? '/auth/profile/employer'
       : '/auth/profile/student';
     const response: AxiosResponse<User> = await this.api.put(path, userData);
+    // Persist updated user so UI reflects changes immediately
+    if (response?.data) {
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
     return response.data;
   }
 
@@ -348,6 +352,51 @@ class ApiService {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data;
+  }
+
+  // AI Generation (Gemini-capable with graceful fallback)
+  async generateJobDescription(input: {
+    title?: string;
+    skills?: string[];
+    prompt?: string;         // system prompt constructed on client
+    model?: string;          // e.g., 'gemini-1.5-flash' | 'gemini-1.5-pro'
+    context?: Record<string, any>; // optional structured context
+  }): Promise<string> {
+    // Try backend endpoint with richer payload if available
+    try {
+      const body: any = {
+        title: input?.title || '',
+        skills: input?.skills || [],
+      };
+      if (input?.prompt) body.prompt = input.prompt;
+      if (input?.model) body.model = input.model;
+      if (input?.context) body.context = input.context;
+      const resp: AxiosResponse<any> = await this.api.post('/ai/generate/job-description', body);
+      const text = resp.data?.text || resp.data?.description || '';
+      if (text && typeof text === 'string') return text;
+    } catch (_) {
+      // ignore and fallback
+    }
+    // Client-side template fallback
+    const t = (input?.title || 'the role');
+    const skills = (input?.skills || []).map(s => `<li>${s}</li>`).join('') || '<li>Relevant experience</li>';
+    return `<p><strong>About the role</strong></p>
+<p>We are hiring for <strong>${t}</strong>. You will work with a collaborative team to deliver high-quality outcomes and contribute to continuous improvement.</p>
+<p><strong>Responsibilities</strong></p>
+<ul>
+  <li>Provide excellent customer service and teamwork</li>
+  <li>Follow safety and compliance requirements</li>
+  <li>Communicate clearly and proactively</li>
+  <li>Support and improve daily operations</li>
+  <li>Maintain a positive, inclusive environment</li>
+  <li>Learn quickly and take initiative</li>
+  <li>Be punctual and reliable</li>
+  <li>Keep workspace tidy and organized</li>
+  <li>Assist colleagues as needed</li>
+  <li>Represent the company professionally</li>
+</ul>
+<p><strong>Preferred Skills</strong></p>
+<ul>${skills}</ul>`;
   }
 
   // Utility methods

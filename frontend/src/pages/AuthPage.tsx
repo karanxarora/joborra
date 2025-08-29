@@ -10,6 +10,7 @@ import { AU_UNIVERSITIES } from '../constants/universities';
 import { DEGREES } from '../constants/degrees';
 import { useToast } from '../contexts/ToastContext';
 import apiService from '../services/api';
+import LogoIcon from '../components/ui/LogoIcon';
 
 const AuthPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -31,12 +32,16 @@ const AuthPage: React.FC = () => {
     email: '',
     password: '',
     full_name: '',
-    role: 'student',
+    role: undefined,
     university: '',
     degree: '',
     graduation_year: undefined,
     visa_status: '',
   });
+
+  // Split name fields (UI-only), keep full_name for backend
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   const visaOptions = useMemo(() => [
     'Student Visa (500)',
@@ -73,7 +78,7 @@ const AuthPage: React.FC = () => {
           const me = await apiService.getCurrentUser();
           localStorage.setItem('user', JSON.stringify(me));
           toast('Signed in with Google', 'success');
-          navigate('/');
+          navigate('/profile');
         } catch (e) {
           setError('Failed to complete Google sign-in');
         }
@@ -127,7 +132,7 @@ const AuthPage: React.FC = () => {
               try {
                 await apiService.googleLoginWithIdToken(id_token);
                 toast('Signed in with Google', 'success');
-                navigate('/');
+                navigate('/profile');
                 resolve();
               } catch (err: any) {
                 const detail = err?.response?.data?.detail || '';
@@ -172,7 +177,7 @@ const AuthPage: React.FC = () => {
     try {
       await login(loginForm);
       toast('Successfully logged in', 'success');
-      navigate('/');
+      navigate('/profile');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
@@ -186,7 +191,14 @@ const AuthPage: React.FC = () => {
     setError(null);
 
     try {
-      await register(registerForm);
+      // Build full_name from split fields
+      const full_name = `${firstName} ${lastName}`.trim();
+      const payload: RegisterForm = { ...registerForm, full_name };
+      // Normalize company website (allow domain without protocol)
+      if (payload.company_website && !/^https?:\/\//i.test(payload.company_website)) {
+        payload.company_website = `https://${payload.company_website}`;
+      }
+      await register(payload);
       // Request verification email automatically (best-effort)
       try {
         const res: any = await apiService.requestEmailVerification();
@@ -205,7 +217,11 @@ const AuthPage: React.FC = () => {
           toast('Account created. Please verify your email to unlock all features.', 'info', 6000);
         }
       }
-      navigate('/');
+      if (payload.role === 'employer') {
+        navigate('/employer/fast-post');
+      } else {
+        navigate('/profile');
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
@@ -218,35 +234,17 @@ const AuthPage: React.FC = () => {
       <div className="max-w-lg w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mb-8">
+          <div className="mb-8 flex flex-col items-center">
+            <LogoIcon className="h-12 w-12 mb-3" />
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">Joborra</h1>
-            <p className="text-base text-slate-600 font-normal">
-              🇦🇺 Your Gateway to Australian Career Success
-            </p>
-            <p className="text-sm text-slate-500 mt-2">
-              Join 10,000+ international students who found their dream jobs
+            <p className="text-base text-slate-700 font-semibold">
+              1st International Student's Job Portal
             </p>
           </div>
         </div>
 
         <Card className="p-8">
-          {/* OAuth quick sign-in (GIS ID token flow) */}
-          <div className="mb-6">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={onGoogleSignIn}
-              loading={googleLoading}
-            >
-              Continue with Google
-            </Button>
-            <div className="flex items-center my-6">
-              <div className="flex-1 h-px bg-slate-200" />
-              <span className="px-3 text-xs uppercase tracking-wide text-slate-500">or</span>
-              <div className="flex-1 h-px bg-slate-200" />
-            </div>
-          </div>
+          {/* Tabs and Forms */}
           {/* Tab Navigation */}
           <div className="flex space-x-2 bg-slate-100 p-1 rounded-xl mb-8">
             <button
@@ -325,13 +323,29 @@ const AuthPage: React.FC = () => {
               className="space-y-6"
             >
               <div className="grid grid-cols-1 gap-4">
-                <Input
-                  label="Full Name"
-                  value={registerForm.full_name}
-                  onChange={(e) => setRegisterForm({ ...registerForm, full_name: e.target.value })}
-                  icon={<User className="h-4 w-4" />}
-                  required
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="First Name"
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      const fn = e.target.value;
+                      setRegisterForm((prev) => ({ ...prev, full_name: `${fn} ${lastName}`.trim() }));
+                    }}
+                    icon={<User className="h-4 w-4" />}
+                    required
+                  />
+                  <Input
+                    label="Last Name"
+                    value={lastName}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      const ln = e.target.value;
+                      setRegisterForm((prev) => ({ ...prev, full_name: `${firstName} ${ln}`.trim() }));
+                    }}
+                    required
+                  />
+                </div>
                 <Input
                   label="Email"
                   type="email"
@@ -351,7 +365,7 @@ const AuthPage: React.FC = () => {
                 />
               </div>
 
-              {/* Role Selection */}
+              {/* Role Selection (default none) */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   I am a
@@ -383,14 +397,9 @@ const AuthPage: React.FC = () => {
                   </button>
                 </div>
               </div>
-
-              {/* Student-specific fields */}
+              {/* Student-specific fields (only when role selected as student) */}
               {registerForm.role === 'student' && (
-                <div
-                  
-                  
-                  className="space-y-6"
-                >
+                <div className="space-y-6">
                   <Input
                     label="Date of Birth"
                     type="date"
@@ -406,7 +415,7 @@ const AuthPage: React.FC = () => {
                       <select
                         value={registerForm.university || ''}
                         onChange={(e) => setRegisterForm({ ...registerForm, university: e.target.value })}
-                        className="input-field w-full"
+                        className="input-field w-full pl-10"
                       >
                         <option value="">Select your university</option>
                         {AU_UNIVERSITIES.map((u) => (
@@ -416,7 +425,7 @@ const AuthPage: React.FC = () => {
                       <GraduationCap className="h-4 w-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
-                  {/* Degree with autocomplete suggestions */}
+                  {/* Degree free text (with suggestion list) */}
                   <div>
                     <Input
                       label="Degree/Course"
@@ -436,7 +445,7 @@ const AuthPage: React.FC = () => {
                       <select
                         value={registerForm.graduation_year || ''}
                         onChange={(e) => setRegisterForm({ ...registerForm, graduation_year: e.target.value ? parseInt(e.target.value) : undefined })}
-                        className="input-field w-full"
+                        className="input-field w-full pl-10"
                       >
                         <option value="">Select year</option>
                         {gradYears.map((y) => (
@@ -462,13 +471,9 @@ const AuthPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Employer-specific fields */}
+              {/* Employer-specific fields (only when role selected as employer) */}
               {registerForm.role === 'employer' && (
-                <div
-                  
-                  
-                  className="space-y-6"
-                >
+                <div className="space-y-6">
                   <Input
                     label="Company Name"
                     value={registerForm.company_name || ''}
@@ -476,8 +481,8 @@ const AuthPage: React.FC = () => {
                     icon={<Building className="h-4 w-4" />}
                   />
                   <Input
-                    label="Company Website"
-                    type="url"
+                    label="Company Website (optional)"
+                    type="text"
                     value={registerForm.company_website || ''}
                     onChange={(e) => setRegisterForm({ ...registerForm, company_website: e.target.value })}
                   />
@@ -499,36 +504,62 @@ const AuthPage: React.FC = () => {
                         <option value="1000+">1000+ employees</option>
                       </select>
                     </div>
-                    <Input
-                      label="Industry"
-                      value={registerForm.industry || ''}
-                      onChange={(e) => setRegisterForm({ ...registerForm, industry: e.target.value })}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
+                      <select
+                        value={registerForm.industry || ''}
+                        onChange={(e) => setRegisterForm({ ...registerForm, industry: e.target.value })}
+                        className="input-field w-full"
+                      >
+                        <option value="">Select industry</option>
+                        {[
+                          'Technology', 'Finance', 'Healthcare', 'Education', 'Retail', 'Hospitality',
+                          'Manufacturing', 'Construction', 'Transportation', 'Professional Services',
+                          'Government', 'Non-Profit', 'Agriculture', 'Energy', 'Media & Entertainment'
+                        ].map((ind) => (
+                          <option key={ind} value={ind}>{ind}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
 
-              <Button
-                type="submit"
-                loading={loading}
-                className="w-full"
-                size="lg"
-              >
+              {/* Submit */}
+              <Button type="submit" loading={loading} className="w-full" size="lg">
                 Create Account
               </Button>
             </form>
           )}
+
+          {/* OAuth quick sign-in (moved to bottom) */}
+          <div className="mt-8">
+            <div className="flex items-center my-6">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="px-3 text-xs uppercase tracking-wide text-slate-500">or</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={onGoogleSignIn}
+              loading={googleLoading}
+            >
+              Continue with Google
+            </Button>
+          </div>
         </Card>
 
         {/* Footer */}
         <div className="text-center text-sm text-slate-600">
           <p>
             By signing up, you agree to our{' '}
-            <Link to="/about" className="text-primary-600 hover:text-primary-500">
+            <Link to="/terms" className="text-primary-600 hover:text-primary-500">
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link to="/about" className="text-primary-600 hover:text-primary-500">
+            <Link to="/privacy" className="text-primary-600 hover:text-primary-500">
               Privacy Policy
             </Link>
           </p>

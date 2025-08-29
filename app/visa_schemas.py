@@ -137,11 +137,11 @@ class VisaVerificationSummary(BaseModel):
 class StudentVisaInfo(BaseModel):
     """Schema for student visa information display"""
     has_verification: bool
-    verification_status: Optional[VisaStatusEnum]
-    visa_subclass: Optional[VisaSubclassEnum]
-    work_hours_limit: Optional[int]
-    visa_expiry_date: Optional[datetime]
-    course_end_date: Optional[datetime]
+    verification_status: Optional[VisaStatusEnum] = None
+    visa_subclass: Optional[VisaSubclassEnum] = None
+    work_hours_limit: Optional[int] = None
+    visa_expiry_date: Optional[datetime] = None
+    course_end_date: Optional[datetime] = None
     verification_required: bool = False
     verification_message: Optional[str] = None
     

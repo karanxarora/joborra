@@ -102,7 +102,7 @@ export interface RegisterForm {
   email: string;
   password: string;
   full_name: string;
-  role: 'student' | 'employer';
+  role?: 'student' | 'employer';
   university?: string;
   degree?: string;
   graduation_year?: number;

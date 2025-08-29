@@ -246,6 +246,78 @@ async def upload_visa_document(
         file_name=file.filename
     )
 
+@router.get("/documents")
+async def list_visa_documents(
+    current_user: User = Depends(get_current_student),
+    db: Session = Depends(get_db)
+):
+    """List uploaded visa documents for the current student.
+    Returns a mapping of document_type -> { url, resolved_url } when available.
+    """
+    service = VisaVerificationService(db)
+    verification = service.get_user_visa_status(current_user.id)
+    if not verification:
+        return {}
+
+    def entry(value: str | None):
+        if not value:
+            return None
+        try:
+            return {
+                "url": value,
+                "resolved_url": resolve_storage_url(value),
+            }
+        except Exception:
+            logger.exception("Failed to resolve storage URL in list_visa_documents")
+            return {"url": value, "resolved_url": value}
+
+    return {
+        "passport": entry(getattr(verification, "passport_document_url", None)),
+        "visa_grant": entry(getattr(verification, "visa_grant_document_url", None)),
+        "coe": entry(getattr(verification, "coe_document_url", None)),
+        "vevo": entry(getattr(verification, "vevo_document_url", None)),
+    }
+
+@router.delete("/documents/{document_type}")
+async def delete_visa_document(
+    document_type: str,
+    current_user: User = Depends(get_current_student),
+    db: Session = Depends(get_db)
+):
+    """Delete a specific visa document by type for the current student.
+    Clears the DB reference and best-effort deletes local files (under /data/visa_documents).
+    Allowed document_type: passport | visa_grant | coe | vevo
+    """
+    allowed_types = {"passport", "visa_grant", "coe", "vevo"}
+    if document_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid document type. Allowed: {', '.join(sorted(allowed_types))}"
+        )
+
+    service = VisaVerificationService(db)
+    verification = service.get_user_visa_status(current_user.id)
+    if not verification:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No visa verification found")
+
+    field_name = f"{document_type}_document_url"
+    existing_url = getattr(verification, field_name, None)
+
+    # Clear DB reference first
+    service.update_visa_verification(verification.id, {field_name: None})
+
+    # Try to delete a locally stored file if applicable
+    try:
+        if isinstance(existing_url, str) and existing_url.startswith("/data/visa_documents/"):
+            # Map URL path to local filesystem path (strip leading slash)
+            local_path = Path(existing_url.lstrip("/"))
+            if local_path.exists():
+                local_path.unlink(missing_ok=True)
+    except Exception:
+        logger.exception("Failed to delete local visa document file; continuing")
+
+    return {"message": "Document deleted", "document_type": document_type}
+
 @router.get("/history", response_model=List[dict])
 async def get_verification_history(
     current_user: User = Depends(get_current_student),

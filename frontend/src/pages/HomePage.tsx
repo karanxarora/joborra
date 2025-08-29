@@ -119,7 +119,7 @@ const HomePage: React.FC = () => {
                 <img
                   src="/hero-home.jpg"
                   alt="Students finding visa-friendly jobs in Australia"
-                  className="w-full h-[420px] object-cover"
+                  className="w-full h-[420px] lg:h-[440px] object-cover object-[center_20%]"
                   loading="eager"
                 />
               </div>

@@ -4,7 +4,6 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
-import { AU_UNIVERSITIES } from '../constants/universities';
 import { useToast } from '../contexts/ToastContext';
 
 const ProfilePage: React.FC = () => {
@@ -53,6 +52,11 @@ const ProfilePage: React.FC = () => {
   const [experience, setExperience] = useState([
     { company: '', title: '', start: '', end: '', description: '' },
   ] as Array<{ company: string; title: string; start: string; end: string; description: string } >);
+  // Skills & Extracurriculars (UI only for now)
+  const [skills, setSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [activities, setActivities] = useState<string[]>([]);
+  const [activityInput, setActivityInput] = useState('');
 
   useEffect(() => {
     setForm({
@@ -71,7 +75,28 @@ const ProfilePage: React.FC = () => {
       company_size: ctxUser?.company_size || '',
       industry: ctxUser?.industry || '',
     });
-    // TODO: hydrate education/experience from backend when available
+    // Hydrate education/experience from backend JSON strings if present
+    try {
+      const rawEdu = (ctxUser as any)?.education;
+      if (rawEdu) {
+        const parsed = typeof rawEdu === 'string' ? JSON.parse(rawEdu) : rawEdu;
+        if (Array.isArray(parsed) && parsed.length > 0) setEducation(parsed);
+      }
+    } catch {}
+    try {
+      const rawExp = (ctxUser as any)?.experience;
+      if (rawExp) {
+        const parsed = typeof rawExp === 'string' ? JSON.parse(rawExp) : rawExp;
+        if (Array.isArray(parsed) && parsed.length > 0) setExperience(parsed);
+      }
+    } catch {}
+    // Try hydrate skills & activities from localStorage (UI-only persistence for now)
+    try {
+      const sk = localStorage.getItem('profile_skills');
+      if (sk) setSkills(JSON.parse(sk));
+      const act = localStorage.getItem('profile_activities');
+      if (act) setActivities(JSON.parse(act));
+    } catch {}
   }, [ctxUser]);
 
   // Google Account Linking
@@ -233,11 +258,24 @@ const ProfilePage: React.FC = () => {
     setSaving(true);
     setMessage(null);
     try {
+      // Map legacy top-level fields from first education entry to keep backend fields populated
+      let derivedUniversity: string | undefined = undefined;
+      let derivedDegree: string | undefined = undefined;
+      let derivedGradYear: number | undefined = undefined;
+      if (ctxUser?.role === 'student' && education && education.length > 0) {
+        const ed0: any = education[0] || {};
+        derivedUniversity = ed0.institution || undefined;
+        derivedDegree = ed0.degree || undefined;
+        const gy = (ed0.end_year || '').toString().trim();
+        if (gy && /^\d{4}$/.test(gy)) {
+          derivedGradYear = Number(gy);
+        }
+      }
       const payload: any = {
         full_name: form.full_name,
-        university: form.university || undefined,
-        degree: form.degree || undefined,
-        graduation_year: form.graduation_year ? Number(form.graduation_year) : undefined,
+        university: derivedUniversity ?? (form.university || undefined),
+        degree: derivedDegree ?? (form.degree || undefined),
+        graduation_year: derivedGradYear ?? (form.graduation_year ? Number(form.graduation_year) : undefined),
         visa_status: form.visa_status || undefined,
         // Study (only include for students)
         course_name: ctxUser?.role === 'student' && form.course_name ? form.course_name : undefined,
@@ -249,6 +287,9 @@ const ProfilePage: React.FC = () => {
         company_website: form.company_website || undefined,
         company_size: form.company_size || undefined,
         industry: form.industry || undefined,
+        // Persist education/experience as JSON strings (backend stores TEXT)
+        education: ctxUser?.role === 'student' ? JSON.stringify(education || []) : undefined,
+        experience: JSON.stringify(experience || []),
       };
       await apiService.updateProfile(payload);
       await refreshUser();
@@ -446,21 +487,7 @@ const ProfilePage: React.FC = () => {
 
               {ctxUser?.role === 'student' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">University</label>
-                    <select
-                      value={form.university}
-                      onChange={(e) => setForm({ ...form, university: e.target.value })}
-                      className="input-field w-full"
-                    >
-                      <option value="">Select your university</option>
-                      {AU_UNIVERSITIES.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <Input label="Degree" value={form.degree} onChange={(e) => setForm({ ...form, degree: e.target.value })} />
-                  <Input label="Graduation Year" type="number" value={form.graduation_year} onChange={(e) => setForm({ ...form, graduation_year: e.target.value })} />
+                  {/* University/Degree/Graduation Year inputs removed to avoid duplication with Education section */}
                   {/* Study details */}
                   <Input label="Course Name" value={form.course_name} onChange={(e) => setForm({ ...form, course_name: e.target.value })} />
                   <Input label="Institution Name" value={form.institution_name} onChange={(e) => setForm({ ...form, institution_name: e.target.value })} />
@@ -478,10 +505,6 @@ const ProfilePage: React.FC = () => {
               )}
 
               {message && <div className="text-sm text-slate-700">{message}</div>}
-
-              <div className="flex justify-end">
-                <Button type="submit" loading={saving}>Save Changes</Button>
-              </div>
             </form>
             {/* Resume Upload */}
             {ctxUser?.role === 'student' && (
@@ -504,65 +527,9 @@ const ProfilePage: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-1">PDF only. Max size 10MB.</p>
               </div>
             )}
-              </Card>
-            )}
-
-            {/* Visa Verification Tab (students only) */}
-            {activeTab === 'visa' && ctxUser?.role === 'student' && (
-              <Card className="p-6">
-            {/* Status */}
-            <div className="mb-6">
-              {loadingVisa ? (
-                <div className="text-slate-600">Loading visa status...</div>
-              ) : visaInfo ? (
-                <div>
-                  <div className="text-sm text-slate-700">
-                    <span className="font-medium">Status:</span>{' '}
-                    {visaInfo.verification_status || (visaInfo.has_verification ? 'pending' : 'not_started')}
-                  </div>
-                  {visaInfo.verification_message && (
-                    <div className="text-sm text-slate-600 mt-1">{visaInfo.verification_message}</div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-slate-600">No visa info yet.</div>
-              )}
-            </div>
-
-            {/* VEVO upload only, no PII */}
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Upload VEVO Result</h3>
-              <p className="text-sm text-slate-600 mb-3">Please upload your VEVO check result (PDF, JPG, or PNG). Do not upload passport or other PII documents.</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Document Type</label>
-                  <select
-                    value={visaDocType}
-                    onChange={(e) => setVisaDocType(e.target.value as any)}
-                    className="input-field w-full"
-                  >
-                    <option value="vevo">VEVO Result</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2 flex items-end">
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*"
-                    onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-slate-900"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button type="button" onClick={onUploadVisaDoc} loading={visaDocUploading} disabled={!visaDocFile}>Upload VEVO</Button>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG. Max size 10MB.</p>
-              {visaMsg && <div className="text-sm text-slate-600 mt-2">{visaMsg}</div>}
-            </div>
-
-            {/* Education Section */}
+            {/* Education Section (moved from Visa tab) */}
             {ctxUser?.role === 'student' && (
-              <div>
+              <div className="mt-8 border-t border-slate-200 pt-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Education</h3>
                 {education.map((ed, idx) => (
                   <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -590,35 +557,171 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
             )}
-
-            {/* Experience Section */}
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Experience</h3>
-              {experience.map((ex, idx) => (
-                <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <Input label="Company" value={ex.company} onChange={(e) => {
-                    const next = [...experience]; next[idx].company = e.target.value; setExperience(next);
-                  }} />
-                  <Input label="Title" value={ex.title} onChange={(e) => {
-                    const next = [...experience]; next[idx].title = e.target.value; setExperience(next);
-                  }} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="Start Date" type="month" value={ex.start} onChange={(e) => {
-                      const next = [...experience]; next[idx].start = e.target.value; setExperience(next);
+            {/* Experience Section (students only) */}
+            {ctxUser?.role === 'student' && (
+              <div className="mt-8 border-t border-slate-200 pt-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-3">Experience</h3>
+                {experience.map((ex, idx) => (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <Input label="Company" value={ex.company} onChange={(e) => {
+                      const next = [...experience]; next[idx].company = e.target.value; setExperience(next);
                     }} />
-                    <Input label="End Date" type="month" value={ex.end} onChange={(e) => {
-                      const next = [...experience]; next[idx].end = e.target.value; setExperience(next);
+                    <Input label="Title" value={ex.title} onChange={(e) => {
+                      const next = [...experience]; next[idx].title = e.target.value; setExperience(next);
+                    }} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input label="Start Date" type="month" value={ex.start} onChange={(e) => {
+                        const next = [...experience]; next[idx].start = e.target.value; setExperience(next);
+                      }} />
+                      <Input label="End Date" type="month" value={ex.end} onChange={(e) => {
+                        const next = [...experience]; next[idx].end = e.target.value; setExperience(next);
+                      }} />
+                    </div>
+                    <Input label="Description" value={ex.description} onChange={(e) => {
+                      const next = [...experience]; next[idx].description = e.target.value; setExperience(next);
                     }} />
                   </div>
-                  <Input label="Description" value={ex.description} onChange={(e) => {
-                    const next = [...experience]; next[idx].description = e.target.value; setExperience(next);
-                  }} />
+                ))}
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setExperience([...experience, { company: '', title: '', start: '', end: '', description: '' }])}>Add Experience</Button>
                 </div>
-              ))}
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setExperience([...experience, { company: '', title: '', start: '', end: '', description: '' }])}>Add Experience</Button>
               </div>
+            )}
+            {/* Skills (students only) */}
+            {ctxUser?.role === 'student' && (
+              <div className="mt-8 border-t border-slate-200 pt-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-3">Skills</h3>
+                <div className="flex gap-2 mb-2">
+                  <Input value={skillInput} onChange={(e)=>setSkillInput(e.target.value)} placeholder="Add a skill" />
+                  <Button type="button" variant="outline" onClick={()=>{
+                    const v = skillInput.trim(); if(!v) return; const next=[...skills, v]; setSkills(next); setSkillInput('');
+                    try{ localStorage.setItem('profile_skills', JSON.stringify(next)); } catch{}
+                  }}>Add</Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {skills.map((s, i) => (
+                    <span key={`${s}-${i}`} className="px-2 py-1 bg-slate-100 rounded text-sm">
+                      {s}
+                      <button type="button" className="ml-2 text-red-500" onClick={()=>{
+                        const next = skills.filter((_, idx)=> idx!==i); setSkills(next); try{ localStorage.setItem('profile_skills', JSON.stringify(next)); } catch{}
+                      }}>×</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Extracurricular Activities (students only) */}
+            {ctxUser?.role === 'student' && (
+              <div className="mt-8 border-t border-slate-200 pt-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-3">Extracurricular Activities</h3>
+                <div className="flex gap-2 mb-2">
+                  <Input value={activityInput} onChange={(e)=>setActivityInput(e.target.value)} placeholder="Add an activity (clubs, volunteering, leadership)" />
+                  <Button type="button" variant="outline" onClick={()=>{
+                    const v = activityInput.trim(); if(!v) return; const next=[...activities, v]; setActivities(next); setActivityInput('');
+                    try{ localStorage.setItem('profile_activities', JSON.stringify(next)); } catch{}
+                  }}>Add</Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {activities.map((a, i) => (
+                    <span key={`${a}-${i}`} className="px-2 py-1 bg-slate-100 rounded text-sm">
+                      {a}
+                      <button type="button" className="ml-2 text-red-500" onClick={()=>{
+                        const next = activities.filter((_, idx)=> idx!==i); setActivities(next); try{ localStorage.setItem('profile_activities', JSON.stringify(next)); } catch{}
+                      }}>×</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Save button at the very end */}
+            <div className="mt-8 flex justify-end">
+              <Button type="button" onClick={onSave} loading={saving}>Save Changes</Button>
             </div>
+              </Card>
+            )}
+
+            {/* Visa Verification Tab (students only) */}
+            {activeTab === 'visa' && ctxUser?.role === 'student' && (
+              <Card className="p-6">
+            {/* Status */}
+            <div className="mb-6">
+              {loadingVisa ? (
+                <div className="text-slate-600">Loading visa status...</div>
+              ) : (
+                <div>
+                  {(() => {
+                    const raw = visaInfo?.verification_status || (visaInfo?.has_verification ? 'pending' : 'not_started');
+                    const s = String(raw || '').toLowerCase();
+                    const steps = ['not_started','pending','in_review','verified'];
+                    const idx = s.includes('verify') ? 3 : s.includes('review') ? 2 : s.includes('pending') ? 1 : 0;
+                    return (
+                      <>
+                        <div className="text-sm text-slate-700 mb-2"><span className="font-medium">Status:</span> {raw || 'not_started'}</div>
+                        <div className="flex items-center justify-between">
+                          {steps.map((label, i) => (
+                            <div key={label} className="flex-1 flex items-center">
+                              <div className={`h-2 w-2 rounded-full ${i<=idx?'bg-primary-600':'bg-slate-300'}`} />
+                              {i < steps.length-1 && (
+                                <div className={`flex-1 h-[2px] mx-2 ${i<idx?'bg-primary-300':'bg-slate-200'}`} />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {visaInfo?.verification_message && (
+                          <div className="text-sm text-slate-600 mt-2">{visaInfo.verification_message}</div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Visa Documents Upload */}
+            <div>
+              {/* Visa Disclaimer */}
+              <div className="mt-2 mb-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                <div className="font-medium">Visa verification disclaimer</div>
+                <p className="text-sm mt-1">
+                  Joborra verifies visa statuses based on the information and documents you provide. While we
+                  strive for accuracy, we are not liable for errors arising from inaccurate user information or
+                  changes in external services. Please independently verify your status via VEVO or consult a
+                  registered migration agent. Avoid uploading unnecessary personally identifiable information (PII).
+                </p>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Visa Documents</h3>
+              <p className="text-sm text-slate-600 mb-3">Upload relevant documents to help verify your status. Avoid unnecessary PII.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Document Type</label>
+                  <select
+                    value={visaDocType}
+                    onChange={(e) => setVisaDocType(e.target.value as any)}
+                    className="input-field w-full"
+                  >
+                    <option value="vevo">VEVO Result</option>
+                    <option value="visa_grant">Visa Grant Notice</option>
+                    <option value="coe">CoE (Confirmation of Enrolment)</option>
+                    <option value="passport">Passport (photo page)</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2 flex items-end">
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*,.doc,.docx"
+                    onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-slate-900"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" onClick={onUploadVisaDoc} loading={visaDocUploading} disabled={!visaDocFile}>Upload Document</Button>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG, DOC, DOCX. Max size 10MB.</p>
+              {visaMsg && <div className="text-sm text-slate-600 mt-2">{visaMsg}</div>}
+            </div>
+
               </Card>
             )}
           </section>

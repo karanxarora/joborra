@@ -21,6 +21,7 @@ const LogoIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"
+        transform="rotate(-12 24 24)"
       />
     </svg>
   );

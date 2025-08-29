@@ -63,6 +63,9 @@ class User(Base):
     github_profile = Column(String(500), nullable=True)
     portfolio_url = Column(String(500), nullable=True)
     bio = Column(Text, nullable=True)
+    # Education & Experience stored as JSON strings
+    education = Column(Text, nullable=True)  # JSON array of education items
+    experience = Column(Text, nullable=True)  # JSON array of experience items
     # Resume storage
     resume_url = Column(String(500), nullable=True)
     

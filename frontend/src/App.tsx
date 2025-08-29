@@ -11,8 +11,11 @@ import AuthPage from './pages/AuthPage';
 import JobsPage from './pages/JobsPage';
 import ProfilePage from './pages/ProfilePage';
 import AboutPage from './pages/AboutPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
 import './App.css';
 import EmployerPostJobPage from './pages/EmployerPostJobPage';
+import EmployerQuickPostPage from './pages/EmployerQuickPostPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
 import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
@@ -88,6 +91,14 @@ const AppContent: React.FC = () => {
             } 
           />
           <Route
+            path="/employer/fast-post"
+            element={
+              <RoleProtectedRoute role="employer">
+                <EmployerQuickPostPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
             path="/employer/post-job"
             element={
               <RoleProtectedRoute role="employer">
@@ -128,6 +139,8 @@ const AppContent: React.FC = () => {
             }
           />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/access-denied" element={<AccessDeniedPage />} />

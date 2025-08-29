@@ -75,6 +75,9 @@ class UserResponse(BaseModel):
     github_profile: Optional[str]
     portfolio_url: Optional[str]
     bio: Optional[str]
+    # JSON strings (arrays) for profile sections
+    education: Optional[str]
+    experience: Optional[str]
     resume_url: Optional[str]
     # Study details (moved from visa verification)
     course_name: Optional[str]
@@ -161,6 +164,11 @@ class EmployerApplicationWithUser(JobApplicationResponse):
     class Config:
         from_attributes = True
 
+# Employer updates application status
+class ApplicationStatusUpdate(BaseModel):
+    status: str  # applied, reviewed, interviewed, rejected, offered
+    notes: Optional[str] = None
+
 # Employer Job Creation
 class EmployerJobCreate(BaseModel):
     title: str
@@ -235,6 +243,9 @@ class StudentProfileUpdate(BaseModel):
     github_profile: Optional[str] = None
     portfolio_url: Optional[str] = None
     bio: Optional[str] = None
+    # JSON strings (arrays) for profile sections
+    education: Optional[str] = None
+    experience: Optional[str] = None
     # Study details (moved from visa verification)
     course_name: Optional[str] = None
     institution_name: Optional[str] = None

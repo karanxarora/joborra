@@ -20,3 +20,6 @@ python-jose[cryptography]==3.3.0
 python-multipart==0.0.9
 email-validator==2.1.0.post1
 pandas==2.2.3
+
+# Gemini SDK for AI job description generation
+google-generativeai==0.7.2

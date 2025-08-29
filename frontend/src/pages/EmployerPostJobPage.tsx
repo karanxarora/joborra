@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmployerJobCreate } from '../types';
 import apiService from '../services/api';
@@ -39,6 +39,70 @@ const EmployerPostJobPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState(0); // 0..4
+
+  // Address autocomplete
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  useEffect(() => {
+    const q = locationQuery.trim();
+    if (!q) { setLocationSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const items = await apiService.getLocationSuggestions(q, 8);
+        setLocationSuggestions(items);
+      } catch (e) {
+        setLocationSuggestions([]);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [locationQuery]);
+
+  // Rich text editor (basic) for description
+  const descRef = useRef<HTMLDivElement | null>(null);
+  const applyCmd = (cmd: 'bold' | 'italic' | 'insertUnorderedList') => {
+    document.execCommand(cmd);
+    // Sync back
+    const html = descRef.current?.innerHTML || '';
+    handleChange('description', html);
+  };
+
+  // Visa types with descriptions
+  const VISA_TYPES: Array<{ value: string; label: string; description: string }> = useMemo(() => ([
+    { value: '', label: 'Select visa type (optional)', description: '' },
+    { value: '482', label: 'Subclass 482 (TSS)', description: 'Temporary Skill Shortage visa (employer-sponsored).' },
+    { value: '186', label: 'Subclass 186 (ENS)', description: 'Employer Nomination Scheme (permanent).' },
+    { value: '494', label: 'Subclass 494 (Regional)', description: 'Skilled Employer Sponsored Regional (provisional).' },
+    { value: '407', label: 'Subclass 407 (Training)', description: 'Training visa for workplace-based training.' },
+    { value: '400', label: 'Subclass 400 (Temporary Work)', description: 'Short-term, highly specialised work.' },
+  ]), []);
+
+  // Draft support (localStorage)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('job_draft');
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (window.confirm('A saved draft was found. Do you want to load it?')) {
+          setForm((prev) => ({ ...prev, ...draft }));
+          if (draft?.description && descRef.current) {
+            descRef.current.innerHTML = draft.description;
+          }
+        }
+      }
+    } catch {}
+  }, []);
+
+  const saveDraft = () => {
+    try {
+      const data = { ...form };
+      localStorage.setItem('job_draft', JSON.stringify(data));
+      setSuccess('Draft saved locally');
+      setTimeout(() => setSuccess(null), 1200);
+    } catch (e) {
+      setError('Failed to save draft');
+    }
+  };
 
   const steps = useMemo(() => [
     'Basics',
@@ -117,9 +181,9 @@ const EmployerPostJobPage: React.FC = () => {
         }
       }
 
-      setSuccess('Job posted successfully.');
-      // Redirect to jobs list or employer jobs overview after short delay
-      setTimeout(() => navigate('/jobs'), 900);
+      setSuccess('Job posted successfully. Redirecting to your profile…');
+      // Redirect employer to their profile after short delay
+      setTimeout(() => navigate('/profile'), 900);
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.message || 'Failed to create job';
       setError(msg);
@@ -221,12 +285,32 @@ const EmployerPostJobPage: React.FC = () => {
                       value={form.experience_level || ''}
                       onChange={(e) => handleChange('experience_level', e.target.value)}
                     />
-                    <Input
-                      label="Location"
-                      placeholder="e.g., Sydney, NSW"
-                      value={form.location || ''}
-                      onChange={(e) => handleChange('location', e.target.value)}
-                    />
+                    {/* Address Autocomplete */}
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <input
+                        className="w-full rounded-md border border-gray-300 p-2 focus:ring-cyan-500 focus:border-cyan-500"
+                        placeholder="e.g., Sydney, NSW"
+                        value={form.location || ''}
+                        onChange={(e) => { handleChange('location', e.target.value); setLocationQuery(e.target.value); setShowLocationSuggestions(true); }}
+                        onFocus={() => setShowLocationSuggestions(true)}
+                        onBlur={() => setTimeout(()=>setShowLocationSuggestions(false), 150)}
+                      />
+                      {showLocationSuggestions && locationSuggestions.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow">
+                          {locationSuggestions.map((s) => (
+                            <button
+                              type="button"
+                              key={s}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                              onClick={() => { handleChange('location', s); setLocationQuery(s); setShowLocationSuggestions(false); }}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <Input label="City" value={form.city || ''} onChange={(e) => handleChange('city', e.target.value)} />
                       <Input label="State" value={form.state || ''} onChange={(e) => handleChange('state', e.target.value)} />
@@ -239,11 +323,35 @@ const EmployerPostJobPage: React.FC = () => {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                      className="w-full rounded-md border border-gray-300 p-2 focus:ring-cyan-500 focus:border-cyan-500 min-h-[160px]"
-                      value={form.description}
-                      onChange={(e) => handleChange('description', e.target.value)}
-                      required
+                    {/* Basic rich editor */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <Button type="button" variant="outline" onClick={() => applyCmd('bold')}>Bold</Button>
+                      <Button type="button" variant="outline" onClick={() => applyCmd('italic')}>Italic</Button>
+                      <Button type="button" variant="outline" onClick={() => applyCmd('insertUnorderedList')}>Bullets</Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const draft = await apiService.generateJobDescription({ title: form.title, skills: form.required_skills || [] });
+                            handleChange('description', draft || '');
+                            if (descRef.current) descRef.current.innerHTML = draft || '';
+                          } catch (e) {
+                            // Fallback: simple template
+                            const tmpl = `<p><strong>About the role</strong></p><ul><li>Contribute to ${form.title || 'the role'}</li><li>Collaborate with a cross-functional team</li></ul><p><strong>Skills</strong></p><ul>${(form.required_skills||[]).map(s=>`<li>${s}</li>`).join('')}</ul>`;
+                            handleChange('description', tmpl);
+                            if (descRef.current) descRef.current.innerHTML = tmpl;
+                          }
+                        }}
+                      >AI Generate</Button>
+                    </div>
+                    <div
+                      ref={descRef}
+                      className="w-full rounded-md border border-gray-300 p-2 min-h-[200px] focus:outline-none"
+                      contentEditable
+                      suppressContentEditableWarning
+                      onInput={(e) => handleChange('description', (e.target as HTMLDivElement).innerHTML)}
+                      dangerouslySetInnerHTML={{ __html: form.description || '' }}
                     />
                   </div>
                   <div>
@@ -282,7 +390,7 @@ const EmployerPostJobPage: React.FC = () => {
               {step === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Input
-                    label="Salary (text)"
+                    label="Salary (text) — optional"
                     placeholder="e.g., $90k-$120k + super"
                     value={form.salary || ''}
                     onChange={(e) => handleChange('salary', e.target.value)}
@@ -316,12 +424,21 @@ const EmployerPostJobPage: React.FC = () => {
                         <option value="true">Yes</option>
                       </select>
                     </div>
-                    <Input
-                      label="Visa Type (optional)"
-                      placeholder="e.g., Subclass 482"
-                      value={form.visa_type || ''}
-                      onChange={(e) => handleChange('visa_type', e.target.value)}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Visa Type (optional)</label>
+                      <select
+                        className="w-full rounded-md border border-gray-300 p-2 focus:ring-cyan-500 focus:border-cyan-500"
+                        value={form.visa_type || ''}
+                        onChange={(e) => handleChange('visa_type', e.target.value)}
+                      >
+                        {VISA_TYPES.map(v => (
+                          <option key={v.value} value={v.value}>{v.label}</option>
+                        ))}
+                      </select>
+                      {form.visa_type && (
+                        <div className="text-xs text-slate-600 mt-1">{VISA_TYPES.find(v=>v.value===form.visa_type)?.description}</div>
+                      )}
+                    </div>
                     <div className="flex items-center mt-6">
                       <input
                         id="studentFriendly"
@@ -377,7 +494,10 @@ const EmployerPostJobPage: React.FC = () => {
 
               {/* Footer buttons */}
               <div className="flex justify-between pt-2">
-                <Button type="button" variant="outline" onClick={() => navigate('/jobs')}>Cancel</Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => navigate('/jobs')}>Cancel</Button>
+                  <Button type="button" variant="outline" onClick={saveDraft}>Save Draft</Button>
+                </div>
                 <div className="flex gap-2">
                   {step > 0 && (
                     <Button type="button" variant="outline" onClick={back}>Back</Button>
@@ -414,11 +534,24 @@ const EmployerPostJobPage: React.FC = () => {
         </div>
       </div>
 
+      {/* VISA Disclaimer */}
+      <div className="mt-6">
+        <Card className="p-6 bg-slate-50 border-slate-200">
+          <div className="text-sm text-slate-700 whitespace-pre-wrap">
+            Joborra verifies VISA statuses and conditions based on the information provided by the user. Therefore, Joborra is not liable for any visa verification errors that arise from lack of truthful information from the user or the unprecedented update in the integrated VISA verifiying service. Joborra does not verify employment eligibility on behalf of employers.
+            <br />
+            It is the responsibility of each user to ensure they are legally permitted to work in Australia.
+            <br />
+            We recommend checking your visa status through the VEVO website or consulting a registered migration agent.
+          </div>
+        </Card>
+      </div>
+
       {success && (
         <div className="mt-6">
           <Card className="p-6">
             <div className="text-green-700 font-medium">{success}</div>
-            <div className="text-sm text-slate-600 mt-1">We are redirecting you to the jobs list…</div>
+            <div className="text-sm text-slate-600 mt-1">We are redirecting you to your profile…</div>
           </Card>
         </div>
       )}
