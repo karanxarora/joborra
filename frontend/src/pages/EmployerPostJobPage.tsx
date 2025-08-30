@@ -389,13 +389,13 @@ const EmployerPostJobPage: React.FC = () => {
                     onChange={(e) => handleChange('salary', e.target.value)}
                   />
                   <Input
-                    label="Salary Min"
+                    label="Salary Min — optional"
                     type="number"
                     value={form.salary_min === undefined ? '' : form.salary_min}
                     onChange={(e) => handleChange('salary_min', e.target.value ? Number(e.target.value) : undefined)}
                   />
                   <Input
-                    label="Salary Max"
+                    label="Salary Max — optional"
                     type="number"
                     value={form.salary_max === undefined ? '' : form.salary_max}
                     onChange={(e) => handleChange('salary_max', e.target.value ? Number(e.target.value) : undefined)}
