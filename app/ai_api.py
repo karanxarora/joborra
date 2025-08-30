@@ -22,6 +22,15 @@ class GenerateJobDescriptionResponse(BaseModel):
     text: str
 
 
+class SkillRecommendationsRequest(BaseModel):
+    query: str = Field(..., description="Partial skill name or keyword to get recommendations for")
+    context: Optional[str] = Field(None, description="Additional context like field of study or job role")
+
+
+class SkillRecommendationsResponse(BaseModel):
+    skills: list[str] = Field(..., description="List of recommended skills")
+
+
 def _build_prompt_from_context(payload: GenerateJobDescriptionRequest) -> str:
     # Construct a reasonable prompt if none supplied
     ctx = payload.context or {}
@@ -54,15 +63,8 @@ def _build_prompt_from_context(payload: GenerateJobDescriptionRequest) -> str:
 async def generate_job_description(payload: GenerateJobDescriptionRequest) -> GenerateJobDescriptionResponse:
     api_key = os.getenv("GOOGLE_GENAI_API_KEY")
     if not api_key:
-        logger.warning("GOOGLE_GENAI_API_KEY not set; returning fallback text")
-        # Fallback plain text so frontend can still display something
-        title = payload.title or (payload.context or {}).get("title") or "Team Member"
-        fallback = (
-            f"About this role\n\nWe are looking for a {title} to join our team.\n\n"
-            "Responsibilities\n- Deliver excellent service\n- Collaborate with team members\n- Communicate clearly and proactively\n- Be reliable and punctual\n\n"
-            "What we’re looking for\n- Positive attitude\n- Team player\n- Willingness to learn\n"
-        )
-        return GenerateJobDescriptionResponse(text=fallback)
+        logger.error("GOOGLE_GENAI_API_KEY not set")
+        raise HTTPException(status_code=500, detail="AI service not configured")
 
     try:
         import google.generativeai as genai  # type: ignore
@@ -79,13 +81,69 @@ async def generate_job_description(payload: GenerateJobDescriptionRequest) -> Ge
         resp = model.generate_content(prompt)
         text = getattr(resp, "text", None) or "".join(getattr(resp, "candidates", []) or [])
         if not text:
-            logger.warning("Gemini returned empty text; using fallback")
-            text = (
-                "About this role\n\nWe are hiring for this position. You'll work with a supportive team to deliver great outcomes.\n\n"
-                "Responsibilities\n- Provide excellent service\n- Collaborate with teammates\n- Communicate clearly\n\n"
-                "What we’re looking for\n- Positive attitude\n- Reliability\n- Willingness to learn\n"
-            )
+            logger.error("Gemini returned empty text")
+            raise HTTPException(status_code=502, detail="AI generated empty content")
         return GenerateJobDescriptionResponse(text=text)
     except Exception as e:
         logger.error(f"Gemini generation error: {e}")
         raise HTTPException(status_code=502, detail="AI generation failed")
+
+
+@router.post("/skill-recommendations", response_model=SkillRecommendationsResponse)
+async def get_skill_recommendations(payload: SkillRecommendationsRequest) -> SkillRecommendationsResponse:
+    """Get skill recommendations based on partial input using Gemini AI"""
+    api_key = os.getenv("GOOGLE_GENAI_API_KEY")
+    if not api_key:
+        logger.error("GOOGLE_GENAI_API_KEY not set")
+        raise HTTPException(status_code=500, detail="AI service not configured")
+
+    try:
+        import google.generativeai as genai  # type: ignore
+    except Exception as e:
+        logger.error(f"google-generativeai import failed: {e}")
+        raise HTTPException(status_code=500, detail="AI service not available on server")
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        # Build context-aware prompt
+        context_text = f" in {payload.context}" if payload.context else ""
+        prompt = (
+            f"You are a career advisor helping international students in Australia. "
+            f"Given the partial skill input '{payload.query}'{context_text}, suggest 8-12 relevant, specific skills that would be valuable for job applications. "
+            f"Focus on:\n"
+            f"- Technical skills relevant to the field\n"
+            f"- Soft skills valued by Australian employers\n"
+            f"- Skills that complement the input\n"
+            f"- Industry-standard terminology\n\n"
+            f"Return only a simple list of skills, one per line, without numbering or bullet points. "
+            f"Make them specific and actionable (e.g., 'Python Programming' not just 'Programming')."
+        )
+
+        response = model.generate_content(prompt)
+        text = getattr(response, "text", None) or ""
+        
+        if not text:
+            logger.error("Gemini returned empty text for skill recommendations")
+            raise HTTPException(status_code=502, detail="AI generated empty content")
+        
+        # Parse the response into a list of skills
+        skills = []
+        for line in text.strip().split('\n'):
+            skill = line.strip()
+            if skill and not skill.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.', '-', '*')):
+                skills.append(skill)
+        
+        # Limit to 12 skills and filter out duplicates
+        unique_skills = list(dict.fromkeys(skills))[:12]
+        
+        if not unique_skills:
+            logger.error("No valid skills parsed from AI response")
+            raise HTTPException(status_code=502, detail="AI generated invalid skill format")
+        
+        return SkillRecommendationsResponse(skills=unique_skills)
+        
+    except Exception as e:
+        logger.error(f"Gemini skill recommendations error: {e}")
+        raise HTTPException(status_code=502, detail="AI skill recommendations failed")

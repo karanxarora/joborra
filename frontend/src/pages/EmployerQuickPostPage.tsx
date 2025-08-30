@@ -48,29 +48,22 @@ Output sections (no labels needed):
 2) 4–6 bullet points of day‑to‑day responsibilities.
 3) 3–5 bullet points of what you’re looking for (soft skills welcomed).`;
 
-    try {
-      const draft = await apiService.generateJobDescription({
+    const draft = await apiService.generateJobDescription({
+      title,
+      skills: [],
+      prompt: sysPrompt,
+      model: 'gemini-1.5-flash',
+      context: {
         title,
-        skills: [],
-        prompt: sysPrompt,
-        model: 'gemini-1.5-flash',
-        context: {
-          title,
-          location,
-          employment_type: employmentType,
-          salary: payText,
-          international_student_friendly: studentFriendly,
-          visa_sponsorship: visaSponsorship,
-        },
-      });
-      const text = draft || '';
-      setDescription(text);
-      if (descRef.current) descRef.current.value = text;
-    } catch {
-      const tmpl = `About this role\n\nWe are looking for a ${title || 'team member'} to join our team.\n\nResponsibilities\n- Deliver excellent service\n- Collaborate with team members\n\nWhat we’re looking for\n- Great communicator\n- Reliable and proactive\n`;
-      setDescription(tmpl);
-      if (descRef.current) descRef.current.value = tmpl;
-    }
+        location,
+        employment_type: employmentType,
+        salary: payText,
+        international_student_friendly: studentFriendly,
+        visa_sponsorship: visaSponsorship,
+      },
+    });
+    setDescription(draft);
+    if (descRef.current) descRef.current.value = draft;
   };
 
   const onPublish = async () => {

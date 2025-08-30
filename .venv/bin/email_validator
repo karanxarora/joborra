@@ -1,4 +1,4 @@
-#!/home/karan/new/joborra/.venv/bin/python3.12
+#!/Users/mac/joborra/.venv/bin/python
 import sys
 from email_validator.__main__ import main
 if __name__ == '__main__':

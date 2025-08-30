@@ -41,7 +41,7 @@ const Header: React.FC = () => {
               <span className="text-xl font-bold text-slate-900 hidden sm:inline">Joborra</span>
             </div>
             <span className="ml-3 px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded-full hidden sm:inline">
-              Australia's Job Portal
+              1st International Student's Job Portal
             </span>
           </Link>
 

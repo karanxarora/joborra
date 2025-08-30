@@ -332,16 +332,9 @@ const EmployerPostJobPage: React.FC = () => {
                         type="button"
                         variant="outline"
                         onClick={async () => {
-                          try {
-                            const draft = await apiService.generateJobDescription({ title: form.title, skills: form.required_skills || [] });
-                            handleChange('description', draft || '');
-                            if (descRef.current) descRef.current.innerHTML = draft || '';
-                          } catch (e) {
-                            // Fallback: simple template
-                            const tmpl = `<p><strong>About the role</strong></p><ul><li>Contribute to ${form.title || 'the role'}</li><li>Collaborate with a cross-functional team</li></ul><p><strong>Skills</strong></p><ul>${(form.required_skills||[]).map(s=>`<li>${s}</li>`).join('')}</ul>`;
-                            handleChange('description', tmpl);
-                            if (descRef.current) descRef.current.innerHTML = tmpl;
-                          }
+                          const draft = await apiService.generateJobDescription({ title: form.title, skills: form.required_skills || [] });
+                          handleChange('description', draft);
+                          if (descRef.current) descRef.current.innerHTML = draft;
                         }}
                       >AI Generate</Button>
                     </div>

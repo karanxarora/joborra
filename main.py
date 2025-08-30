@@ -53,13 +53,19 @@ def ensure_schema_compatibility():
             logger.info(f"Schema compat: dialect={dialect}, schema={pg_schema if dialect=='postgresql' else 'sqlite'}, users columns found={len(columns)}")
             logger.info(f"Schema compat: users.education present? {'education' in columns}, users.experience present? {'experience' in columns}")
             
-            # Common columns (resume + company_logo)
+            # Common columns (resume + company_logo + contact_number)
             if 'resume_url' not in columns:
                 if dialect == 'postgresql':
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS resume_url VARCHAR(500)"))
                 else:
                     conn.execute(text("ALTER TABLE users ADD COLUMN resume_url VARCHAR(500)"))
                 logger.info("Added missing column users.resume_url for compatibility")
+            if 'contact_number' not in columns:
+                if dialect == 'postgresql':
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_number VARCHAR(20)"))
+                else:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN contact_number VARCHAR(20)"))
+                logger.info("Added missing column users.contact_number for compatibility")
             # Check if company_logo_url exists on users table
             if 'company_logo_url' not in columns:
                 if dialect == 'postgresql':

@@ -13,6 +13,7 @@ class UserCreate(BaseModel):
     username: Optional[str] = None
     password: str
     full_name: Optional[str] = None
+    contact_number: Optional[str] = None
     role: Optional[UserRole] = UserRole.STUDENT
     
     # Student-specific fields
@@ -54,6 +55,7 @@ class UserResponse(BaseModel):
     email: str
     username: str
     full_name: str
+    contact_number: Optional[str]
     role: UserRole
     is_active: bool
     is_verified: bool
@@ -229,6 +231,7 @@ class EmployerJobUpdate(BaseModel):
 # User Profile Updates
 class StudentProfileUpdate(BaseModel):
     full_name: Optional[str] = None
+    contact_number: Optional[str] = None
     university: Optional[str] = None
     degree: Optional[str] = None
     graduation_year: Optional[int] = None
@@ -255,6 +258,7 @@ class StudentProfileUpdate(BaseModel):
 
 class EmployerProfileUpdate(BaseModel):
     full_name: Optional[str] = None
+    contact_number: Optional[str] = None
     company_name: Optional[str] = None
     company_website: Optional[str] = None
     company_size: Optional[str] = None

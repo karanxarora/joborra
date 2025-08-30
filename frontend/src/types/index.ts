@@ -4,6 +4,7 @@ export interface User {
   email: string;
   username: string;
   full_name: string;
+  contact_number?: string;
   role: 'student' | 'employer';
   is_verified?: boolean;
   // OAuth fields
@@ -102,6 +103,7 @@ export interface RegisterForm {
   email: string;
   password: string;
   full_name: string;
+  contact_number?: string;
   role?: 'student' | 'employer';
   university?: string;
   degree?: string;
