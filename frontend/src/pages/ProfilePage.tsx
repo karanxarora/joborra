@@ -1,20 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import SkillInput from '../components/ui/SkillInput';
-import GoogleIcon from '../components/ui/GoogleIcon';
+
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
-import { useToast } from '../contexts/ToastContext';
 
 const ProfilePage: React.FC = () => {
   const { user: ctxUser, refreshUser } = useAuth();
-  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   // Sub-tab state
   const [activeTab, setActiveTab] = useState<'profile' | 'visa'>('profile');
   // Visa state
@@ -52,6 +51,35 @@ const ProfilePage: React.FC = () => {
   const [activities, setActivities] = useState<string[]>([]);
   const [activityInput, setActivityInput] = useState('');
 
+  // Helper function to sort education entries by end year (most recent first)
+  const sortEducationByDate = (eduArray: any[]) => {
+    return [...eduArray].sort((a, b) => {
+      const yearA = parseInt(a.end_year) || 0;
+      const yearB = parseInt(b.end_year) || 0;
+      return yearB - yearA; // Most recent first
+    });
+  };
+
+  // Helper function to sort experience entries by end date (most recent first)
+  const sortExperienceByDate = (expArray: any[]) => {
+    return [...expArray].sort((a, b) => {
+      // Handle "Present" or empty end dates as most recent
+      const endA = a.end?.toLowerCase();
+      const endB = b.end?.toLowerCase();
+      
+      if (endA === 'present' || endA === '' || !endA) return -1;
+      if (endB === 'present' || endB === '' || !endB) return 1;
+      
+      // Parse dates for comparison
+      const dateA = new Date(a.end);
+      const dateB = new Date(b.end);
+      
+      return dateB.getTime() - dateA.getTime(); // Most recent first
+    });
+  };
+
+
+
   useEffect(() => {
     setForm({
       full_name: ctxUser?.full_name || '',
@@ -66,14 +94,38 @@ const ProfilePage: React.FC = () => {
       const rawEdu = (ctxUser as any)?.education;
       if (rawEdu) {
         const parsed = typeof rawEdu === 'string' ? JSON.parse(rawEdu) : rawEdu;
-        if (Array.isArray(parsed) && parsed.length > 0) setEducation(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].institution) {
+          setEducation(sortEducationByDate(parsed));
+        } else if (ctxUser?.university && ctxUser?.degree && ctxUser?.graduation_year) {
+          // Prefill education from signup data if no education exists
+          const degreeDuration = ctxUser.degree?.toLowerCase().includes('master') || ctxUser.degree?.toLowerCase().includes('phd') ? 2 : 3;
+          const prefilledEducation = [{
+            institution: ctxUser.university,
+            degree: ctxUser.degree,
+            field: ctxUser.degree, // Use degree as field of study
+            start_year: (ctxUser.graduation_year - degreeDuration).toString(),
+            end_year: ctxUser.graduation_year.toString()
+          }];
+          setEducation(prefilledEducation);
+        }
+      } else if (ctxUser?.university && ctxUser?.degree && ctxUser?.graduation_year) {
+        // Prefill education from signup data if no education data exists
+        const degreeDuration = ctxUser.degree?.toLowerCase().includes('master') || ctxUser.degree?.toLowerCase().includes('phd') ? 2 : 3;
+        const prefilledEducation = [{
+          institution: ctxUser.university,
+          degree: ctxUser.degree,
+          field: ctxUser.degree, // Use degree as field of study
+          start_year: (ctxUser.graduation_year - degreeDuration).toString(),
+          end_year: ctxUser.graduation_year.toString()
+        }];
+        setEducation(prefilledEducation);
       }
     } catch {}
     try {
       const rawExp = (ctxUser as any)?.experience;
       if (rawExp) {
         const parsed = typeof rawExp === 'string' ? JSON.parse(rawExp) : rawExp;
-        if (Array.isArray(parsed) && parsed.length > 0) setExperience(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) setExperience(sortExperienceByDate(parsed));
       }
     } catch {}
     // Try hydrate skills & activities from localStorage (UI-only persistence for now)
@@ -85,99 +137,9 @@ const ProfilePage: React.FC = () => {
     } catch {}
   }, [ctxUser]);
 
-  // Google Account Linking
-  const [linking, setLinking] = useState(false);
-  const isGoogleLinked = useMemo(() => ctxUser?.oauth_provider === 'google', [ctxUser]);
 
-  const ensureGoogleScript = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      if ((window as any).google?.accounts?.id) return resolve();
-      const existing = document.getElementById('google-identity-services');
-      if (existing) {
-        existing.addEventListener('load', () => resolve());
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.id = 'google-identity-services';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
-      document.head.appendChild(script);
-    });
-  };
 
-  const onLinkGoogle = async () => {
-    setMessage(null);
-    setLinking(true);
-    try {
-      await ensureGoogleScript();
-      const google: any = (window as any).google;
-      const clientId = (process as any).env.REACT_APP_GOOGLE_CLIENT_ID || (window as any).REACT_APP_GOOGLE_CLIENT_ID;
-      if (!clientId) throw new Error('Google Client ID not configured');
-      let resolved = false;
-      await new Promise<void>((resolve, reject) => {
-        try {
-          google.accounts.id.initialize({
-            client_id: clientId,
-            callback: async (resp: any) => {
-              if (resolved) return;
-              resolved = true;
-              const id_token = resp?.credential;
-              if (!id_token) {
-                reject(new Error('No ID token received'));
-                return;
-              }
-              try {
-                await apiService.linkGoogleWithIdToken(id_token);
-                await refreshUser();
-                setMessage('Google account linked successfully');
-                toast('Google account linked', 'success');
-                resolve();
-              } catch (err: any) {
-                const detail = err?.response?.data?.detail || '';
-                if (detail === 'link_required' || /link_required/i.test(detail)) {
-                  toast('This email is already in use. Sign in with password, then link Google here.', 'error');
-                } else if (/email/i.test(detail) && /mismatch|different/i.test(detail)) {
-                  toast('Email mismatch between your account and Google profile.', 'error');
-                } else if (detail) {
-                  toast(detail, 'error');
-                } else {
-                  toast('Failed to link Google account', 'error');
-                }
-                setMessage(detail || 'Failed to link Google account');
-                reject(err);
-              }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true,
-            context: 'use',
-          });
-          // Use the prompt flow to get an ID token popup
-          google.accounts.id.prompt((notification: any) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              // As a fallback, render a one-time button and simulate click
-              const container = document.createElement('div');
-              document.body.appendChild(container);
-              google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
-              const btn = container.querySelector('div[role="button"]') as HTMLElement | null;
-              if (!btn) {
-                setMessage('Google Sign-In not available');
-                reject(new Error('GIS button render failed'));
-              }
-            }
-          });
-        } catch (e) {
-          reject(e);
-        }
-      });
-    } catch (e: any) {
-      if (!message) setMessage(e?.message || 'Failed to start Google linking');
-    } finally {
-      setLinking(false);
-    }
-  };
+
 
   // Derive avatar initials from name/email
   const initials = React.useMemo(() => {
@@ -275,6 +237,7 @@ const ProfilePage: React.FC = () => {
       await apiService.updateProfile(payload);
       await refreshUser();
       setMessage('Profile updated successfully');
+      setIsEditing(false); // Exit edit mode after successful save
     } catch (err) {
       setMessage('Failed to update profile');
     } finally {
@@ -311,8 +274,46 @@ const ProfilePage: React.FC = () => {
                   <div className="text-sm text-slate-600">{ctxUser?.email}</div>
                 </div>
               </div>
+              {/* Email verification banner */}
+              {!ctxUser?.is_verified && (
+                <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+                  <div className="text-sm font-medium">Verify your email to unlock all features</div>
+                  <div className="text-xs mt-1">Your account is not verified yet. Click the button below to get a verification link.</div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={async () => {
+                      setSaving(true); setMessage(null);
+                      try {
+                        const res: any = await apiService.requestEmailVerification();
+                        if ((res as any)?.verify_url) {
+                          setVerifyLink((res as any).verify_url);
+                          setMessage('Verification link generated. Use the button below or copy the link.');
+                        } else {
+                          setMessage('Verification email sent! Check your inbox.');
+                        }
+                      } catch (err: any) {
+                        setMessage(err?.response?.data?.detail || 'Failed to send verification email');
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                  >
+                    {saving ? 'Sending...' : 'Send Verification Email'}
+                  </Button>
+                  {verifyLink && (
+                    <div className="mt-2">
+                      <div className="text-xs text-amber-700 mb-1">Verification link:</div>
+                      <div className="text-xs bg-white p-2 rounded border break-all">{verifyLink}</div>
+                    </div>
+                  )}
+                </div>
+              )}
               {ctxUser?.role === 'student' && (
-                <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                <div className="mt-4 grid grid-cols-2 gap-3 text-center">
                   <div className="rounded-md border border-slate-200 p-3">
                     <div className="text-sm text-slate-600">Visa</div>
                     <div className="text-sm font-semibold text-slate-900">{visaInfo?.verification_status || 'Pending Verification'}</div>
@@ -320,10 +321,6 @@ const ProfilePage: React.FC = () => {
                   <div className="rounded-md border border-slate-200 p-3">
                     <div className="text-sm text-slate-600">Resume</div>
                     <div className="text-sm font-semibold text-slate-900">{ctxUser?.resume_url ? 'Uploaded' : 'Missing'}</div>
-                  </div>
-                  <div className="rounded-md border border-slate-200 p-3">
-                    <div className="text-sm text-slate-600">Verified</div>
-                    <div className="text-sm font-semibold text-slate-900">{ctxUser?.is_verified ? 'Yes' : 'No'}</div>
                   </div>
                 </div>
               )}
@@ -376,92 +373,67 @@ const ProfilePage: React.FC = () => {
 
             {/* Profile Details Tab */}
             {activeTab === 'profile' && (
-              <Card className="p-6 space-y-8">
-            {/* Email verification banner */}
-            {!ctxUser?.is_verified && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-medium">Verify your email to unlock all features</div>
-                    <div className="text-sm mt-1">Your account is not verified yet. Click the button below to get a verification link.</div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      setSaving(true); setMessage(null);
-                      try {
-                        const res: any = await apiService.requestEmailVerification();
-                        if ((res as any)?.verify_url) {
-                          setVerifyLink((res as any).verify_url);
-                          setMessage('Verification link generated. Use the button below or copy the link.');
-                        } else {
-                          setMessage('If not already verified, a link has been issued.');
-                        }
-                      } catch (e) {
-                        setMessage('Failed to issue verification link');
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                  >
-                    Send verification link
-                  </Button>
-                </div>
-              </div>
-            )}
-            {/* Show the verification link in a properly wrapped box with actions */}
-            {!ctxUser?.is_verified && verifyLink && (
-              <div className="mt-4 rounded-md border border-slate-200 bg-white p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-800 mb-1">Verification link</div>
-                    <a
-                      href={verifyLink}
-                      className="text-sm text-cyan-700 underline break-all"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {verifyLink}
-                    </a>
-                  </div>
-                  <div className="flex-shrink-0 flex gap-2">
+              <Card className={`p-6 space-y-8 ${!isEditing ? 'bg-slate-50' : 'bg-white'}`}>
+                {/* Profile Header with Edit Button */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-slate-900">Profile Details</h2>
+                  {!isEditing ? (
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={async () => {
-                        try { await navigator.clipboard.writeText(verifyLink); setMessage('Link copied to clipboard'); } catch { setMessage('Copy failed'); }
-                      }}
+                      onClick={() => setIsEditing(true)}
                     >
-                      Copy link
+                      Edit Profile
                     </Button>
-                    <a href={verifyLink} target="_blank" rel="noreferrer">
-                      <Button type="button">Open</Button>
-                    </a>
-                  </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setMessage(null);
+                          // Reset form to original values
+                          setForm({
+                            full_name: ctxUser?.full_name || '',
+                            visa_status: ctxUser?.visa_status || '',
+                            company_name: ctxUser?.company_name || '',
+                            company_website: ctxUser?.company_website || '',
+                            company_size: ctxUser?.company_size || '',
+                            industry: ctxUser?.industry || '',
+                          });
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="button" onClick={onSave} loading={saving}>
+                        Save Changes
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-            {/* Google Account Linking */}
-            <div className="rounded-md border border-slate-200 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium text-slate-900">Google Account</div>
-                  <div className="text-sm text-slate-600 mt-1">
-                    {isGoogleLinked ? 'Your account is linked with Google Sign-In.' : 'Link your Google account to sign in seamlessly and enhance security.'}
+
+                {message && (
+                  <div className={`p-3 rounded-md ${message.includes('successfully') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                    {message}
                   </div>
-                </div>
-                <Button type="button" variant="outline" onClick={onLinkGoogle} disabled={isGoogleLinked} loading={linking}>
-                  <GoogleIcon className="h-4 w-4 mr-2" />
-                  {isGoogleLinked ? 'Linked' : 'Link Google Account'}
-                </Button>
-              </div>
-            </div>
+                )}
 
             <form onSubmit={onSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input label="Full Name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
-                <Input label="Visa Status" value={form.visa_status} onChange={(e) => setForm({ ...form, visa_status: e.target.value })} />
+                <Input 
+                  label="Full Name" 
+                  value={form.full_name} 
+                  onChange={(e) => setForm({ ...form, full_name: e.target.value })} 
+                  required 
+                  disabled={!isEditing}
+                />
+                <Input 
+                  label="Visa Status" 
+                  value={form.visa_status} 
+                  onChange={(e) => setForm({ ...form, visa_status: e.target.value })} 
+                  disabled={!isEditing}
+                />
               </div>
 
               {ctxUser?.role === 'student' ? (
@@ -470,14 +442,34 @@ const ProfilePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input label="Company Name" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
-                  <Input label="Company Website" value={form.company_website} onChange={(e) => setForm({ ...form, company_website: e.target.value })} />
-                  <Input label="Company Size" value={form.company_size} onChange={(e) => setForm({ ...form, company_size: e.target.value })} />
-                  <Input label="Industry" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
+                  <Input 
+                    label="Company Name" 
+                    value={form.company_name} 
+                    onChange={(e) => setForm({ ...form, company_name: e.target.value })} 
+                    disabled={!isEditing}
+                  />
+                  <Input 
+                    label="Company Website" 
+                    value={form.company_website} 
+                    onChange={(e) => setForm({ ...form, company_website: e.target.value })} 
+                    disabled={!isEditing}
+                  />
+                  <Input 
+                    label="Company Size" 
+                    value={form.company_size} 
+                    onChange={(e) => setForm({ ...form, company_size: e.target.value })} 
+                    disabled={!isEditing}
+                  />
+                  <Input 
+                    label="Industry" 
+                    value={form.industry} 
+                    onChange={(e) => setForm({ ...form, industry: e.target.value })} 
+                    disabled={!isEditing}
+                  />
                 </div>
               )}
 
-              {message && <div className="text-sm text-slate-700">{message}</div>}
+
             </form>
             {/* Resume Upload */}
             {ctxUser?.role === 'student' && (
@@ -488,16 +480,22 @@ const ProfilePage: React.FC = () => {
                     Current resume: <a className="text-cyan-600 underline" href={apiService.getFileUrl(ctxUser.resume_url)} target="_blank" rel="noreferrer">View</a>
                   </div>
                 )}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-slate-900"
-                  />
-                  <Button type="button" onClick={onUploadResume} loading={resumeUploading} disabled={!resumeFile}>Upload PDF</Button>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">PDF only. Max size 10MB.</p>
+                {isEditing ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                        className="block w-full text-sm text-slate-900"
+                      />
+                      <Button type="button" onClick={onUploadResume} loading={resumeUploading} disabled={!resumeFile}>Upload PDF</Button>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">PDF only. Max size 10MB.</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-500">Click "Edit Profile" to upload a new resume</p>
+                )}
                 {resumeMessage && (
                   <div className={`text-sm mt-2 ${resumeMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
                     {resumeMessage}
@@ -511,28 +509,89 @@ const ProfilePage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Education</h3>
                 {education.map((ed, idx) => (
                   <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <Input label="Institution" value={ed.institution} onChange={(e) => {
-                      const next = [...education]; next[idx].institution = e.target.value; setEducation(next);
-                    }} />
-                    <Input label="Degree" value={ed.degree} onChange={(e) => {
-                      const next = [...education]; next[idx].degree = e.target.value; setEducation(next);
-                    }} />
-                    <Input label="Field of Study" value={ed.field} onChange={(e) => {
-                      const next = [...education]; next[idx].field = e.target.value; setEducation(next);
-                    }} />
+                    {idx === 0 && education.length > 1 && (
+                      <div className="col-span-full mb-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Most Recent
+                        </span>
+                      </div>
+                    )}
+                    <Input 
+                      label="Institution" 
+                      value={ed.institution} 
+                      onChange={(e) => {
+                        const next = [...education]; next[idx].institution = e.target.value; setEducation(next);
+                      }} 
+                      disabled={!isEditing}
+                    />
+                    <Input 
+                      label="Degree" 
+                      value={ed.degree} 
+                      onChange={(e) => {
+                        const next = [...education]; next[idx].degree = e.target.value; setEducation(next);
+                      }} 
+                      disabled={!isEditing}
+                    />
+                    <Input 
+                      label="Field of Study" 
+                      value={ed.field} 
+                      onChange={(e) => {
+                        const next = [...education]; next[idx].field = e.target.value; setEducation(next);
+                      }} 
+                      disabled={!isEditing}
+                    />
                     <div className="grid grid-cols-2 gap-4">
-                      <Input label="Start Year" value={ed.start_year} onChange={(e) => {
-                        const next = [...education]; next[idx].start_year = e.target.value; setEducation(next);
-                      }} />
-                      <Input label="End Year" value={ed.end_year} onChange={(e) => {
-                        const next = [...education]; next[idx].end_year = e.target.value; setEducation(next);
-                      }} />
+                                            <Input 
+                        label="Start Year" 
+                        value={ed.start_year} 
+                        onChange={(e) => {
+                          const next = [...education]; next[idx].start_year = e.target.value; setEducation(next);
+                        }} 
+                        disabled={!isEditing}
+                      />
+                      <Input 
+                        label="End Year" 
+                        value={ed.end_year} 
+                        onChange={(e) => {
+                          const next = [...education]; next[idx].end_year = e.target.value;
+                          setEducation(sortEducationByDate(next));
+                        }} 
+                        disabled={!isEditing}
+                      />
                     </div>
+                    {education.length > 1 && isEditing && (
+                      <div className="col-span-full flex justify-end">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const next = education.filter((_, i) => i !== idx);
+                            setEducation(sortEducationByDate(next));
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => setEducation([...education, { institution: '', degree: '', field: '', start_year: '', end_year: '' }])}>Add Education</Button>
-                </div>
+                {isEditing && (
+                  <div className="flex gap-2 items-center">
+                    <Button type="button" variant="outline" onClick={() => {
+                      const newEducation = [...education, { institution: '', degree: '', field: '', start_year: '', end_year: '' }];
+                      setEducation(sortEducationByDate(newEducation));
+                    }}>
+                      Add Education
+                    </Button>
+                    {education.length === 1 && ctxUser?.university && ctxUser?.degree && ctxUser?.graduation_year && (
+                      <span className="text-xs text-slate-500">
+                        (Prefilled from signup data)
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {/* Experience Section (students only) */}
@@ -541,28 +600,127 @@ const ProfilePage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Experience</h3>
                 {experience.map((ex, idx) => (
                   <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <Input label="Company" value={ex.company} onChange={(e) => {
-                      const next = [...experience]; next[idx].company = e.target.value; setExperience(next);
-                    }} />
-                    <Input label="Title" value={ex.title} onChange={(e) => {
-                      const next = [...experience]; next[idx].title = e.target.value; setExperience(next);
-                    }} />
+                    {idx === 0 && experience.length > 1 && (
+                      <div className="col-span-full mb-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Most Recent
+                        </span>
+                      </div>
+                    )}
+                    <Input 
+                      label="Company" 
+                      value={ex.company} 
+                      onChange={(e) => {
+                        const next = [...experience]; next[idx].company = e.target.value; setExperience(next);
+                      }} 
+                      disabled={!isEditing}
+                    />
+                    <Input 
+                      label="Title" 
+                      value={ex.title} 
+                      onChange={(e) => {
+                        const next = [...experience]; next[idx].title = e.target.value; setExperience(next);
+                      }} 
+                      disabled={!isEditing}
+                    />
                     <div className="grid grid-cols-2 gap-4">
-                      <Input label="Start Date" type="month" value={ex.start} onChange={(e) => {
-                        const next = [...experience]; next[idx].start = e.target.value; setExperience(next);
-                      }} />
-                      <Input label="End Date" type="month" value={ex.end} onChange={(e) => {
-                        const next = [...experience]; next[idx].end = e.target.value; setExperience(next);
-                      }} />
+                      <Input 
+                        label="Start Date" 
+                        type="month" 
+                        value={ex.start} 
+                        onChange={(e) => {
+                          const next = [...experience]; next[idx].start = e.target.value; setExperience(next);
+                        }} 
+                        disabled={!isEditing}
+                      />
+                      <div className="space-y-2">
+                        {ex.end === 'Present' ? (
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">End Date</label>
+                            <div className="relative">
+                              <div className="flex items-center justify-between px-3 py-2 border border-slate-300 rounded-md bg-slate-50 h-10">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <span className="text-slate-700 font-medium text-sm">Present</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = [...experience]; 
+                                    next[idx].end = ''; 
+                                    setExperience(sortExperienceByDate(next));
+                                  }}
+                                  className="text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-200 px-2 py-1 rounded transition-colors"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                                                        <Input 
+                              label="End Date" 
+                              type="month" 
+                              value={ex.end} 
+                              onChange={(e) => {
+                                const next = [...experience]; 
+                                next[idx].end = e.target.value; 
+                                setExperience(sortExperienceByDate(next));
+                              }} 
+                              disabled={!isEditing}
+                            />
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = [...experience]; 
+                                  next[idx].end = 'Present';
+                                  setExperience(sortExperienceByDate(next));
+                                }}
+                                className="w-full text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 py-1 px-2 rounded border border-blue-200 transition-colors"
+                              >
+                                Set as Present
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <Input label="Description" value={ex.description} onChange={(e) => {
-                      const next = [...experience]; next[idx].description = e.target.value; setExperience(next);
-                    }} />
+                    <Input 
+                      label="Description" 
+                      value={ex.description} 
+                      onChange={(e) => {
+                        const next = [...experience]; next[idx].description = e.target.value; setExperience(next);
+                      }} 
+                      disabled={!isEditing}
+                    />
+                    {experience.length > 1 && isEditing && (
+                      <div className="col-span-full flex justify-end">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const next = experience.filter((_, i) => i !== idx);
+                            setExperience(sortExperienceByDate(next));
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => setExperience([...experience, { company: '', title: '', start: '', end: '', description: '' }])}>Add Experience</Button>
-                </div>
+                {isEditing && (
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => {
+                      const newExperience = [...experience, { company: '', title: '', start: '', end: '', description: '' }];
+                      setExperience(sortExperienceByDate(newExperience));
+                    }}>Add Experience</Button>
+                  </div>
+                )}
               </div>
             )}
             {/* Skills (students only) */}
@@ -585,15 +743,18 @@ const ProfilePage: React.FC = () => {
                     }}
                     placeholder="Type a skill for AI-powered suggestions..."
                     context={education.length > 0 ? education[0].field || education[0].degree : undefined}
+                    disabled={!isEditing}
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {skills.map((s, i) => (
                     <span key={`${s}-${i}`} className="px-2 py-1 bg-slate-100 rounded text-sm">
                       {s}
-                      <button type="button" className="ml-2 text-red-500" onClick={()=>{
-                        const next = skills.filter((_, idx)=> idx!==i); setSkills(next); try{ localStorage.setItem('profile_skills', JSON.stringify(next)); } catch{}
-                      }}>×</button>
+                      {isEditing && (
+                        <button type="button" className="ml-2 text-red-500" onClick={()=>{
+                          const next = skills.filter((_, idx)=> idx!==i); setSkills(next); try{ localStorage.setItem('profile_skills', JSON.stringify(next)); } catch{}
+                        }}>×</button>
+                      )}
                     </span>
                   ))}
                 </div>
@@ -603,38 +764,50 @@ const ProfilePage: React.FC = () => {
             {ctxUser?.role === 'student' && (
               <div className="mt-8 border-t border-slate-200 pt-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Extracurricular Activities</h3>
-                <div className="flex gap-2 mb-2">
-                  <Input value={activityInput} onChange={(e)=>setActivityInput(e.target.value)} placeholder="Add an activity (clubs, volunteering, leadership)" />
-                  <Button type="button" variant="outline" onClick={()=>{
-                    const v = activityInput.trim(); if(!v) return; const next=[...activities, v]; setActivities(next); setActivityInput('');
-                    try{ localStorage.setItem('profile_activities', JSON.stringify(next)); } catch{}
-                  }}>Add</Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {activities.map((a, i) => (
-                    <span key={`${a}-${i}`} className="px-2 py-1 bg-slate-100 rounded text-sm">
-                      {a}
-                      <button type="button" className="ml-2 text-red-500" onClick={()=>{
-                        const next = activities.filter((_, idx)=> idx!==i); setActivities(next); try{ localStorage.setItem('profile_activities', JSON.stringify(next)); } catch{}
-                      }}>×</button>
-                    </span>
-                  ))}
-                </div>
+                {isEditing && (
+                  <div className="flex gap-2 mb-2">
+                    <Input 
+                      value={activityInput} 
+                      onChange={(e)=>setActivityInput(e.target.value)} 
+                      placeholder="Add an activity (clubs, volunteering, leadership)" 
+                    />
+                    <Button type="button" variant="outline" onClick={()=>{
+                      const v = activityInput.trim(); if(!v) return; const next=[...activities, v]; setActivities(next); setActivityInput('');
+                      try{ localStorage.setItem('profile_activities', JSON.stringify(next)); } catch{}
+                    }}>Add</Button>
+                  </div>
+                )}
+                {activities.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {activities.map((a, i) => (
+                      <span key={`${a}-${i}`} className="px-2 py-1 bg-slate-100 rounded text-sm">
+                        {a}
+                        {isEditing && (
+                          <button type="button" className="ml-2 text-red-500" onClick={()=>{
+                            const next = activities.filter((_, idx)=> idx!==i); setActivities(next); try{ localStorage.setItem('profile_activities', JSON.stringify(next)); } catch{}
+                          }}>×</button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    {isEditing ? "No activities added yet. Use the input above to add activities." : "No activities added yet. Click 'Edit Profile' to add activities."}
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Save button at the very end */}
-            <div className="mt-8 flex justify-end">
-              <Button type="button" onClick={onSave} loading={saving}>Save Changes</Button>
-            </div>
+
               </Card>
             )}
 
             {/* Visa Verification Tab (students only) */}
             {activeTab === 'visa' && ctxUser?.role === 'student' && (
               <Card className="p-6">
-            {/* Status */}
-            <div className="mb-6">
+                <div className="pt-4">
+                  {/* Status */}
+                  <div className="mb-6">
               {loadingVisa ? (
                 <div className="text-slate-600">Loading visa status...</div>
               ) : (
@@ -732,7 +905,7 @@ const ProfilePage: React.FC = () => {
               </div>
               {visaMsg && <div className="text-sm text-slate-600 mt-2">{visaMsg}</div>}
             </div>
-
+                </div>
               </Card>
             )}
           </section>

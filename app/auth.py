@@ -65,6 +65,7 @@ class AuthService:
             username=username.strip(),
             hashed_password=hashed_password,
             full_name=user_data.full_name.strip() if user_data.full_name else user_data.email.split('@')[0],
+            contact_number=user_data.contact_number,
             role=user_data.role,
             # Explicit defaults to prevent None values
             is_active=True,
@@ -77,6 +78,8 @@ class AuthService:
             degree=user_data.degree if user_data.role == UserRole.STUDENT else None,
             graduation_year=user_data.graduation_year if user_data.role == UserRole.STUDENT else None,
             visa_status=user_data.visa_status if user_data.role == UserRole.STUDENT else None,
+            city_suburb=user_data.city_suburb if user_data.role == UserRole.STUDENT else None,
+            date_of_birth=user_data.date_of_birth if user_data.role == UserRole.STUDENT else None,
             course_name=user_data.course_name if user_data.role == UserRole.STUDENT else None,
             institution_name=user_data.institution_name if user_data.role == UserRole.STUDENT else None,
             course_start_date=user_data.course_start_date if user_data.role == UserRole.STUDENT else None,

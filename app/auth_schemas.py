@@ -21,6 +21,8 @@ class UserCreate(BaseModel):
     degree: Optional[str] = None
     graduation_year: Optional[int] = None
     visa_status: Optional[str] = None
+    city_suburb: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
     # Study details (moved from visa verification)
     course_name: Optional[str] = None
     institution_name: Optional[str] = None
@@ -67,6 +69,8 @@ class UserResponse(BaseModel):
     degree: Optional[str]
     graduation_year: Optional[int]
     visa_status: Optional[str]
+    city_suburb: Optional[str]
+    date_of_birth: Optional[datetime]
     skills: Optional[str]
     experience_level: Optional[str]
     preferred_locations: Optional[str]
@@ -236,6 +240,8 @@ class StudentProfileUpdate(BaseModel):
     degree: Optional[str] = None
     graduation_year: Optional[int] = None
     visa_status: Optional[str] = None
+    city_suburb: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
     skills: Optional[str] = None
     experience_level: Optional[str] = None
     preferred_locations: Optional[str] = None
