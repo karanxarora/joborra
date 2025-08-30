@@ -330,10 +330,7 @@ const ProfilePage: React.FC = () => {
               <div className="mt-4 flex flex-wrap gap-2">
                 <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='profile'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('profile')}>Profile</button>
                 {ctxUser?.role === 'student' && (
-                  <>
-                    <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='visa'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('visa')}>Visa</button>
-                    <a href="/applications" className="px-3 py-2 text-sm rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">View Applications</a>
-                  </>
+                  <button className={`px-3 py-2 text-sm rounded-md border ${activeTab==='visa'?'border-primary-600 text-primary-700':'border-slate-200 text-slate-700'}`} onClick={()=>setActiveTab('visa')}>Visa</button>
                 )}
               </div>
 
