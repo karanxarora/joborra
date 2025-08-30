@@ -19,7 +19,7 @@ export interface User {
   institution_name?: string;
   course_start_date?: string; // ISO datetime string
   course_end_date?: string;   // ISO datetime string
-  coe_number?: string;
+
   company_name?: string;
   company_website?: string;
   company_size?: string;
@@ -114,7 +114,7 @@ export interface RegisterForm {
   institution_name?: string;
   course_start_date?: string; // ISO datetime string
   course_end_date?: string;   // ISO datetime string
-  coe_number?: string;
+
   company_name?: string;
   company_website?: string;
   company_size?: string;

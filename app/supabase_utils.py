@@ -2,6 +2,10 @@ import os
 import logging
 from typing import Optional
 import requests
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

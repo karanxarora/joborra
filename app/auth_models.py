@@ -51,7 +51,7 @@ class User(Base):
     institution_name = Column(String(200), nullable=True)
     course_start_date = Column(DateTime, nullable=True)
     course_end_date = Column(DateTime, nullable=True)
-    coe_number = Column(String(50), nullable=True)
+
     
     # Enhanced student profile fields
     skills = Column(Text, nullable=True)  # JSON string of skills

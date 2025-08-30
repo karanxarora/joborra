@@ -81,7 +81,7 @@ class AuthService:
             institution_name=user_data.institution_name if user_data.role == UserRole.STUDENT else None,
             course_start_date=user_data.course_start_date if user_data.role == UserRole.STUDENT else None,
             course_end_date=user_data.course_end_date if user_data.role == UserRole.STUDENT else None,
-            coe_number=user_data.coe_number if user_data.role == UserRole.STUDENT else None,
+
             # Employer-specific fields
             company_name=user_data.company_name if user_data.role == UserRole.EMPLOYER else None,
             company_website=user_data.company_website if user_data.role == UserRole.EMPLOYER else None,
