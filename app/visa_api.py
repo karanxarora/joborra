@@ -164,12 +164,11 @@ async def upload_visa_document(
     db: Session = Depends(get_db)
 ):
     """Upload visa-related documents"""
-    # Validate document type
-    allowed_types = ['passport', 'visa_grant', 'coe', 'vevo']
-    if document_type not in allowed_types:
+    # Validate document type - Only allow VEVO documents
+    if document_type != 'vevo':
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid document type. Allowed: {', '.join(allowed_types)}"
+            detail="Only VEVO documents are allowed for upload"
         )
     
     # Validate file type
@@ -399,7 +398,8 @@ def _get_status_message(verification: VisaVerification) -> str:
     """Get status message for verification"""
     if verification.visa_status.value == 'pending':
         return "Your visa verification is being processed. This may take 1-2 business days."
-    elif verification.visa_status.value == 'verified':
+    elif verification.visa_status.value in ['verified', 'under_review']:
+        # Simplified: treat under_review as verified for user experience
         if verification.visa_expiry_date and (verification.visa_expiry_date - datetime.utcnow()).days < 30:
             return "Your visa is verified but expires soon. Please renew your visa."
         return "Your visa is verified and you can access all job features."
@@ -407,7 +407,5 @@ def _get_status_message(verification: VisaVerification) -> str:
         return f"Visa verification was rejected: {verification.rejection_reason or 'Please check your details and try again.'}"
     elif verification.visa_status.value == 'expired':
         return "Your visa has expired. Please update your visa information."
-    elif verification.visa_status.value == 'under_review':
-        return "Your visa verification is under manual review. We'll contact you if additional information is needed."
     else:
         return "Please complete your visa verification to access job features."

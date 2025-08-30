@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import SkillInput from '../components/ui/SkillInput';
+import GoogleIcon from '../components/ui/GoogleIcon';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
 import { useToast } from '../contexts/ToastContext';
@@ -11,6 +13,7 @@ const ProfilePage: React.FC = () => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [resumeMessage, setResumeMessage] = useState<string | null>(null);
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
   // Sub-tab state
   const [activeTab, setActiveTab] = useState<'profile' | 'visa'>('profile');
@@ -20,25 +23,16 @@ const ProfilePage: React.FC = () => {
   
   const [visaMsg, setVisaMsg] = useState<string | null>(null);
   // Visa document upload state
-  const [visaDocType, setVisaDocType] = useState<'passport' | 'visa_grant' | 'coe' | 'vevo'>('vevo');
   const [visaDocUploading, setVisaDocUploading] = useState(false);
   const [visaDocFile, setVisaDocFile] = useState<File | null>(null);
+  const [visaConsentGiven, setVisaConsentGiven] = useState(false);
   // Removed sensitive PII fields from visa form; VEVO upload only
   // Resume upload state
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeUploading, setResumeUploading] = useState(false);
   const [form, setForm] = useState({
     full_name: '',
-    university: '',
-    degree: '',
-    graduation_year: '' as number | string,
     visa_status: '',
-    // Study details (student)
-    course_name: '',
-    institution_name: '',
-    course_start_date: '',
-    course_end_date: '',
-    coe_number: '',
     company_name: '',
     company_website: '',
     company_size: '',
@@ -61,15 +55,7 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     setForm({
       full_name: ctxUser?.full_name || '',
-      university: ctxUser?.university || '',
-      degree: ctxUser?.degree || '',
-      graduation_year: ctxUser?.graduation_year || '',
       visa_status: ctxUser?.visa_status || '',
-      course_name: ctxUser?.course_name || '',
-      institution_name: ctxUser?.institution_name || '',
-      course_start_date: ctxUser?.course_start_date ? ctxUser.course_start_date.substring(0, 10) : '',
-      course_end_date: ctxUser?.course_end_date ? ctxUser.course_end_date.substring(0, 10) : '',
-      coe_number: ctxUser?.coe_number || '',
       company_name: ctxUser?.company_name || '',
       company_website: ctxUser?.company_website || '',
       company_size: ctxUser?.company_size || '',
@@ -223,31 +209,32 @@ const ProfilePage: React.FC = () => {
   const onUploadResume = async () => {
     if (!resumeFile) return;
     setResumeUploading(true);
-    setMessage(null);
+    setResumeMessage(null);
     try {
       await apiService.uploadResume(resumeFile);
       await refreshUser();
-      setMessage('Resume uploaded successfully');
+      setResumeMessage('Resume uploaded successfully');
       setResumeFile(null);
     } catch (err) {
-      setMessage('Failed to upload resume. Please upload a PDF file.');
+      setResumeMessage('Failed to upload resume. Please upload a PDF file.');
     } finally {
       setResumeUploading(false);
     }
   };
 
   const onUploadVisaDoc = async () => {
-    if (!visaDocFile) return;
+    if (!visaDocFile || !visaConsentGiven) return;
     setVisaDocUploading(true);
     setVisaMsg(null);
     try {
-      await apiService.uploadVisaDocument(visaDocType, visaDocFile);
+      await apiService.uploadVisaDocument(visaDocFile);
       const info = await apiService.getVisaStatus();
       setVisaInfo(info);
-      setVisaMsg('Document uploaded successfully');
+      setVisaMsg('VEVO document uploaded successfully');
       setVisaDocFile(null);
+      setVisaConsentGiven(false);
     } catch (err) {
-      setVisaMsg('Failed to upload document. Allowed: PDF, JPG, PNG, DOC, DOCX');
+      setVisaMsg('Failed to upload VEVO document. Allowed: PDF, JPG, PNG, DOC, DOCX');
     } finally {
       setVisaDocUploading(false);
     }
@@ -258,7 +245,7 @@ const ProfilePage: React.FC = () => {
     setSaving(true);
     setMessage(null);
     try {
-      // Map legacy top-level fields from first education entry to keep backend fields populated
+      // Map education fields from first education entry to keep backend fields populated
       let derivedUniversity: string | undefined = undefined;
       let derivedDegree: string | undefined = undefined;
       let derivedGradYear: number | undefined = undefined;
@@ -273,16 +260,10 @@ const ProfilePage: React.FC = () => {
       }
       const payload: any = {
         full_name: form.full_name,
-        university: derivedUniversity ?? (form.university || undefined),
-        degree: derivedDegree ?? (form.degree || undefined),
-        graduation_year: derivedGradYear ?? (form.graduation_year ? Number(form.graduation_year) : undefined),
+        university: derivedUniversity,
+        degree: derivedDegree,
+        graduation_year: derivedGradYear,
         visa_status: form.visa_status || undefined,
-        // Study (only include for students)
-        course_name: ctxUser?.role === 'student' && form.course_name ? form.course_name : undefined,
-        institution_name: ctxUser?.role === 'student' && form.institution_name ? form.institution_name : undefined,
-        course_start_date: ctxUser?.role === 'student' && form.course_start_date ? new Date(form.course_start_date).toISOString() : undefined,
-        course_end_date: ctxUser?.role === 'student' && form.course_end_date ? new Date(form.course_end_date).toISOString() : undefined,
-        coe_number: ctxUser?.role === 'student' && form.coe_number ? form.coe_number : undefined,
         company_name: form.company_name || undefined,
         company_website: form.company_website || undefined,
         company_size: form.company_size || undefined,
@@ -334,7 +315,7 @@ const ProfilePage: React.FC = () => {
                 <div className="mt-4 grid grid-cols-3 gap-3 text-center">
                   <div className="rounded-md border border-slate-200 p-3">
                     <div className="text-sm text-slate-600">Visa</div>
-                    <div className="text-sm font-semibold text-slate-900">{visaInfo?.verification_status || '—'}</div>
+                    <div className="text-sm font-semibold text-slate-900">{visaInfo?.verification_status || 'Pending Verification'}</div>
                   </div>
                   <div className="rounded-md border border-slate-200 p-3">
                     <div className="text-sm text-slate-600">Resume</div>
@@ -474,6 +455,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                 </div>
                 <Button type="button" variant="outline" onClick={onLinkGoogle} disabled={isGoogleLinked} loading={linking}>
+                  <GoogleIcon className="h-4 w-4 mr-2" />
                   {isGoogleLinked ? 'Linked' : 'Link Google Account'}
                 </Button>
               </div>
@@ -487,13 +469,7 @@ const ProfilePage: React.FC = () => {
 
               {ctxUser?.role === 'student' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* University/Degree/Graduation Year inputs removed to avoid duplication with Education section */}
-                  {/* Study details */}
-                  <Input label="Course Name" value={form.course_name} onChange={(e) => setForm({ ...form, course_name: e.target.value })} />
-                  <Input label="Institution Name" value={form.institution_name} onChange={(e) => setForm({ ...form, institution_name: e.target.value })} />
-                  <Input label="Course Start Date" type="date" value={form.course_start_date} onChange={(e) => setForm({ ...form, course_start_date: e.target.value })} />
-                  <Input label="Course End Date" type="date" value={form.course_end_date} onChange={(e) => setForm({ ...form, course_end_date: e.target.value })} />
-                  <Input label="COE Number" value={form.coe_number} onChange={(e) => setForm({ ...form, coe_number: e.target.value })} />
+                  {/* Student-specific fields can be added here if needed in the future */}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -525,6 +501,11 @@ const ProfilePage: React.FC = () => {
                   <Button type="button" onClick={onUploadResume} loading={resumeUploading} disabled={!resumeFile}>Upload PDF</Button>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">PDF only. Max size 10MB.</p>
+                {resumeMessage && (
+                  <div className={`text-sm mt-2 ${resumeMessage.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                    {resumeMessage}
+                  </div>
+                )}
               </div>
             )}
             {/* Education Section (moved from Visa tab) */}
@@ -591,12 +572,23 @@ const ProfilePage: React.FC = () => {
             {ctxUser?.role === 'student' && (
               <div className="mt-8 border-t border-slate-200 pt-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Skills</h3>
-                <div className="flex gap-2 mb-2">
-                  <Input value={skillInput} onChange={(e)=>setSkillInput(e.target.value)} placeholder="Add a skill" />
-                  <Button type="button" variant="outline" onClick={()=>{
-                    const v = skillInput.trim(); if(!v) return; const next=[...skills, v]; setSkills(next); setSkillInput('');
-                    try{ localStorage.setItem('profile_skills', JSON.stringify(next)); } catch{}
-                  }}>Add</Button>
+                <div className="mb-2">
+                  <SkillInput
+                    value={skillInput}
+                    onChange={setSkillInput}
+                    onAdd={() => {
+                      const v = skillInput.trim();
+                      if (!v) return;
+                      const next = [...skills, v];
+                      setSkills(next);
+                      setSkillInput('');
+                      try {
+                        localStorage.setItem('profile_skills', JSON.stringify(next));
+                      } catch {}
+                    }}
+                    placeholder="Type a skill for AI-powered suggestions..."
+                    context={education.length > 0 ? education[0].field || education[0].degree : undefined}
+                  />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {skills.map((s, i) => (
@@ -653,11 +645,19 @@ const ProfilePage: React.FC = () => {
                   {(() => {
                     const raw = visaInfo?.verification_status || (visaInfo?.has_verification ? 'pending' : 'not_started');
                     const s = String(raw || '').toLowerCase();
-                    const steps = ['not_started','pending','in_review','verified'];
-                    const idx = s.includes('verify') ? 3 : s.includes('review') ? 2 : s.includes('pending') ? 1 : 0;
+                    // Simplified 2-step process: Pending and Verified
+                    const steps = ['pending', 'verified'];
+                    const isVerified = s.includes('verify') || s.includes('review');
+                    const idx = isVerified ? 1 : 0;
                     return (
                       <>
-                        <div className="text-sm text-slate-700 mb-2"><span className="font-medium">Status:</span> {raw || 'not_started'}</div>
+                        <div className="text-sm text-slate-700 mb-2">
+                          <span className="font-medium">Status:</span> {
+                            isVerified ? 'Verified' : 
+                            s.includes('pending') || s.includes('review') ? 'Under Review' : 
+                            'Not Started'
+                          }
+                        </div>
                         <div className="flex items-center justify-between">
                           {steps.map((label, i) => (
                             <div key={label} className="flex-1 flex items-center">
@@ -667,6 +667,10 @@ const ProfilePage: React.FC = () => {
                               )}
                             </div>
                           ))}
+                        </div>
+                        <div className="flex justify-between text-xs text-slate-500 mt-1">
+                          <span>Under Review</span>
+                          <span>Verified</span>
                         </div>
                         {visaInfo?.verification_message && (
                           <div className="text-sm text-slate-600 mt-2">{visaInfo.verification_message}</div>
@@ -690,35 +694,45 @@ const ProfilePage: React.FC = () => {
                   registered migration agent. Avoid uploading unnecessary personally identifiable information (PII).
                 </p>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Visa Documents</h3>
-              <p className="text-sm text-slate-600 mb-3">Upload relevant documents to help verify your status. Avoid unnecessary PII.</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Document Type</label>
-                  <select
-                    value={visaDocType}
-                    onChange={(e) => setVisaDocType(e.target.value as any)}
-                    className="input-field w-full"
-                  >
-                    <option value="vevo">VEVO Result</option>
-                    <option value="visa_grant">Visa Grant Notice</option>
-                    <option value="coe">CoE (Confirmation of Enrolment)</option>
-                    <option value="passport">Passport (photo page)</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2 flex items-end">
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">VEVO Document Upload</h3>
+              <p className="text-sm text-slate-600 mb-3">Upload your VEVO (Visa Entitlement Verification Online) document to verify your visa status.</p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">VEVO Document</label>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*,.doc,.docx"
+                  onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-slate-900"
+                />
+                <p className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG, DOC, DOCX. Max size 10MB.</p>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex items-start">
                   <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*,.doc,.docx"
-                    onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-slate-900"
+                    id="visa-consent"
+                    type="checkbox"
+                    checked={visaConsentGiven}
+                    onChange={(e) => setVisaConsentGiven(e.target.checked)}
+                    className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
+                  <label htmlFor="visa-consent" className="ml-2 text-sm text-slate-700">
+                    I consent to uploading my VEVO document for visa verification purposes. I understand that this document will be used to verify my visa status and may be stored securely by Joborra.
+                  </label>
                 </div>
               </div>
+
               <div className="flex justify-end">
-                <Button type="button" onClick={onUploadVisaDoc} loading={visaDocUploading} disabled={!visaDocFile}>Upload Document</Button>
+                <Button 
+                  type="button" 
+                  onClick={onUploadVisaDoc} 
+                  loading={visaDocUploading} 
+                  disabled={!visaDocFile || !visaConsentGiven}
+                >
+                  Upload VEVO Document
+                </Button>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG, DOC, DOCX. Max size 10MB.</p>
               {visaMsg && <div className="text-sm text-slate-600 mt-2">{visaMsg}</div>}
             </div>
 

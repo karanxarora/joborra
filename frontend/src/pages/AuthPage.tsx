@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Building, GraduationCap, Calendar } from 'lucide-react';
+import { Mail, Lock, User, Building, GraduationCap, Calendar, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -11,6 +11,7 @@ import { DEGREES } from '../constants/degrees';
 import { useToast } from '../contexts/ToastContext';
 import apiService from '../services/api';
 import LogoIcon from '../components/ui/LogoIcon';
+import GoogleIcon from '../components/ui/GoogleIcon';
 
 const AuthPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -32,6 +33,7 @@ const AuthPage: React.FC = () => {
     email: '',
     password: '',
     full_name: '',
+    contact_number: '',
     role: undefined,
     university: '',
     degree: '',
@@ -355,6 +357,15 @@ const AuthPage: React.FC = () => {
                   required
                 />
                 <Input
+                  label="Contact Number"
+                  type="tel"
+                  placeholder="+61 4XX XXX XXX"
+                  value={registerForm.contact_number || ''}
+                  onChange={(e) => setRegisterForm({ ...registerForm, contact_number: e.target.value })}
+                  icon={<Phone className="h-4 w-4" />}
+                  helperText="Include country code (e.g., +61 for Australia)"
+                />
+                <Input
                   label="Password"
                   type="password"
                   value={registerForm.password}
@@ -425,19 +436,14 @@ const AuthPage: React.FC = () => {
                       <GraduationCap className="h-4 w-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
-                  {/* Degree free text (with suggestion list) */}
+                  {/* Degree free text input */}
                   <div>
                     <Input
                       label="Degree/Course"
+                      placeholder="e.g., Bachelor of Computer Science, Master of Business Administration"
                       value={registerForm.degree || ''}
                       onChange={(e) => setRegisterForm({ ...registerForm, degree: e.target.value })}
-                      list="degree-options"
                     />
-                    <datalist id="degree-options">
-                      {DEGREES.map((d) => (
-                        <option key={d} value={d} />
-                      ))}
-                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Graduation Year</label>
@@ -546,6 +552,7 @@ const AuthPage: React.FC = () => {
               onClick={onGoogleSignIn}
               loading={googleLoading}
             >
+              <GoogleIcon className="h-5 w-5 mr-2" />
               Continue with Google
             </Button>
           </div>

@@ -264,10 +264,10 @@ class ApiService {
     return response.data;
   }
 
-  async uploadVisaDocument(documentType: 'passport' | 'visa_grant' | 'coe' | 'vevo', file: File): Promise<any> {
+  async uploadVisaDocument(file: File): Promise<any> {
     const form = new FormData();
     form.append('file', file);
-    const response = await this.api.post(`/auth/visa/documents/upload?document_type=${encodeURIComponent(documentType)}`,
+    const response = await this.api.post(`/auth/visa/documents/upload?document_type=vevo`,
       form,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
@@ -354,7 +354,7 @@ class ApiService {
     return response.data;
   }
 
-  // AI Generation (Gemini-capable with graceful fallback)
+  // AI Generation (Gemini-powered)
   async generateJobDescription(input: {
     title?: string;
     skills?: string[];
@@ -362,41 +362,33 @@ class ApiService {
     model?: string;          // e.g., 'gemini-1.5-flash' | 'gemini-1.5-pro'
     context?: Record<string, any>; // optional structured context
   }): Promise<string> {
-    // Try backend endpoint with richer payload if available
-    try {
-      const body: any = {
-        title: input?.title || '',
-        skills: input?.skills || [],
-      };
-      if (input?.prompt) body.prompt = input.prompt;
-      if (input?.model) body.model = input.model;
-      if (input?.context) body.context = input.context;
-      const resp: AxiosResponse<any> = await this.api.post('/ai/generate/job-description', body);
-      const text = resp.data?.text || resp.data?.description || '';
-      if (text && typeof text === 'string') return text;
-    } catch (_) {
-      // ignore and fallback
+    const body: any = {
+      title: input?.title || '',
+      skills: input?.skills || [],
+    };
+    if (input?.prompt) body.prompt = input.prompt;
+    if (input?.model) body.model = input.model;
+    if (input?.context) body.context = input.context;
+    const resp: AxiosResponse<any> = await this.api.post('/api/ai/generate/job-description', body);
+    const text = resp.data?.text || resp.data?.description || '';
+    if (!text || typeof text !== 'string') {
+      throw new Error('AI generated empty or invalid content');
     }
-    // Client-side template fallback
-    const t = (input?.title || 'the role');
-    const skills = (input?.skills || []).map(s => `<li>${s}</li>`).join('') || '<li>Relevant experience</li>';
-    return `<p><strong>About the role</strong></p>
-<p>We are hiring for <strong>${t}</strong>. You will work with a collaborative team to deliver high-quality outcomes and contribute to continuous improvement.</p>
-<p><strong>Responsibilities</strong></p>
-<ul>
-  <li>Provide excellent customer service and teamwork</li>
-  <li>Follow safety and compliance requirements</li>
-  <li>Communicate clearly and proactively</li>
-  <li>Support and improve daily operations</li>
-  <li>Maintain a positive, inclusive environment</li>
-  <li>Learn quickly and take initiative</li>
-  <li>Be punctual and reliable</li>
-  <li>Keep workspace tidy and organized</li>
-  <li>Assist colleagues as needed</li>
-  <li>Represent the company professionally</li>
-</ul>
-<p><strong>Preferred Skills</strong></p>
-<ul>${skills}</ul>`;
+    return text;
+  }
+
+  // AI Services
+  async getSkillRecommendations(query: string, context?: string): Promise<string[]> {
+    try {
+      const response = await this.api.post('/api/ai/skill-recommendations', {
+        query,
+        context
+      });
+      return response.data.skills || [];
+    } catch (error) {
+      console.error('Failed to get skill recommendations:', error);
+      return [];
+    }
   }
 
   // Utility methods
