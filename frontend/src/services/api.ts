@@ -380,7 +380,7 @@ class ApiService {
   // AI Services
   async getSkillRecommendations(query: string, context?: string): Promise<string[]> {
     try {
-      const response = await this.api.post('/api/ai/skill-recommendations', {
+      const response = await this.api.post('/ai/skill-recommendations', {
         query,
         context
       });

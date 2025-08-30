@@ -41,7 +41,7 @@ const Header: React.FC = () => {
               <span className="text-xl font-bold text-slate-900 hidden sm:inline">Joborra</span>
             </div>
             <span className="ml-3 px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded-full hidden sm:inline">
-              1st International Student's Job Portal
+              1<sup>st</sup> International Students' Job Portal
             </span>
           </Link>
 
@@ -58,7 +58,7 @@ const Header: React.FC = () => {
               )}
               {/* For Employers: only show the employer action to employers; unauthenticated users go to auth; students don't see it */}
               {!isAuthenticated && (
-                <Link to="/auth" className="text-slate-600 hover:text-primary-600 transition-colors">
+                <Link to="/auth?tab=register" className="text-slate-600 hover:text-primary-600 transition-colors">
                   For Employers
                 </Link>
               )}
@@ -185,12 +185,12 @@ const Header: React.FC = () => {
               </div>
             ) : (
               <div className="flex items-center space-x-3">
-                <Link to="/auth">
+                <Link to="/auth?tab=login">
                   <Button variant="outline" size="sm">
                     Login
                   </Button>
                 </Link>
-                <Link to="/auth">
+                <Link to="/auth?tab=register">
                   <Button size="sm">
                     Get Started
                   </Button>
@@ -293,12 +293,12 @@ const Header: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to="/auth?tab=login" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="outline" size="sm" className="w-full">
                       Login
                     </Button>
                   </Link>
-                  <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to="/auth?tab=register" onClick={() => setMobileMenuOpen(false)}>
                     <Button size="sm" className="w-full">
                       Get Started
                     </Button>

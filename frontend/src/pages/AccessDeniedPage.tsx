@@ -52,7 +52,7 @@ const AccessDeniedPage: React.FC = () => {
 
         {requiredRole === 'employer' && (
           <p className="mt-6 text-sm text-slate-500">
-            Want to post jobs? <Link to="/auth" className="text-primary-600 hover:underline">Create an employer account</Link>.
+            Want to post jobs? <Link to="/auth?tab=register" className="text-primary-600 hover:underline">Create an employer account</Link>.
           </p>
         )}
       </div>

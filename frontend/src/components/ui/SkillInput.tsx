@@ -8,6 +8,7 @@ interface SkillInputProps {
   onAdd: () => void;
   placeholder?: string;
   context?: string;
+  disabled?: boolean;
 }
 
 const SkillInput: React.FC<SkillInputProps> = ({
@@ -15,7 +16,8 @@ const SkillInput: React.FC<SkillInputProps> = ({
   onChange,
   onAdd,
   placeholder = "Add a skill",
-  context
+  context,
+  disabled = false
 }) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -129,6 +131,7 @@ const SkillInput: React.FC<SkillInputProps> = ({
           }}
           placeholder={placeholder}
           className="input-field w-full pr-8"
+          disabled={disabled}
         />
         {loading && (
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2">

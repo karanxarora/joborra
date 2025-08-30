@@ -104,7 +104,7 @@ const TermsPage: React.FC = () => {
       </div>
 
       <div className="mt-8">
-        <Link to="/auth" className="text-primary-600 hover:text-primary-500">Back to Sign In</Link>
+        <Link to="/auth?tab=login" className="text-primary-600 hover:text-primary-500">Back to Sign In</Link>
       </div>
     </div>
   );

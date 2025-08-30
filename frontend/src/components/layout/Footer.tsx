@@ -42,7 +42,7 @@ const Footer: React.FC = () => {
           <div className="space-x-4 mt-2 md:mt-0">
             <Link to="/about" className="hover:text-cyan-600">Privacy</Link>
             <Link to="/about" className="hover:text-cyan-600">Terms</Link>
-            <a href="mailto:support@joborra.com" className="hover:text-cyan-600">Contact</a>
+            <a href="mailto:manav@joborra.com" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-600">Contact</a>
           </div>
         </div>
       </div>

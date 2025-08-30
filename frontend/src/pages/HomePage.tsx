@@ -6,9 +6,11 @@ import Card from '../components/ui/Card';
 import SearchBar from '../components/home/SearchBar';
 import { JobStats } from '../types';
 import apiService from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const HomePage: React.FC = () => {
   const [stats, setStats] = useState<JobStats | null>(null);
+  const { isAuthenticated } = useAuth();
   // removed unused loading state
 
   useEffect(() => {
@@ -25,6 +27,29 @@ const HomePage: React.FC = () => {
 
     fetchStats();
   }, []);
+
+  const challenges = [
+    {
+      problem: '❌ Traditional job boards show everything',
+      solution: '✅ We show only visa-friendly opportunities',
+      impact: 'Save 15+ hours per week on irrelevant applications'
+    },
+    {
+      problem: '❌ No way to know if companies sponsor visas',
+      solution: '✅ AI-powered visa sponsorship detection',
+      impact: '95% accuracy in identifying sponsor-friendly employers'
+    },
+    {
+      problem: '❌ Student work restrictions are confusing',
+      solution: '✅ Clear work rights compliance indicators',
+      impact: 'Never risk violating your visa conditions'
+    },
+    {
+      problem: '❌ Generic job descriptions hide key details',
+      solution: '✅ Visa-specific information highlighted upfront',
+      impact: 'Make informed decisions before applying'
+    }
+  ];
 
   const features = [
     {
@@ -88,6 +113,8 @@ const HomePage: React.FC = () => {
               </h1>
               <p className="mt-5 text-slate-600 max-w-2xl">
                 Every job here is confirmed to be international student friendly and visa‑verified.
+              </p>
+              <p className="mt-2 text-slate-600 max-w-2xl">
                 No cold calls. No guesswork. Just real opportunities, made for you.
               </p>
               {/* Badges */}
@@ -256,6 +283,34 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
+      {/* Problem vs Solution */}
+      <div className="py-20 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+              The Job Search Problems We Solve
+            </h2>
+            <p className="text-lg text-slate-600">
+              Stop wasting time on applications that lead nowhere
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {challenges.map((challenge, index) => (
+              <Card key={index} className="p-6 bg-white">
+                <div className="space-y-4">
+                  <div className="text-red-600 font-medium">{challenge.problem}</div>
+                  <div className="text-green-600 font-medium">{challenge.solution}</div>
+                  <div className="text-slate-600 text-sm bg-slate-50 p-3 rounded-lg">
+                    <strong>Impact:</strong> {challenge.impact}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
       <section className="py-16 bg-cyan-700 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -266,15 +321,18 @@ const HomePage: React.FC = () => {
             Join thousands of international professionals who have found their dream jobs in Australia.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
-              <Button size="lg" className="bg-white text-cyan-700 hover:bg-slate-100" icon={<ArrowRight className="w-5 h-5" />}>
-                Create Your Profile
-              </Button>
-            </Link>
+            {!isAuthenticated && (
+              <Link to="/auth?tab=register">
+                <button className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold rounded-xl bg-white text-cyan-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-cyan-700 transition-colors duration-200 shadow-lg">
+                  <ArrowRight className="w-5 h-5 mr-2" />
+                  Create Your Profile
+                </button>
+              </Link>
+            )}
             <Link to="/jobs">
-              <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-cyan-700">
+              <button className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold rounded-xl bg-transparent border-2 border-white text-white hover:bg-white hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-cyan-700 transition-colors duration-200">
                 Explore Opportunities
-              </Button>
+              </button>
             </Link>
           </div>
         </div>

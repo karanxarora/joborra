@@ -14,6 +14,8 @@ export interface User {
   degree?: string;
   graduation_year?: number;
   visa_status?: string;
+  city_suburb?: string;
+  date_of_birth?: string; // ISO datetime string
   // Study details (moved from visa verification)
   course_name?: string;
   institution_name?: string;
@@ -109,6 +111,8 @@ export interface RegisterForm {
   degree?: string;
   graduation_year?: number;
   visa_status?: string;
+  city_suburb?: string;
+  date_of_birth?: string; // ISO datetime string
   // Study details for students
   course_name?: string;
   institution_name?: string;
