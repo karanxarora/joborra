@@ -7,7 +7,7 @@ import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 import { LoginForm, RegisterForm } from '../types';
 import { AU_UNIVERSITIES } from '../constants/universities';
-import { DEGREES } from '../constants/degrees';
+// import { DEGREES } from '../constants/degrees';
 import { useToast } from '../contexts/ToastContext';
 import apiService from '../services/api';
 import LogoIcon from '../components/ui/LogoIcon';
