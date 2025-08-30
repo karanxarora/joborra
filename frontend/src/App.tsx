@@ -19,6 +19,7 @@ import EmployerQuickPostPage from './pages/EmployerQuickPostPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
 import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
+import EmployerDashboardPage from './pages/EmployerDashboardPage';
 import SubmittedApplicationsPage from './pages/SubmittedApplicationsPage';
 import AccessDeniedPage from './pages/AccessDeniedPage';
 import SavedJobsPage from './pages/SavedJobsPage';
@@ -135,6 +136,14 @@ const AppContent: React.FC = () => {
             element={
               <RoleProtectedRoute role="employer">
                 <EmployerApplicationsPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/dashboard"
+            element={
+              <RoleProtectedRoute role="employer">
+                <EmployerDashboardPage />
               </RoleProtectedRoute>
             }
           />

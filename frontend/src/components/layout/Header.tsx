@@ -63,8 +63,8 @@ const Header: React.FC = () => {
                 </Link>
               )}
               {isAuthenticated && user?.role === 'employer' && (
-                <Link to="/employer/post-job" className="text-slate-600 hover:text-primary-600 transition-colors">
-                  For Employers
+                <Link to="/employer/dashboard" className="text-slate-600 hover:text-primary-600 transition-colors">
+                  Employer Dashboard
                 </Link>
               )}
               {isAuthenticated && user?.role === 'employer' && (

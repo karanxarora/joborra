@@ -80,7 +80,12 @@ const AuthPage: React.FC = () => {
           const me = await apiService.getCurrentUser();
           localStorage.setItem('user', JSON.stringify(me));
           toast('Signed in with Google', 'success');
-          navigate('/profile');
+          // Redirect based on user role
+          if (me.role === 'employer') {
+            navigate('/employer/dashboard');
+          } else {
+            navigate('/profile');
+          }
         } catch (e) {
           setError('Failed to complete Google sign-in');
         }
@@ -132,9 +137,14 @@ const AuthPage: React.FC = () => {
                 return;
               }
               try {
-                await apiService.googleLoginWithIdToken(id_token);
+                const authResponse = await apiService.googleLoginWithIdToken(id_token);
                 toast('Signed in with Google', 'success');
-                navigate('/profile');
+                // Redirect based on user role
+                if (authResponse.user.role === 'employer') {
+                  navigate('/employer/dashboard');
+                } else {
+                  navigate('/profile');
+                }
                 resolve();
               } catch (err: any) {
                 const detail = err?.response?.data?.detail || '';
@@ -179,7 +189,14 @@ const AuthPage: React.FC = () => {
     try {
       await login(loginForm);
       toast('Successfully logged in', 'success');
-      navigate('/profile');
+      // Get user from context after login
+      const currentUser = await apiService.getCurrentUser();
+      // Redirect based on user role
+      if (currentUser.role === 'employer') {
+        navigate('/employer/dashboard');
+      } else {
+        navigate('/profile');
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
