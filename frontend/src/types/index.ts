@@ -44,6 +44,8 @@ export interface Job {
     industry?: string;
   };
   location: string;
+  state?: string;
+  city?: string;
   description: string;
   employment_type: string;
   job_type?: string;
@@ -51,6 +53,7 @@ export interface Job {
   salary_min?: number;
   salary_max?: number;
   salary?: string;
+  salary_currency?: string;
   visa_sponsorship: boolean;
   visa_sponsorship_confidence: number;
   visa_types?: string[];
