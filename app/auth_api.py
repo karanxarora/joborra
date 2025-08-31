@@ -28,11 +28,11 @@ import logging
 import uuid
 from pathlib import Path
 from sqlalchemy import text
-from .local_storage import (
+from .supabase_utils import (
     upload_resume,
     upload_company_logo,
     upload_job_document,
-    local_storage_configured,
+    supabase_configured,
     resolve_storage_url,
 )
 
@@ -894,7 +894,7 @@ async def upload_job_document(
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
     # Use local storage only
-    if local_storage_configured():
+    if supabase_configured():
         try:
             doc_url_value = upload_job_document(current_user.id, job_id, content, file.filename)
             if not doc_url_value:
@@ -1472,7 +1472,7 @@ async def upload_resume(
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
     # Use local storage only
-    if local_storage_configured():
+    if supabase_configured():
         try:
             resume_url_value = upload_resume(current_user.id, content, file.filename)
             if not resume_url_value:
@@ -1555,7 +1555,7 @@ async def upload_company_logo(
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
     # Use local storage only
-    if local_storage_configured():
+    if supabase_configured():
         try:
             logo_url_value = upload_company_logo(current_user.id, content, file.filename)
             if not logo_url_value:

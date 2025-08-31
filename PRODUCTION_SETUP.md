@@ -1,6 +1,6 @@
 # Production Environment Setup Guide
 
-This guide covers the environment configuration needed for deploying Joborra with SQLite + Local Storage setup.
+This guide covers the environment configuration needed for deploying Joborra with SQLite + Supabase Storage setup.
 
 ## GitHub Secrets Configuration
 
@@ -21,9 +21,10 @@ Create a secret named `BACKEND_ENV` with the following content:
 # Database Configuration (SQLite)
 DATABASE_URL=sqlite:///./joborra.db
 
-# Local File Storage
-LOCAL_STORAGE_PATH=/app/data
-LOCAL_STORAGE_URL_PREFIX=/data
+# Supabase Configuration (for file storage)
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 MAX_FILE_SIZE=10485760
 
 # Security (CHANGE THESE!)
@@ -80,8 +81,9 @@ cp .env.example .env
 
 # Key configurations for local dev:
 DATABASE_URL=sqlite:///./joborra.db
-LOCAL_STORAGE_PATH=./data
-LOCAL_STORAGE_URL_PREFIX=/data
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 DEBUG=true
 SECRET_KEY=your_local_development_secret_key
 ```
@@ -91,7 +93,7 @@ SECRET_KEY=your_local_development_secret_key
 The production setup uses Docker volumes to persist:
 
 1. **SQLite Database**: `./joborra.db` (including WAL and SHM files)
-2. **File Storage**: `./data/` directory for uploads
+2. **File Storage**: Supabase Storage buckets (resumes, company-logos, job-documents, visa-documents)
 3. **Caddy Config**: Automatic HTTPS certificates
 
 ## Important Notes
@@ -102,9 +104,9 @@ The production setup uses Docker volumes to persist:
 - Database files are persisted via Docker volumes
 
 ### File Storage
-- All uploads (resumes, logos, documents) stored in `./data/`
-- Organized in subdirectories by file type and user ID
-- Served through Caddy reverse proxy
+- All uploads (resumes, logos, documents) stored in Supabase Storage
+- Organized in separate buckets: resumes, company-logos, job-documents, visa-documents
+- Files served directly from Supabase CDN
 
 ### Security Considerations
 1. **Change SECRET_KEY** in production
@@ -115,7 +117,7 @@ The production setup uses Docker volumes to persist:
 ### Backup Strategy
 For production, implement regular backups of:
 - `joborra.db` (and `.db-wal`, `.db-shm` files)
-- `data/` directory containing all uploads
+- Supabase Storage buckets (automatic backups available in Supabase)
 
 ## Deployment Verification
 
@@ -130,9 +132,9 @@ After deployment, check:
 ### Common Issues
 
 1. **Database Locked**: Ensure Docker containers are properly stopped before rebuild
-2. **File Permissions**: Check that `data/` directory has correct permissions
+2. **Supabase Connection**: Verify SUPABASE_URL and SUPABASE_SERVICE_KEY are correct
 3. **CORS Errors**: Verify CORS_ORIGINS includes your domain
-4. **Upload Issues**: Check LOCAL_STORAGE_PATH and MAX_FILE_SIZE settings
+4. **Upload Issues**: Check Supabase Storage bucket permissions and MAX_FILE_SIZE settings
 
 ### Logs
 
@@ -143,4 +145,4 @@ docker compose logs frontend --tail=100
 docker compose logs caddy --tail=100
 ```
 
-This setup provides a robust, SQLite-based production environment with local file storage and automated deployment.
+This setup provides a robust, SQLite-based production environment with Supabase file storage and automated deployment.

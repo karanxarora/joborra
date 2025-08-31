@@ -116,8 +116,7 @@ jobs:
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
 
-            # Ensure storage directories exist for SQLite setup
-            mkdir -p data
+            # No local storage directories needed - using Supabase Storage
             
             # Ensure env files exist (backend .env)
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then

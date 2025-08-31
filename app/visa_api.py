@@ -16,9 +16,9 @@ from .visa_schemas import (
     VisaVerificationSummary, DocumentUploadResponse
 )
 from .visa_service import VisaVerificationService
-from .local_storage import (
+from .supabase_utils import (
     upload_visa_document,
-    local_storage_configured,
+    supabase_configured,
     resolve_storage_url,
 )
 import logging
@@ -189,7 +189,7 @@ async def upload_visa_document(
         )
 
     # Use local storage only
-    if local_storage_configured():
+    if supabase_configured():
         try:
             doc_url_value = upload_visa_document(current_user.id, document_type, content, filename)
             if not doc_url_value:
