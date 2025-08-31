@@ -1,4 +1,5 @@
 import React from 'react';
+import { extractErrorMessage } from '../../utils/errorUtils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -41,7 +42,7 @@ const Input: React.FC<InputProps> = ({
         />
       </div>
       {error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
+        <p className="mt-1 text-sm text-red-600">{extractErrorMessage(error)}</p>
       )}
       {helperText && !error && (
         <p className="mt-1 text-sm text-gray-500">{helperText}</p>

@@ -8,6 +8,7 @@ import Input from '../components/ui/Input';
 import Select, { SelectOption } from '../components/ui/Select';
 import LocationInput, { LocationData } from '../components/ui/LocationInput';
 import { useToast } from '../contexts/ToastContext';
+import { extractErrorMessage } from '../utils/errorUtils';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Clock, DollarSign, ShieldCheck, GraduationCap, Building2 } from 'lucide-react';
 
@@ -419,7 +420,7 @@ const EmployerPostJobPage: React.FC = () => {
           <Card>
             <form onSubmit={(e)=>{e.preventDefault();}} className="space-y-6 p-6">
               {error && (
-                <div className="p-3 rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm">{error}</div>
+                <div className="p-3 rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm">{extractErrorMessage(error)}</div>
               )}
 
               {/* Step content */}

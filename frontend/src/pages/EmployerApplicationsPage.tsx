@@ -2,7 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import DisabledButton from '../components/ui/DisabledButton';
+
 import apiService from '../services/api';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 interface EmployerApplicationItem {
   id: number;
@@ -91,7 +93,7 @@ const EmployerApplicationsPage: React.FC = () => {
       </div>
 
       {loading && <Card className="p-6">Loading applications…</Card>}
-      {error && <Card className="p-3 bg-red-50 text-red-700">{error}</Card>}
+      {error && <Card className="p-3 bg-red-50 text-red-700">{extractErrorMessage(error)}</Card>}
 
       <div className="space-y-3">
         {!loading && !error && filtered.map((app) => {
@@ -99,7 +101,6 @@ const EmployerApplicationsPage: React.FC = () => {
           const badge = statusPalette[statusKey] || 'bg-slate-100 text-slate-800 ring-slate-200';
           const loc = app.job.city && app.job.state ? `${app.job.city}, ${app.job.state}` : (app.job.location || '');
           const resume = app.user.resume_url || app.resume_url;
-          const resumeHref = resume ? apiService.getFileUrl(resume) : undefined;
           return (
             <Card key={app.id} className="p-4">
               <div className="flex items-start justify-between gap-4">
@@ -121,10 +122,12 @@ const EmployerApplicationsPage: React.FC = () => {
                   <div className="text-xs text-slate-500 mt-1">Applied on {new Date(app.applied_at).toLocaleDateString()}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {resumeHref && (
-                    <a href={resumeHref} target="_blank" rel="noreferrer">
+                  {resume ? (
+                    <a href={resume} target="_blank" rel="noopener noreferrer">
                       <Button variant="secondary">View Resume</Button>
                     </a>
+                  ) : (
+                    <DisabledButton variant="secondary">No Resume</DisabledButton>
                   )}
                   {/* Placeholder actions for future: shortlist, reject */}
                   <DisabledButton variant="ghost">Shortlist</DisabledButton>

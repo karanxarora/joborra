@@ -1493,7 +1493,7 @@ async def upload_resume(
         try:
             object_path = f"resumes/{current_user.id}/resume_{uuid.uuid4()}{ext}"
             uploaded = upload_public_object(
-                bucket=SUPABASE_STORAGE_BUCKET,
+                bucket=None,  # always use current master bucket internally
                 object_path=object_path,
                 data=content,
                 content_type="application/pdf",
@@ -1535,11 +1535,40 @@ async def upload_resume(
     # For response, resolve to public/signed URL
     resolved_url = resolve_storage_url(current_user.resume_url)
     logger.info(f"User {current_user.id} uploaded resume: {resolved_url}")
+    logger.info(f"Stored URL: {current_user.resume_url}")
+    logger.info(f"Resolved URL: {resolved_url}")
     return {
         "resume_url": resolved_url,
         "file_name": file.filename,
         "file_size": len(content)
     }
+
+@router.get("/resume/view")
+async def view_resume(
+    current_user: User = Depends(get_current_user)
+):
+    """Get the current user's resume URL for viewing."""
+    if not current_user.resume_url:
+        raise HTTPException(status_code=404, detail="No resume found")
+    
+    try:
+        # Always resolve to master bucket
+        resolved_url = resolve_storage_url(current_user.resume_url)
+        logger.info(f"Resolving resume URL for user {current_user.id}: {current_user.resume_url} -> {resolved_url}")
+        
+        if not resolved_url:
+            raise HTTPException(status_code=404, detail="Resume not accessible")
+        
+        return {
+            "resume_url": resolved_url,
+            "accessible": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get resume URL for user {current_user.id}")
+        raise HTTPException(status_code=500, detail="Failed to access resume")
+
 
 @employer_router.post("/company/logo")
 async def upload_company_logo(

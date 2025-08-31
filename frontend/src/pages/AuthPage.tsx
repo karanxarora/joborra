@@ -13,6 +13,7 @@ import { useToast } from '../contexts/ToastContext';
 import apiService from '../services/api';
 import LogoIcon from '../components/ui/LogoIcon';
 import GoogleIcon from '../components/ui/GoogleIcon';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const AuthPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -236,7 +237,7 @@ const AuthPage: React.FC = () => {
         navigate('/profile');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -285,7 +286,7 @@ const AuthPage: React.FC = () => {
         navigate('/profile');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -339,7 +340,7 @@ const AuthPage: React.FC = () => {
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
               <div className="flex items-center">
                 <span className="text-red-500 mr-2">⚠️</span>
-                <span className="font-medium">{error}</span>
+                <span className="font-medium">{extractErrorMessage(error)}</span>
               </div>
             </div>
           )}

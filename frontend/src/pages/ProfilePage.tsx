@@ -13,6 +13,10 @@ const ProfilePage: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
   const [verifyLink, setVerifyLink] = useState<string | null>(null);
+  const [resumeViewUrl, setResumeViewUrl] = useState<string | null>(null);
+  const [resumeViewError, setResumeViewError] = useState<string | null>(null);
+  const [visaDocs, setVisaDocs] = useState<any>(null);
+  const [visaDocsLoading, setVisaDocsLoading] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState(false);
   // Sub-tab state
   const [activeTab, setActiveTab] = useState<'profile' | 'visa'>('profile');
@@ -174,16 +178,73 @@ const ProfilePage: React.FC = () => {
     loadVisa();
   }, [ctxUser]);
 
+  // Load visa documents (e.g., VEVO) for current user
+  useEffect(() => {
+    const loadDocs = async () => {
+      if (ctxUser?.role !== 'student') return;
+      setVisaDocsLoading(true);
+      try {
+        const docs = await apiService.getVisaDocuments();
+        setVisaDocs(docs);
+      } catch {
+        setVisaDocs(null);
+      } finally {
+        setVisaDocsLoading(false);
+      }
+    };
+    loadDocs();
+  }, [ctxUser]);
+
+  // Get resume view URL when component first loads
+  useEffect(() => {
+    if (ctxUser?.resume_url && !resumeViewUrl) {
+      getResumeViewUrl();
+    }
+  }, [ctxUser?.id]); // Only run when user ID changes (initial load)
+
+  const getResumeViewUrl = async () => {
+    if (!ctxUser?.resume_url) {
+      setResumeViewUrl(null);
+      setResumeViewError(null);
+      return;
+    }
+    
+    try {
+      console.log('Getting resume view URL for user:', ctxUser.id);
+      const url = await apiService.getResumeViewUrl();
+      console.log('Got resume view URL:', url);
+      setResumeViewUrl(url);
+      setResumeViewError(null);
+    } catch (err: any) {
+      console.error('Failed to get resume view URL:', err);
+      setResumeViewUrl(null);
+      setResumeViewError(err.response?.data?.detail || 'Failed to load resume');
+    }
+  };
+
   const onUploadResume = async () => {
     if (!resumeFile) return;
     setResumeUploading(true);
     setResumeMessage(null);
     try {
-      await apiService.uploadResume(resumeFile);
+      const response = await apiService.uploadResume(resumeFile);
+      console.log('Upload response:', response);
+      
+      // Use the resolved URL directly from the upload response
+      if (response.resume_url) {
+        setResumeViewUrl(response.resume_url);
+        setResumeViewError(null);
+        console.log('Upload response:', response);
+        console.log('Set resume view URL to:', response.resume_url);
+        console.log('URL type:', typeof response.resume_url);
+        console.log('URL starts with https:', response.resume_url.startsWith('https'));
+      }
+      
       await refreshUser();
       setResumeMessage('Resume uploaded successfully');
       setResumeFile(null);
     } catch (err) {
+      console.error('ProfilePage: Upload failed:', err);
       setResumeMessage('Failed to upload resume. Please upload a PDF file.');
     } finally {
       setResumeUploading(false);
@@ -195,7 +256,17 @@ const ProfilePage: React.FC = () => {
     setVisaDocUploading(true);
     setVisaMsg(null);
     try {
-      await apiService.uploadVisaDocument(visaDocFile);
+      const resp = await apiService.uploadVisaDocument(visaDocFile);
+      // Immediately expose the new VEVO link without waiting for another fetch
+      setVisaDocs((prev:any)=>({
+        ...(prev || {}),
+        vevo: { resolved_url: resp?.document_url || null, url: resp?.document_url || null }
+      }));
+      // Also refresh the full docs list in background to be consistent
+      try {
+        const docs = await apiService.getVisaDocuments();
+        setVisaDocs(docs);
+      } catch {}
       const info = await apiService.getVisaStatus();
       setVisaInfo(info);
       setVisaMsg('VEVO document uploaded successfully');
@@ -549,7 +620,20 @@ const ProfilePage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">Resume</h3>
                 {ctxUser?.resume_url && (
                   <div className="text-sm text-slate-600 mb-2">
-                    Current resume: <a className="text-cyan-600 underline" href={apiService.getFileUrl(ctxUser.resume_url)} target="_blank" rel="noreferrer">View</a>
+                    Current resume: {resumeViewUrl ? (
+                      <a 
+                        href={resumeViewUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-cyan-600 hover:text-cyan-700 underline"
+                      >
+                        View
+                      </a>
+                    ) : resumeViewError ? (
+                      <span className="text-red-600">Error: {resumeViewError}</span>
+                    ) : (
+                      <span className="text-slate-500">Loading...</span>
+                    )}
                   </div>
                 )}
                 {isEditing ? (
@@ -965,7 +1049,28 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <div>
+                  {(() => {
+                    const v = visaInfo as any;
+                    const vevoUrl = (visaDocs?.vevo?.resolved_url)
+                      || (v?.vevo_document_url || null);
+                    return visaDocsLoading ? (
+                      <span className="text-sm text-slate-500">Loading documents…</span>
+                    ) : vevoUrl ? (
+                      <a
+                        href={vevoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-600 hover:text-cyan-700 underline text-sm"
+                      >
+                        View VEVO Document
+                      </a>
+                    ) : (
+                      <span className="text-sm text-slate-500">No VEVO document uploaded</span>
+                    );
+                  })()}
+                </div>
                 <Button 
                   type="button" 
                   onClick={onUploadVisaDoc} 

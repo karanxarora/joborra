@@ -3,6 +3,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import apiService from '../services/api';
+import { extractErrorMessage } from '../utils/errorUtils';
 import { User } from '../types';
 
 const EmployerCompanyInfoPage: React.FC = () => {
@@ -74,7 +75,7 @@ const EmployerCompanyInfoPage: React.FC = () => {
       <p className="text-slate-600 mb-6">Keep your company profile up to date. These details appear on your job posts.</p>
       <Card>
         <form onSubmit={onSubmit} className="p-6 space-y-6">
-          {error && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{error}</div>}
+          {error && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{extractErrorMessage(error)}</div>}
           {message && <div className="p-3 rounded bg-green-50 text-green-700 text-sm">{message}</div>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE = os.getenv("SUPABASE_SERVICE_ROLE", "")
-SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "resumes")
+# Force the storage bucket to 'master' regardless of environment to avoid regressions
+SUPABASE_STORAGE_BUCKET = "master"
 SUPABASE_STORAGE_PRIVATE = os.getenv("SUPABASE_STORAGE_PRIVATE", "false").lower() in {"1", "true", "yes"}
 SUPABASE_SIGNED_URL_TTL = int(os.getenv("SUPABASE_SIGNED_URL_TTL", "604800"))  # 7 days default
 
@@ -60,6 +61,10 @@ def _sign_url(bucket: str, object_path: str, expires_in: int) -> Optional[str]:
         if r.status_code in (200, 201):
             signed_path = (r.json() or {}).get("signedURL")
             if signed_path:
+                # Supabase returns a path that is relative to /storage/v1
+                # e.g. "/object/sign/<bucket>/<path>?token=..."
+                if signed_path.startswith("/object/"):
+                    return f"{SUPABASE_URL}/storage/v1{signed_path}"
                 return f"{SUPABASE_URL}{signed_path}"
         logger.error("Supabase sign URL failed: %s %s", r.status_code, r.text)
         return None
@@ -68,13 +73,15 @@ def _sign_url(bucket: str, object_path: str, expires_in: int) -> Optional[str]:
         return None
 
 
-def upload_public_object(bucket: str, object_path: str, data: bytes, content_type: str) -> Optional[str]:
+def upload_public_object(bucket: Optional[str], object_path: str, data: bytes, content_type: str) -> Optional[str]:
     """Upload bytes to Supabase Storage using service role key.
     Returns URL on success (public URL if bucket is public, signed URL if private), else None.
     """
     if not supabase_configured():
         return None
     try:
+        # Default to current configured bucket when not provided by caller
+        bucket = bucket or SUPABASE_STORAGE_BUCKET
         ensure_bucket(bucket)
         # Use upsert via x-upsert header
         headers = {**_headers(), "Content-Type": content_type, "x-upsert": "true"}
@@ -97,7 +104,8 @@ def upload_public_object(bucket: str, object_path: str, data: bytes, content_typ
 
 
 def resolve_storage_url(value: Optional[str]) -> Optional[str]:
-    """If value is a storage:// URI, return a public or signed URL accordingly."""
+    """If value is a storage:// URI, return a public or signed URL accordingly.
+    Always uses the current SUPABASE_STORAGE_BUCKET (master bucket only)."""
     if not value:
         return value
     if value.startswith("storage://"):
@@ -105,10 +113,12 @@ def resolve_storage_url(value: Optional[str]) -> Optional[str]:
             # strip scheme
             path = value[len("storage://"):]
             bucket, object_path = path.split("/", 1)
+            
+            # Always use the current master bucket, regardless of what's stored in the URL
             if SUPABASE_STORAGE_PRIVATE:
-                return _sign_url(bucket, object_path, SUPABASE_SIGNED_URL_TTL)
+                return _sign_url(SUPABASE_STORAGE_BUCKET, object_path, SUPABASE_SIGNED_URL_TTL)
             else:
-                return f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/{object_path}"
+                return f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET}/{object_path}"
         except Exception:
             logger.exception("Failed to resolve storage URL: %s", value)
             return None

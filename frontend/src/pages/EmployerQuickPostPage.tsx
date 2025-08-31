@@ -6,6 +6,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Select, { SelectOption } from '../components/ui/Select';
 import LocationInput, { LocationData } from '../components/ui/LocationInput';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const EmployerQuickPostPage: React.FC = () => {
   const navigate = useNavigate();
@@ -137,7 +138,7 @@ Output sections (no labels needed):
       </div>
 
       {error && (
-        <div className="p-3 rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm mb-4">{error}</div>
+        <div className="p-3 rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm mb-4">{extractErrorMessage(error)}</div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

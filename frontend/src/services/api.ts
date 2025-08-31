@@ -63,6 +63,17 @@ class ApiService {
     }
   }
 
+  // Simple method to get resume view URL
+  async getResumeViewUrl(): Promise<string | null> {
+    try {
+      const response = await this.api.get('/auth/resume/view');
+      return response.data.resume_url;
+    } catch (error) {
+      console.error('Failed to get resume view URL:', error);
+      return null;
+    }
+  }
+
   // Auth methods
   async login(credentials: LoginForm): Promise<AuthResponse> {
     const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', credentials);
@@ -273,6 +284,11 @@ class ApiService {
       form,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
+    return response.data;
+  }
+
+  async getVisaDocuments(): Promise<any> {
+    const response = await this.api.get('/auth/visa/documents');
     return response.data;
   }
 

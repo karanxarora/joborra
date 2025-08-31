@@ -4,6 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import apiService from '../services/api';
 import { useToast } from '../contexts/ToastContext';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const VerifyEmailPage: React.FC = () => {
   const [params] = useSearchParams();
@@ -52,7 +53,7 @@ const VerifyEmailPage: React.FC = () => {
           )}
           {status === 'error' && (
             <div>
-              <p className="text-red-600 mb-4">{error}</p>
+              <p className="text-red-600 mb-4">{extractErrorMessage(error)}</p>
               <Link to="/profile"><Button variant="outline">Back to Profile</Button></Link>
             </div>
           )}
