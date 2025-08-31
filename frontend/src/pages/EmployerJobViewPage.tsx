@@ -17,30 +17,7 @@ import {
   Building2
 } from 'lucide-react';
 import apiService from '../services/api';
-
-interface Job {
-  id: number;
-  title: string;
-  description: string;
-  location: string;
-  state?: string;
-  city?: string;
-  salary_min?: number;
-  salary_max?: number;
-  salary_currency?: string;
-  employment_type?: string;
-  experience_level?: string;
-  remote_option: boolean;
-  visa_sponsorship: boolean;
-  visa_types?: string[];
-  required_skills?: string[];
-  preferred_skills?: string[];
-  education_requirements?: string;
-  posted_date?: string;
-  expires_at?: string;
-  is_active: boolean;
-  company_id?: number;
-}
+import { Job } from '../types';
 
 const EmployerJobViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
