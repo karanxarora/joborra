@@ -185,3 +185,4 @@ The system uses configurable keywords to detect visa-friendly jobs:
 - Company rating system
 - Email alerts for new visa-friendly jobs
 - Advanced analytics dashboard
+# Trigger deployment
