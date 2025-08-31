@@ -35,13 +35,15 @@ class JobBase(BaseModel):
     employment_type: Optional[str] = None
     # Free-text job type category
     job_type: Optional[str] = None
+    # Role category: SERVICE_RETAIL_HOSPITALITY or STUDY_ALIGNED_PROFESSIONAL
+    role_category: Optional[str] = None
     experience_level: Optional[str] = None
     remote_option: bool = False
     visa_sponsorship: bool = False
     visa_sponsorship_confidence: float = 0.0
     international_student_friendly: bool = False
-    # Employer-specified visa type (e.g., Subclass codes)
-    visa_type: Optional[str] = None
+    # Employer-specified visa types (e.g., Subclass codes)
+    visa_types: Optional[List[str]] = None
     source_website: str
     source_url: str
     source_job_id: Optional[str] = None
@@ -64,6 +66,68 @@ class Job(JobBase):
     is_active: bool = True
     is_duplicate: bool = False
     company: Optional[Company] = None
+    
+    class Config:
+        from_attributes = True
+
+class JobDraftBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    salary_currency: str = "AUD"
+    salary: Optional[str] = None
+    employment_type: Optional[str] = None
+    job_type: Optional[str] = None
+    role_category: Optional[str] = None
+    experience_level: Optional[str] = None
+    remote_option: bool = False
+    visa_sponsorship: bool = False
+    visa_types: Optional[List[str]] = None
+    international_student_friendly: bool = False
+    required_skills: Optional[List[str]] = None
+    preferred_skills: Optional[List[str]] = None
+    education_requirements: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    draft_name: Optional[str] = None
+    step: int = 0
+
+class JobDraftCreate(JobDraftBase):
+    pass
+
+class JobDraftUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    salary_currency: Optional[str] = None
+    salary: Optional[str] = None
+    employment_type: Optional[str] = None
+    job_type: Optional[str] = None
+    role_category: Optional[str] = None
+    experience_level: Optional[str] = None
+    remote_option: Optional[bool] = None
+    visa_sponsorship: Optional[bool] = None
+    visa_types: Optional[List[str]] = None
+    international_student_friendly: Optional[bool] = None
+    required_skills: Optional[List[str]] = None
+    preferred_skills: Optional[List[str]] = None
+    education_requirements: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    draft_name: Optional[str] = None
+    step: Optional[int] = None
+
+class JobDraft(JobDraftBase):
+    id: int
+    created_by_user_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True

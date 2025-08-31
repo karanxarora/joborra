@@ -77,6 +77,8 @@ class User(Base):
     company_website = Column(String(255), nullable=True)
     company_size = Column(String(100), nullable=True)
     industry = Column(String(255), nullable=True)
+    company_abn = Column(String(20), nullable=True)  # Australian Business Number
+    employer_role_title = Column(String(255), nullable=True)  # Role/Title of the registering person
     
     # Enhanced employer profile fields
     company_description = Column(Text, nullable=True)

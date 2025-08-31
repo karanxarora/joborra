@@ -96,6 +96,10 @@ const DashboardPage: React.FC = () => {
           scraped_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          is_active: true,
+          remote_option: false,
+          is_joborra_job: false,
+          is_duplicate: false,
         },
         // Add more mock jobs...
       ]);

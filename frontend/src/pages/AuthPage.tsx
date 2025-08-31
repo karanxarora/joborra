@@ -603,6 +603,31 @@ const AuthPage: React.FC = () => {
                     value={registerForm.company_name || ''}
                     onChange={(e) => setRegisterForm({ ...registerForm, company_name: e.target.value })}
                     icon={<Building className="h-4 w-4" />}
+                    required
+                  />
+                  <Input
+                    label="Your Role/Title in the Company"
+                    value={registerForm.employer_role_title || ''}
+                    onChange={(e) => setRegisterForm({ ...registerForm, employer_role_title: e.target.value })}
+                    placeholder="e.g., HR Manager, CEO, Hiring Manager"
+                    required
+                  />
+                  <Input
+                    label="Company ABN"
+                    value={registerForm.company_abn || ''}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      // Remove any non-digit characters except spaces and hyphens
+                      value = value.replace(/[^\d\s-]/g, '');
+                      // Limit to 11 digits
+                      const digits = value.replace(/[^\d]/g, '');
+                      if (digits.length <= 11) {
+                        setRegisterForm({ ...registerForm, company_abn: value });
+                      }
+                    }}
+                    placeholder="XX XXX XXX XXX"
+                    helperText="11-digit Australian Business Number"
+                    required
                   />
                   <Input
                     label="Company Website (optional)"
@@ -619,6 +644,7 @@ const AuthPage: React.FC = () => {
                         value={registerForm.company_size || ''}
                         onChange={(e) => setRegisterForm({ ...registerForm, company_size: e.target.value })}
                         className="input-field"
+                        required
                       >
                         <option value="">Select size</option>
                         <option value="1-10">1-10 employees</option>
@@ -634,6 +660,7 @@ const AuthPage: React.FC = () => {
                         value={registerForm.industry || ''}
                         onChange={(e) => setRegisterForm({ ...registerForm, industry: e.target.value })}
                         className="input-field w-full"
+                        required
                       >
                         <option value="">Select industry</option>
                         {[

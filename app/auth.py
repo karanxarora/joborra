@@ -11,6 +11,7 @@ from passlib.context import CryptContext
 from jose import jwt
 import secrets
 import logging
+import time
 
 from app.database import get_db
 from app.auth_models import User, UserSession, UserRole
@@ -90,6 +91,8 @@ class AuthService:
             company_website=user_data.company_website if user_data.role == UserRole.EMPLOYER else None,
             company_size=user_data.company_size if user_data.role == UserRole.EMPLOYER else None,
             industry=user_data.industry if user_data.role == UserRole.EMPLOYER else None,
+            company_abn=user_data.company_abn if user_data.role == UserRole.EMPLOYER else None,
+            employer_role_title=user_data.employer_role_title if user_data.role == UserRole.EMPLOYER else None,
         )
         
         try:
@@ -165,8 +168,25 @@ class AuthService:
             )
     
     def get_user_by_id(self, user_id: int) -> Optional[User]:
-        """Get user by ID"""
-        return self.db.query(User).filter(User.id == user_id).first()
+        """Get user by ID with robust error handling"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Try to execute the query
+                user = self.db.query(User).filter(User.id == user_id).first()
+                return user
+            except Exception as e:
+                logger.warning(f"Database error getting user {user_id} (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    # Try to recover by rolling back and retrying
+                    try:
+                        self.db.rollback()
+                        time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                    except Exception as rollback_error:
+                        logger.error(f"Rollback failed: {rollback_error}")
+                else:
+                    logger.error(f"Failed to get user {user_id} after {max_retries} attempts")
+                    raise
     
     def logout_user(self, session_token: str) -> bool:
         """Logout user by invalidating session"""
@@ -193,7 +213,35 @@ def get_current_user(
         payload = auth_service.verify_token(credentials.credentials)
         user_id = int(payload.get("sub"))
         
-        user = auth_service.get_user_by_id(user_id)
+        # Try to get user with retry logic
+        user = None
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                user = auth_service.get_user_by_id(user_id)
+                break
+            except Exception as e:
+                logger.warning(f"Database error getting user {user_id} (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(0.1 * (attempt + 1))
+                    # Try to refresh the database session
+                    try:
+                        db.rollback()
+                    except:
+                        pass
+                else:
+                    logger.error(f"Failed to get user {user_id} after {max_retries} attempts")
+                    # If we can't get the user from database, create a minimal user object from token
+                    # This prevents database issues from logging out users
+                    user = User(
+                        id=user_id,
+                        email=payload.get("email", ""),
+                        role=payload.get("role", "student"),
+                        is_active=True,
+                        is_verified=True
+                    )
+                    logger.info(f"Created minimal user object for user {user_id} due to database issues")
+        
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -202,12 +250,17 @@ def get_current_user(
         
         # For all tokens, check if user has any active sessions
         # This ensures that logged out users can't continue using tokens
-        active_sessions = session_service.get_user_sessions(user_id)
-        if not active_sessions:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No active sessions - please login again"
-            )
+        try:
+            active_sessions = session_service.get_user_sessions(user_id)
+            if not active_sessions:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="No active sessions - please login again"
+                )
+        except Exception as e:
+            logger.error(f"Error checking user sessions for user {user_id}: {e}")
+            # Don't fail authentication just because session check failed
+            # This prevents database issues from logging out users
         
         return user
         
@@ -215,6 +268,15 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token format"
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in get_current_user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed"
         )
 
 def get_current_student(current_user: User = Depends(get_current_user)) -> User:

@@ -1,13 +1,21 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { EmployerJobCreate } from '../types';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { EmployerJobCreate, JobDraftCreate } from '../types';
 import apiService from '../services/api';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
+import Select, { SelectOption } from '../components/ui/Select';
+import LocationInput, { LocationData } from '../components/ui/LocationInput';
+import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
+import { MapPin, Clock, DollarSign, ShieldCheck, GraduationCap, Building2 } from 'lucide-react';
 
 const EmployerPostJobPage: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [form, setForm] = useState<EmployerJobCreate>({
     title: '',
@@ -15,16 +23,17 @@ const EmployerPostJobPage: React.FC = () => {
     location: '',
     city: '',
     state: '',
-    employment_type: 'Full-time',
+    employment_type: '',
     job_type: '',
+    role_category: '',
     salary: '',
     salary_min: undefined,
     salary_max: undefined,
     salary_currency: 'AUD',
-    experience_level: 'mid',
+    experience_level: '',
     remote_option: false,
     visa_sponsorship: false,
-    visa_type: '',
+    visa_types: [] as string[],
     international_student_friendly: false,
     required_skills: [],
     preferred_skills: [],
@@ -37,26 +46,33 @@ const EmployerPostJobPage: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingDraft, setLoadingDraft] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState(0); // 0..4
 
-  // Address autocomplete
-  const [locationQuery, setLocationQuery] = useState('');
-  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
-  useEffect(() => {
-    const q = locationQuery.trim();
-    if (!q) { setLocationSuggestions([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const items = await apiService.getLocationSuggestions(q, 8);
-        setLocationSuggestions(items);
-      } catch (e) {
-        setLocationSuggestions([]);
-      }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [locationQuery]);
+  // Role category options
+  const roleCategoryOptions: SelectOption[] = [
+    {
+      value: 'SERVICE_RETAIL_HOSPITALITY',
+      label: 'Service, Retail & Hospitality (open to any degree)',
+      hint: 'Customer-facing or operations roles — e.g., café, restaurant, petrol station, supermarket, retail, delivery, call centre, hospitality.'
+    },
+    {
+      value: 'STUDY_ALIGNED_PROFESSIONAL',
+      label: 'Study-aligned / Professional (field-specific)',
+      hint: 'Roles aligned to a discipline — e.g., engineering, nursing, IT, accounting, education, lab roles.'
+    }
+  ];
+
+  // Employment basis options
+  const employmentBasisOptions: SelectOption[] = [
+    { value: 'CASUAL', label: 'Casual' },
+    { value: 'PART_TIME', label: 'Part-time' },
+    { value: 'FULL_TIME', label: 'Full-time' },
+    { value: 'FIXED_TERM', label: 'Fixed-term' }
+  ];
+
+  // Address autocomplete - removed unused variables
 
   // Rich text editor (basic) for description
   const descRef = useRef<HTMLDivElement | null>(null);
@@ -67,40 +83,150 @@ const EmployerPostJobPage: React.FC = () => {
     handleChange('description', html);
   };
 
-  // Visa types with descriptions
+  // Visa types with descriptions (matching student sign-up options)
   const VISA_TYPES: Array<{ value: string; label: string; description: string }> = useMemo(() => ([
     { value: '', label: 'Select visa type (optional)', description: '' },
-    { value: '482', label: 'Subclass 482 (TSS)', description: 'Temporary Skill Shortage visa (employer-sponsored).' },
-    { value: '186', label: 'Subclass 186 (ENS)', description: 'Employer Nomination Scheme (permanent).' },
-    { value: '494', label: 'Subclass 494 (Regional)', description: 'Skilled Employer Sponsored Regional (provisional).' },
-    { value: '407', label: 'Subclass 407 (Training)', description: 'Training visa for workplace-based training.' },
-    { value: '400', label: 'Subclass 400 (Temporary Work)', description: 'Short-term, highly specialised work.' },
+    { value: 'Student Visa (subclass 500)', label: 'Student Visa (subclass 500)', description: 'International student visa for studying in Australia.' },
+    { value: 'Temporary Graduate (subclass 485)', label: 'Temporary Graduate (subclass 485)', description: 'Post-study work visa for recent graduates.' },
+    { value: 'Skilled Independent (subclass 189)', label: 'Skilled Independent (subclass 189)', description: 'Permanent visa for skilled workers without sponsorship.' },
+    { value: 'Skilled Nominated (subclass 190)', label: 'Skilled Nominated (subclass 190)', description: 'Permanent visa for skilled workers nominated by a state.' },
+    { value: 'Skilled Work Regional (subclass 491)', label: 'Skilled Work Regional (subclass 491)', description: 'Regional skilled work visa.' },
+    { value: 'Employer Sponsored TSS (subclass 482)', label: 'Employer Sponsored TSS (subclass 482)', description: 'Temporary Skill Shortage visa (employer-sponsored).' },
+    { value: 'Employer Nomination (subclass 186)', label: 'Employer Nomination (subclass 186)', description: 'Employer Nomination Scheme (permanent).' },
+    { value: 'Working Holiday (subclass 417/462)', label: 'Working Holiday (subclass 417/462)', description: 'Working holiday visa for young people.' },
+    { value: 'Other/Not Sure', label: 'Other/Not Sure', description: 'Other visa type or not sure of visa status.' },
   ]), []);
 
-  // Draft support (localStorage)
-  useEffect(() => {
+  const loadDraftData = useCallback(async (draftId: number) => {
     try {
-      const raw = localStorage.getItem('job_draft');
-      if (raw) {
-        const draft = JSON.parse(raw);
-        if (window.confirm('A saved draft was found. Do you want to load it?')) {
-          setForm((prev) => ({ ...prev, ...draft }));
-          if (draft?.description && descRef.current) {
-            descRef.current.innerHTML = draft.description;
-          }
+      setLoadingDraft(true);
+      const draft = await apiService.getJobDraft(draftId);
+      if (draft) {
+        // Populate form with draft data
+        setForm({
+          title: draft.title || '',
+          description: draft.description || '',
+          location: draft.location || '',
+          city: draft.city || '',
+          state: draft.state || '',
+          employment_type: draft.employment_type || '',
+          job_type: draft.job_type || '',
+          role_category: draft.role_category || '',
+          salary: draft.salary || '',
+          salary_min: draft.salary_min,
+          salary_max: draft.salary_max,
+          salary_currency: draft.salary_currency || 'AUD',
+          experience_level: draft.experience_level || '',
+          remote_option: draft.remote_option || false,
+          visa_sponsorship: draft.visa_sponsorship || false,
+          visa_types: draft.visa_types || [],
+          international_student_friendly: draft.international_student_friendly || false,
+          required_skills: draft.required_skills || [],
+          preferred_skills: draft.preferred_skills || [],
+          education_requirements: draft.education_requirements || '',
+          expires_at: draft.expires_at,
+        });
+        
+        // Set the step to where the user left off
+        setStep(draft.step || 0);
+        
+        // Update description in rich text editor if present
+        if (draft.description && descRef.current) {
+          descRef.current.innerHTML = draft.description;
         }
+        
+        toast('Draft loaded successfully!', 'success');
       }
-    } catch {}
-  }, []);
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+      toast('Failed to load draft data', 'error');
+    } finally {
+      setLoadingDraft(false);
+    }
+  }, [toast]);
 
-  const saveDraft = () => {
+  // Load draft data if draft parameter is present in URL
+  useEffect(() => {
+    const draftId = searchParams.get('draft');
+    if (draftId) {
+      loadDraftData(parseInt(draftId));
+    }
+  }, [searchParams, loadDraftData]);
+
+  const saveDraft = async () => {
     try {
-      const data = { ...form };
-      localStorage.setItem('job_draft', JSON.stringify(data));
-      setSuccess('Draft saved locally');
-      setTimeout(() => setSuccess(null), 1200);
-    } catch (e) {
-      setError('Failed to save draft');
+      setSubmitting(true);
+      setError(null);
+      setSuccess(null);
+
+      // Basic validation for draft
+      if (!form.title || form.title.trim().length < 3) {
+        setError('Title must be at least 3 characters to save as draft.');
+        setSubmitting(false);
+        return;
+      }
+      
+      // Only validate visa types if user has reached step 3 (where visa types are visible)
+      if (step >= 3 && (!form.visa_types || form.visa_types.length === 0)) {
+        setError('Please select at least one visa type.');
+        setSubmitting(false);
+        return;
+      }
+      
+      if (!form.employment_type) {
+        setError('Please select an employment basis.');
+        setSubmitting(false);
+        return;
+      }
+
+      const draftData: JobDraftCreate = {
+        title: form.title,
+        description: form.description || undefined,
+        location: form.location || undefined,
+        city: form.city || undefined,
+        state: form.state || undefined,
+        salary_min: form.salary_min,
+        salary_max: form.salary_max,
+        salary_currency: form.salary_currency,
+        salary: form.salary || undefined,
+        employment_type: form.employment_type,
+        job_type: form.job_type || undefined,
+        role_category: form.role_category || undefined,
+        experience_level: form.experience_level,
+        remote_option: form.remote_option,
+        visa_sponsorship: form.visa_sponsorship,
+        visa_types: form.visa_types && form.visa_types.length > 0 ? form.visa_types : undefined,
+        international_student_friendly: form.international_student_friendly,
+        required_skills: form.required_skills,
+        preferred_skills: form.preferred_skills,
+        education_requirements: form.education_requirements || undefined,
+        expires_at: form.expires_at,
+        step: step
+      };
+
+      const draftId = searchParams.get('draft');
+      if (draftId) {
+        // Update existing draft
+        await apiService.updateJobDraft(parseInt(draftId), draftData);
+        toast('Draft updated successfully!', 'success');
+      } else {
+        // Create new draft
+        await apiService.createJobDraft(draftData);
+        toast('Draft saved successfully!', 'success');
+      }
+      
+      // Navigate to drafts page after a short delay
+      setTimeout(() => {
+        navigate('/employer/drafts');
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error('Failed to save draft:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to save draft';
+      setError(errorMessage);
+      toast(errorMessage, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -108,12 +234,21 @@ const EmployerPostJobPage: React.FC = () => {
     'Basics',
     'Requirements',
     'Compensation',
-    'Options',
+    'Accepted Visas',
     'Review & Publish'
   ], []);
 
   const handleChange = (key: keyof EmployerJobCreate, value: any) => {
     setForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleLocationSelect = (locationData: LocationData) => {
+    setForm(prev => ({
+      ...prev,
+      location: locationData.location,
+      city: locationData.city,
+      state: locationData.state
+    }));
   };
 
   const addSkill = () => {
@@ -153,8 +288,27 @@ const EmployerPostJobPage: React.FC = () => {
         setSubmitting(false);
         return;
       }
+      
+      // Only validate visa types if user has reached step 3 (where visa types are visible)
+      if (step >= 3 && (!form.visa_types || form.visa_types.length === 0)) {
+        setError('Please select at least one visa type.');
+        setSubmitting(false);
+        return;
+      }
+      
+      if (!form.employment_type) {
+        setError('Please select an employment basis.');
+        setSubmitting(false);
+        return;
+      }
+      
       if (!form.description || form.description.trim().length < 20) {
         setError('Description must be at least 20 characters.');
+        setSubmitting(false);
+        return;
+      }
+      if (!form.role_category) {
+        setError('Role category is required.');
         setSubmitting(false);
         return;
       }
@@ -164,7 +318,7 @@ const EmployerPostJobPage: React.FC = () => {
         // Normalize empty strings to undefined for optional fields
         job_type: form.job_type || undefined,
         salary: form.salary || undefined,
-        visa_type: form.visa_type || undefined,
+        visa_types: form.visa_types && form.visa_types.length > 0 ? form.visa_types : undefined,
         education_requirements: form.education_requirements || undefined,
         city: form.city || undefined,
         state: form.state || undefined,
@@ -181,6 +335,7 @@ const EmployerPostJobPage: React.FC = () => {
         }
       }
 
+      toast('Job posted successfully!', 'success');
       setSuccess('Job posted successfully. Redirecting to your profile…');
       // Redirect employer to their profile after short delay
       setTimeout(() => navigate('/profile'), 900);
@@ -216,8 +371,27 @@ const EmployerPostJobPage: React.FC = () => {
     setStep((v) => Math.max(0, v - 1));
   };
 
+  // Helper functions for display labels
+  const getRoleCategoryLabel = (value: string) => {
+    const option = roleCategoryOptions.find(opt => opt.value === value);
+    return option ? option.label : value;
+  };
+
+  const getEmploymentBasisLabel = (value: string) => {
+    const option = employmentBasisOptions.find(opt => opt.value === value);
+    return option ? option.label : value;
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {loadingDraft && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+            <span className="text-blue-700">Loading draft...</span>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Post a Job</h1>
         <a href="/employer/company" className="text-sm text-primary-700 hover:underline">Update company info</a>
@@ -225,23 +399,23 @@ const EmployerPostJobPage: React.FC = () => {
 
       {/* Stepper */}
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           {steps.map((label, i) => (
-            <div key={label} className="flex-1 flex items-center">
-              <div className={`flex items-center gap-2 ${i <= step ? 'text-primary-700' : 'text-slate-400'}`}>
+            <React.Fragment key={label}>
+              <div className="flex items-center">
                 <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold border ${i <= step ? 'bg-primary-100 border-primary-300' : 'bg-white border-slate-300'}`}>{i+1}</div>
-                <div className="hidden sm:block text-sm font-medium">{label}</div>
+                <div className="hidden sm:block text-sm font-medium ml-2">{label}</div>
               </div>
               {i < steps.length - 1 && (
-                <div className={`flex-1 h-px mx-3 ${i < step ? 'bg-primary-300' : 'bg-slate-200'}`} />
+                <div className={`flex-1 h-px mx-4 ${i < step ? 'bg-primary-300' : 'bg-slate-200'}`} />
               )}
-            </div>
+            </React.Fragment>
           ))}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8">
+        <div className={step === 4 ? "lg:col-span-12" : "lg:col-span-8"}>
           <Card>
             <form onSubmit={(e)=>{e.preventDefault();}} className="space-y-6 p-6">
               {error && (
@@ -258,59 +432,36 @@ const EmployerPostJobPage: React.FC = () => {
                       onChange={(e) => handleChange('title', e.target.value)}
                       required
                     />
-                    <Input
-                      label="Job Type (Category)"
-                      placeholder="e.g., Software Engineering"
-                      value={form.job_type || ''}
-                      onChange={(e) => handleChange('job_type', e.target.value)}
+                    <Select
+                      label="Role category"
+                      value={form.role_category || ''}
+                      onChange={(value) => handleChange('role_category', value)}
+                      options={roleCategoryOptions}
+                      placeholder="Select role category"
+                      required
+                      helperText="Both categories are equally valued on Joborra. Choose the one that best matches the nature of this role so students can find it faster."
                     />
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
-                      <select
-                        className="w-full rounded-md border border-gray-300 p-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        value={form.employment_type || ''}
-                        onChange={(e) => handleChange('employment_type', e.target.value)}
-                      >
-                        <option value="">Select</option>
-                        <option>Full-time</option>
-                        <option>Part-time</option>
-                        <option>Contract</option>
-                        <option>Casual</option>
-                        <option>Internship</option>
-                      </select>
-                    </div>
+                    <Select
+                      label="Employment basis"
+                      value={form.employment_type || ''}
+                      onChange={(value) => handleChange('employment_type', value)}
+                      options={employmentBasisOptions}
+                      placeholder="Select employment basis"
+                      required
+                    />
                     <Input
                       label="Experience Level"
                       placeholder="e.g., entry/mid/senior"
                       value={form.experience_level || ''}
                       onChange={(e) => handleChange('experience_level', e.target.value)}
                     />
-                    {/* Address Autocomplete */}
-                    <div className="relative">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                      <input
-                        className="w-full rounded-md border border-gray-300 p-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        placeholder="e.g., Sydney, NSW"
-                        value={form.location || ''}
-                        onChange={(e) => { handleChange('location', e.target.value); setLocationQuery(e.target.value); setShowLocationSuggestions(true); }}
-                        onFocus={() => setShowLocationSuggestions(true)}
-                        onBlur={() => setTimeout(()=>setShowLocationSuggestions(false), 150)}
-                      />
-                      {showLocationSuggestions && locationSuggestions.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full rounded-md border border-slate-200 bg-white shadow">
-                          {locationSuggestions.map((s) => (
-                            <button
-                              type="button"
-                              key={s}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
-                              onClick={() => { handleChange('location', s); setLocationQuery(s); setShowLocationSuggestions(false); }}
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <LocationInput
+                      label="Location"
+                      value={form.location || ''}
+                      onChange={(value) => handleChange('location', value)}
+                      onLocationSelect={handleLocationSelect}
+                      placeholder="e.g., Sydney, NSW"
+                    />
                     <div className="grid grid-cols-2 gap-4">
                       <Input label="City" value={form.city || ''} onChange={(e) => handleChange('city', e.target.value)} />
                       <Input label="State" value={form.state || ''} onChange={(e) => handleChange('state', e.target.value)} />
@@ -330,13 +481,30 @@ const EmployerPostJobPage: React.FC = () => {
                       <Button type="button" variant="outline" onClick={() => applyCmd('insertUnorderedList')}>Bullets</Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                         onClick={async () => {
-                          const draft = await apiService.generateJobDescription({ title: form.title, skills: form.required_skills || [] });
-                          handleChange('description', draft);
-                          if (descRef.current) descRef.current.innerHTML = draft;
+                          try {
+                            const draft = await apiService.generateJobDescription({ 
+                              title: form.title, 
+                              skills: form.required_skills || [],
+                              role_category: form.role_category,
+                              employment_type: form.employment_type,
+                              location: form.location || form.city || form.state,
+                              context: {
+                                company_name: user?.company_name || 'Our Company',
+                                visa_sponsorship: form.visa_sponsorship,
+                                international_student_friendly: form.international_student_friendly
+                              }
+                            });
+                            handleChange('description', draft);
+                            if (descRef.current) descRef.current.innerHTML = draft;
+                          } catch (error) {
+                            console.error('AI generation failed:', error);
+                          }
                         }}
-                      >AI Generate</Button>
+                      >
+                        ✨ AI Auto Generate
+                      </Button>
                     </div>
                     <div
                       ref={descRef}
@@ -345,6 +513,10 @@ const EmployerPostJobPage: React.FC = () => {
                       suppressContentEditableWarning
                       onInput={(e) => handleChange('description', (e.target as HTMLDivElement).innerHTML)}
                       dangerouslySetInnerHTML={{ __html: form.description || '' }}
+                      style={{
+                        lineHeight: '1.6',
+                        fontSize: '14px'
+                      }}
                     />
                   </div>
                   <div>
@@ -417,31 +589,42 @@ const EmployerPostJobPage: React.FC = () => {
                         <option value="true">Yes</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Visa Type (optional)</label>
-                      <select
-                        className="w-full rounded-md border border-gray-300 p-2 focus:ring-cyan-500 focus:border-cyan-500"
-                        value={form.visa_type || ''}
-                        onChange={(e) => handleChange('visa_type', e.target.value)}
-                      >
-                        {VISA_TYPES.map(v => (
-                          <option key={v.value} value={v.value}>{v.label}</option>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Visa Types <span className="text-red-500">*</span>
+                      </label>
+                      <div className="space-y-2">
+                        {VISA_TYPES.filter(v => v.value !== '').map(v => (
+                          <label key={v.value} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                              checked={form.visa_types?.includes(v.value) || false}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleChange('visa_types', [...(form.visa_types || []), v.value]);
+                                } else {
+                                  handleChange('visa_types', (form.visa_types || []).filter(vt => vt !== v.value));
+                                }
+                              }}
+                            />
+                            <span className="text-sm text-gray-700">{v.label}</span>
+                          </label>
                         ))}
-                      </select>
-                      {form.visa_type && (
-                        <div className="text-xs text-slate-600 mt-1">{VISA_TYPES.find(v=>v.value===form.visa_type)?.description}</div>
+                      </div>
+                      {form.visa_types && form.visa_types.length > 0 && (
+                        <p className="mt-2 text-xs text-gray-500">
+                          Selected: {form.visa_types.join(', ')}
+                        </p>
+                      )}
+                      {(!form.visa_types || form.visa_types.length === 0) && (
+                        <p className="mt-1 text-xs text-red-500">
+                          Please select at least one visa type
+                        </p>
                       )}
                     </div>
-                    <div className="flex items-center mt-6">
-                      <input
-                        id="studentFriendly"
-                        type="checkbox"
-                        className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500 mr-2"
-                        checked={!!form.international_student_friendly}
-                        onChange={(e) => handleChange('international_student_friendly', e.target.checked)}
-                      />
-                      <label htmlFor="studentFriendly" className="text-sm text-gray-700">Student Friendly</label>
-                    </div>
+
                   </div>
 
                   <div>
@@ -458,30 +641,96 @@ const EmployerPostJobPage: React.FC = () => {
               )}
 
               {step === 4 && (
-                <div className="space-y-4">
-                  <div className="text-slate-700 text-sm">Review your job details before publishing.</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="rounded border border-slate-200 p-3">
-                      <div className="font-medium text-slate-900">Basics</div>
-                      <div className="mt-2 text-slate-700">{form.title} • {form.job_type || '—'} • {form.employment_type || '—'}</div>
-                      <div className="text-slate-700">{form.location || '—'} {form.city || ''} {form.state || ''}</div>
-                    </div>
-                    <div className="rounded border border-slate-200 p-3">
-                      <div className="font-medium text-slate-900">Compensation</div>
-                      <div className="mt-2 text-slate-700">{form.salary || '—'} ({form.salary_min ?? '—'} - {form.salary_max ?? '—'})</div>
-                    </div>
-                    <div className="rounded border border-slate-200 p-3 md:col-span-2">
-                      <div className="font-medium text-slate-900">Requirements</div>
-                      <div className="mt-2">
-                        <div className="text-slate-700">Required: {(form.required_skills || []).join(', ') || '—'}</div>
-                        <div className="text-slate-700">Preferred: {(form.preferred_skills || []).join(', ') || '—'}</div>
+                <div className="space-y-6">
+                  <div className="text-slate-700 text-sm">This is how your job posting will appear to job seekers:</div>
+                  
+                  {/* Job Posting Preview */}
+                  <Card className="p-6 bg-white border-2 border-slate-200">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="space-y-1">
+                        <h3 className="text-[22px] md:text-2xl font-semibold text-slate-900">{form.title || 'Job Title'}</h3>
+                        <div className="text-slate-600 font-medium text-sm md:text-[15px]">{user?.company_name || 'Your Company'}</div>
+                        <div className="mt-1 text-sm text-slate-600 flex items-center">
+                          <MapPin className="h-4 w-4 mr-1" /> {form.location || form.city || form.state || 'Location'}
+                        </div>
+                      </div>
+                      <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
+                        <Building2 className="h-5 w-5" />
                       </div>
                     </div>
-                    <div className="rounded border border-slate-200 p-3 md:col-span-2">
-                      <div className="font-medium text-slate-900">Options</div>
-                      <div className="mt-2 text-slate-700">Visa Sponsorship: {form.visa_sponsorship ? 'Yes' : 'No'} {form.visa_type ? `(${form.visa_type})` : ''} • Student Friendly: {form.international_student_friendly ? 'Yes' : 'No'}</div>
+
+                    {/* Meta chips row */}
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      {form.employment_type && (
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white text-slate-700 px-2.5 py-0.5 text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {getEmploymentBasisLabel(form.employment_type)}
+                        </span>
+                      )}
+                      {form.experience_level && (
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white text-slate-700 px-2.5 py-0.5 text-xs">
+                          {form.experience_level}
+                        </span>
+                      )}
+                      {form.salary_min && form.salary_max && (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 px-2.5 py-0.5 text-xs">
+                          <DollarSign className="h-3 w-3 mr-1" />
+                          ${Math.round(form.salary_min/1000)}k - ${Math.round(form.salary_max/1000)}k
+                        </span>
+                      )}
                     </div>
-                  </div>
+
+                    {/* Badges */}
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center rounded-full bg-cyan-100 text-cyan-700 px-2.5 py-0.5 text-xs">
+                        New
+                      </span>
+                      {form.visa_sponsorship && (
+                        <span className="inline-flex items-center rounded-full bg-cyan-100 text-cyan-700 px-2.5 py-0.5 text-xs">
+                          <ShieldCheck className="h-3 w-3 mr-1" /> Visa Friendly
+                        </span>
+                      )}
+                      {form.visa_types && form.visa_types.length > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-cyan-100 text-cyan-700 px-2.5 py-0.5 text-xs">
+                          <GraduationCap className="h-3 w-3 mr-1" /> {form.visa_types[0]}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Skills */}
+                    {(form.required_skills && form.required_skills.length > 0) && (
+                      <div className="mb-4">
+                        <div className="text-sm font-medium text-slate-700 mb-2">Required Skills:</div>
+                        <div className="flex flex-wrap gap-2">
+                          {form.required_skills.slice(0, 8).map((skill, i) => (
+                            <span key={i} className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">{skill}</span>
+                          ))}
+                          {form.required_skills.length > 8 && (
+                            <span className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">+{form.required_skills.length - 8} more</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Description Preview */}
+                    <div className="border-t border-slate-200 pt-4">
+                      <div className="text-[15px] md:text-[16px] leading-7 text-slate-800">
+                        {form.description ? (
+                          <div dangerouslySetInnerHTML={{ __html: form.description }} />
+                        ) : (
+                          <p className="text-slate-500 italic">Add a compelling job description to attract candidates...</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Apply Button */}
+                    <div className="mt-6 pt-4 border-t border-slate-200">
+                      <Button className="w-full">
+                        Apply Now
+                      </Button>
+                    </div>
+                  </Card>
                 </div>
               )}
 
@@ -489,7 +738,9 @@ const EmployerPostJobPage: React.FC = () => {
               <div className="flex justify-between pt-2">
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" onClick={() => navigate('/jobs')}>Cancel</Button>
-                  <Button type="button" variant="outline" onClick={saveDraft}>Save Draft</Button>
+                  <Button type="button" variant="outline" onClick={saveDraft} loading={submitting}>
+                    {submitting ? 'Saving...' : 'Save Draft'}
+                  </Button>
                 </div>
                 <div className="flex gap-2">
                   {step > 0 && (
@@ -508,23 +759,28 @@ const EmployerPostJobPage: React.FC = () => {
           </Card>
         </div>
 
-        {/* Summary card (sticky on desktop) */}
-        <div className="lg:col-span-4">
-          <div className="lg:sticky lg:top-6">
-            <Card className="p-6">
-              <div className="text-sm text-slate-600 mb-2">Live Preview</div>
-              <div className="text-lg font-semibold text-slate-900">{form.title || 'Job Title'}</div>
-              <div className="text-slate-700">Your company</div>
-              <div className="mt-1 text-sm text-slate-600">{form.location || form.city || form.state || 'Location'}</div>
-              <div className="mt-3 text-sm text-slate-700 line-clamp-4 whitespace-pre-wrap">{form.description || 'Add a compelling description to attract candidates.'}</div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(form.required_skills || []).slice(0,6).map((s, i) => (
-                  <span key={i} className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">{s}</span>
-                ))}
-              </div>
-            </Card>
+        {/* Summary card (sticky on desktop) - hidden on final step */}
+        {step !== 4 && (
+          <div className="lg:col-span-4">
+            <div className="lg:sticky lg:top-6">
+              <Card className="p-6">
+                <div className="text-sm text-slate-600 mb-2">Live Preview</div>
+                <div className="text-lg font-semibold text-slate-900">{form.title || 'Job Title'}</div>
+                <div className="text-slate-700">{user?.company_name || 'Your company'}</div>
+                <div className="mt-1 text-sm text-slate-600">{form.location || form.city || form.state || 'Location'}</div>
+                <div className="mt-1 text-xs text-slate-600">
+                  {form.role_category ? getRoleCategoryLabel(form.role_category) : 'Role category'} • {form.employment_type ? getEmploymentBasisLabel(form.employment_type) : 'Employment basis'}
+                </div>
+                <div className="mt-3 text-sm text-slate-700 line-clamp-4 whitespace-pre-wrap">{form.description || 'Add a compelling description to attract candidates.'}</div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(form.required_skills || []).slice(0,6).map((s, i) => (
+                    <span key={i} className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">{s}</span>
+                  ))}
+                </div>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* VISA Disclaimer */}
@@ -532,10 +788,6 @@ const EmployerPostJobPage: React.FC = () => {
         <Card className="p-6 bg-slate-50 border-slate-200">
           <div className="text-sm text-slate-700 whitespace-pre-wrap">
             Joborra verifies VISA statuses and conditions based on the information provided by the user. Therefore, Joborra is not liable for any visa verification errors that arise from lack of truthful information from the user or the unprecedented update in the integrated VISA verifiying service. Joborra does not verify employment eligibility on behalf of employers.
-            <br />
-            It is the responsibility of each user to ensure they are legally permitted to work in Australia.
-            <br />
-            We recommend checking your visa status through the VEVO website or consulting a registered migration agent.
           </div>
         </Card>
       </div>

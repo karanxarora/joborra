@@ -11,6 +11,9 @@ from sqlalchemy import text
 import logging
 import os
 
+# Import all models to ensure they're registered with SQLAlchemy
+from app.models import JobDraft  # noqa: F401
+
 # Configure logging EARLY so helpers can use logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -212,6 +215,17 @@ app = FastAPI(
     description="Scalable job scraping service for Australia with visa-friendly filtering",
     version="1.0.0"
 )
+
+# Global exception handler for database and other errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"Global exception handler caught: {exc}")
+    # Don't let database errors cause 500s that might log out users
+    if "sqlite3" in str(exc) or "database" in str(exc).lower():
+        logger.warning(f"Database error handled gracefully: {exc}")
+        return {"detail": "Service temporarily unavailable, please try again"}
+    # For other errors, let them be handled normally
+    raise exc
 
 # Add CORS middleware FIRST so it wraps all responses (including errors and preflight)
 app.add_middleware(

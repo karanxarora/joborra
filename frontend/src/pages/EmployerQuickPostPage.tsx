@@ -4,13 +4,18 @@ import apiService from '../services/api';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
+import Select, { SelectOption } from '../components/ui/Select';
+import LocationInput, { LocationData } from '../components/ui/LocationInput';
 
 const EmployerQuickPostPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
-  const [employmentType, setEmploymentType] = useState('Casual');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [employmentType, setEmploymentType] = useState('CASUAL');
+  const [roleCategory, setRoleCategory] = useState('');
   const [payText, setPayText] = useState('');
   const [studentFriendly, setStudentFriendly] = useState(true);
   const [visaSponsorship, setVisaSponsorship] = useState(false);
@@ -19,11 +24,39 @@ const EmployerQuickPostPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Role category options
+  const roleCategoryOptions: SelectOption[] = [
+    {
+      value: 'SERVICE_RETAIL_HOSPITALITY',
+      label: 'Service, Retail & Hospitality (open to any degree)',
+      hint: 'Customer-facing or operations roles — e.g., café, restaurant, petrol station, supermarket, retail, delivery, call centre, hospitality.'
+    },
+    {
+      value: 'STUDY_ALIGNED_PROFESSIONAL',
+      label: 'Study-aligned / Professional (field-specific)',
+      hint: 'Roles aligned to a discipline — e.g., engineering, nursing, IT, accounting, education, lab roles.'
+    }
+  ];
+
+  // Employment basis options
+  const employmentBasisOptions: SelectOption[] = [
+    { value: 'CASUAL', label: 'Casual' },
+    { value: 'PART_TIME', label: 'Part-time' },
+    { value: 'FULL_TIME', label: 'Full-time' },
+    { value: 'FIXED_TERM', label: 'Fixed-term' }
+  ];
+
   const descRef = useRef<HTMLTextAreaElement | null>(null);
 
   const canPublish = useMemo(() => {
-    return title.trim().length >= 5 && description.trim().length >= 20;
-  }, [title, description]);
+    return title.trim().length >= 5 && description.trim().length >= 20 && roleCategory;
+  }, [title, description, roleCategory]);
+
+  const handleLocationSelect = (locationData: LocationData) => {
+    setLocation(locationData.location);
+    setCity(locationData.city);
+    setState(locationData.state);
+  };
 
   const onAIGenerate = async () => {
     setError(null);
@@ -80,6 +113,7 @@ Output sections (no labels needed):
         description,
         location: location || undefined,
         employment_type: employmentType,
+        role_category: roleCategory,
         salary: payText || undefined,
         international_student_friendly: studentFriendly,
         visa_sponsorship: visaSponsorship,
@@ -118,25 +152,30 @@ Output sections (no labels needed):
               required
             />
 
+            <Select
+              label="Role category"
+              value={roleCategory}
+              onChange={setRoleCategory}
+              options={roleCategoryOptions}
+              placeholder="Select role category"
+              required
+              helperText="Both categories are equally valued on Joborra. Choose the one that best matches the nature of this role so students can find it faster."
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
-                <select
-                  className="w-full rounded-md border border-gray-300 p-2 focus:ring-cyan-500 focus:border-cyan-500"
-                  value={employmentType}
-                  onChange={(e) => setEmploymentType(e.target.value)}
-                >
-                  <option>Casual</option>
-                  <option>Part-time</option>
-                  <option>Full-time</option>
-                  <option>Contract</option>
-                  <option>Internship</option>
-                </select>
-              </div>
-              <Input
+              <Select
+                label="Employment basis"
+                value={employmentType}
+                onChange={setEmploymentType}
+                options={employmentBasisOptions}
+                placeholder="Select employment basis"
+                required
+              />
+              <LocationInput
                 label="Location"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={setLocation}
+                onLocationSelect={handleLocationSelect}
                 placeholder="e.g., Newcastle, NSW"
               />
             </div>
@@ -202,7 +241,9 @@ Output sections (no labels needed):
               <div className="text-lg font-semibold text-slate-900">{title || 'Job title'}</div>
               <div className="text-slate-700">Your company</div>
               <div className="mt-1 text-sm text-slate-600">{location || 'Location'}</div>
-              <div className="mt-1 text-xs text-slate-600">{employmentType || '—'} • {payText || 'Pay —'}</div>
+              <div className="mt-1 text-xs text-slate-600">
+                {roleCategory ? roleCategoryOptions.find(opt => opt.value === roleCategory)?.label : 'Role category'} • {employmentType ? employmentBasisOptions.find(opt => opt.value === employmentType)?.label : 'Employment basis'} • {payText || 'Pay —'}
+              </div>
               <div className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">
                 {description || 'Add a short description to attract candidates.'}
               </div>

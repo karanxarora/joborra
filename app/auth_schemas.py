@@ -35,6 +35,8 @@ class UserCreate(BaseModel):
     company_website: Optional[str] = None
     company_size: Optional[str] = None
     industry: Optional[str] = None
+    company_abn: Optional[str] = None
+    employer_role_title: Optional[str] = None
     
     @validator('password')
     def validate_password(cls, v):
@@ -46,6 +48,16 @@ class UserCreate(BaseModel):
     def validate_graduation_year(cls, v):
         if v and (v < 2000 or v > 2030):
             raise ValueError('Graduation year must be between 2000 and 2030')
+        return v
+    
+    @validator('company_abn')
+    def validate_company_abn(cls, v):
+        if v:
+            # Remove spaces and hyphens for validation
+            abn_clean = v.replace(' ', '').replace('-', '')
+            # ABN should be 11 digits
+            if not abn_clean.isdigit() or len(abn_clean) != 11:
+                raise ValueError('ABN must be 11 digits')
         return v
 
 class UserLogin(BaseModel):
@@ -97,6 +109,8 @@ class UserResponse(BaseModel):
     company_website: Optional[str]
     company_size: Optional[str]
     industry: Optional[str]
+    company_abn: Optional[str]
+    employer_role_title: Optional[str]
     company_description: Optional[str]
     company_logo_url: Optional[str]
     company_location: Optional[str]
@@ -188,10 +202,11 @@ class EmployerJobCreate(BaseModel):
     salary: Optional[str] = None
     employment_type: Optional[str] = None
     job_type: Optional[str] = None
+    role_category: Optional[str] = None
     experience_level: Optional[str] = None
     remote_option: bool = False
     visa_sponsorship: bool = False
-    visa_type: Optional[str] = None
+    visa_types: Optional[List[str]] = None
     international_student_friendly: bool = False
     required_skills: Optional[List[str]] = None
     preferred_skills: Optional[List[str]] = None
@@ -203,6 +218,12 @@ class EmployerJobCreate(BaseModel):
         if len(v.strip()) < 5:
             raise ValueError('Job title must be at least 5 characters long')
         return v.strip()
+    
+    @validator('role_category')
+    def validate_role_category(cls, v):
+        if v and v not in ['SERVICE_RETAIL_HOSPITALITY', 'STUDY_ALIGNED_PROFESSIONAL']:
+            raise ValueError('Role category must be either SERVICE_RETAIL_HOSPITALITY or STUDY_ALIGNED_PROFESSIONAL')
+        return v
     
     @validator('description')
     def validate_description(cls, v):
@@ -224,7 +245,7 @@ class EmployerJobUpdate(BaseModel):
     experience_level: Optional[str] = None
     remote_option: Optional[bool] = None
     visa_sponsorship: Optional[bool] = None
-    visa_type: Optional[str] = None
+    visa_types: Optional[List[str]] = None
     international_student_friendly: Optional[bool] = None
     required_skills: Optional[List[str]] = None
     preferred_skills: Optional[List[str]] = None

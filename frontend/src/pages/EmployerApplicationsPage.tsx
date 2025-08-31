@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import DisabledButton from '../components/ui/DisabledButton';
 import apiService from '../services/api';
 
 interface EmployerApplicationItem {
@@ -126,7 +127,7 @@ const EmployerApplicationsPage: React.FC = () => {
                     </a>
                   )}
                   {/* Placeholder actions for future: shortlist, reject */}
-                  <Button variant="ghost" disabled>Shortlist</Button>
+                  <DisabledButton variant="ghost">Shortlist</DisabledButton>
                 </div>
               </div>
             </Card>

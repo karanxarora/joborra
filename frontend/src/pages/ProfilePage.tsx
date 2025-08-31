@@ -29,13 +29,17 @@ const ProfilePage: React.FC = () => {
   // Resume upload state
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeUploading, setResumeUploading] = useState(false);
+  // Company logo upload state
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [form, setForm] = useState({
     full_name: '',
+    contact_number: '',
     visa_status: '',
     company_name: '',
     company_website: '',
     company_size: '',
     industry: '',
+    company_description: '',
   });
 
   // Education & Experience (UI-level for now)
@@ -83,11 +87,13 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     setForm({
       full_name: ctxUser?.full_name || '',
+      contact_number: ctxUser?.contact_number || '',
       visa_status: ctxUser?.visa_status || '',
       company_name: ctxUser?.company_name || '',
       company_website: ctxUser?.company_website || '',
       company_size: ctxUser?.company_size || '',
       industry: ctxUser?.industry || '',
+      company_description: ctxUser?.company_description || '',
     });
     // Hydrate education/experience from backend JSON strings if present
     try {
@@ -222,6 +228,7 @@ const ProfilePage: React.FC = () => {
       }
       const payload: any = {
         full_name: form.full_name,
+        contact_number: form.contact_number || undefined,
         university: derivedUniversity,
         degree: derivedDegree,
         graduation_year: derivedGradYear,
@@ -230,13 +237,22 @@ const ProfilePage: React.FC = () => {
         company_website: form.company_website || undefined,
         company_size: form.company_size || undefined,
         industry: form.industry || undefined,
+        company_description: form.company_description || undefined,
         // Persist education/experience as JSON strings (backend stores TEXT)
         education: ctxUser?.role === 'student' ? JSON.stringify(education || []) : undefined,
         experience: JSON.stringify(experience || []),
       };
-      await apiService.updateProfile(payload);
+      const updated = await apiService.updateProfile(payload);
+      // Logo upload if provided
+      if (logoFile) {
+        const res = await apiService.uploadCompanyLogo(logoFile);
+        const newUser = { ...updated, company_logo_url: res.company_logo_url } as any;
+        localStorage.setItem('user', JSON.stringify(newUser));
+        setMessage('Profile and logo updated successfully');
+      } else {
+        setMessage('Profile updated successfully');
+      }
       await refreshUser();
-      setMessage('Profile updated successfully');
       setIsEditing(false); // Exit edit mode after successful save
     } catch (err) {
       setMessage('Failed to update profile');
@@ -251,13 +267,12 @@ const ProfilePage: React.FC = () => {
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Your Profile</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+            {ctxUser?.role === 'employer' ? 'Company Profile' : 'Your Profile'}
+          </h1>
           <div className="flex items-center gap-2">
             {ctxUser?.role === 'employer' && (
-              <>
-                <a href="/employer/post-job" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">Post a Job</a>
-                <a href="/employer/company" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">Company Info</a>
-              </>
+              <a href="/employer/post-job" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">Post a Job</a>
             )}
           </div>
         </div>
@@ -337,10 +352,7 @@ const ProfilePage: React.FC = () => {
                   <a href="/applications" className="block text-sm text-primary-700 hover:underline">Submitted Applications</a>
                 )}
                 {ctxUser?.role === 'employer' && (
-                  <>
-                    <a href="/employer/post-job" className="block text-sm text-primary-700 hover:underline">Post a Job</a>
-                    <a href="/employer/company" className="block text-sm text-primary-700 hover:underline">Company Information</a>
-                  </>
+                  <a href="/employer/post-job" className="block text-sm text-primary-700 hover:underline">Post a Job</a>
                 )}
               </div>
             </Card>
@@ -365,7 +377,7 @@ const ProfilePage: React.FC = () => {
                     >
                       Visa Verification
                     </button>
-                    <a href="/applications" className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50">View Applications</a>
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium border border-slate-300 text-slate-400 cursor-not-allowed" title="Disabled for Pilot">View Applications</span>
                   </div>
                 )}
               </nav>
@@ -396,11 +408,13 @@ const ProfilePage: React.FC = () => {
                           // Reset form to original values
                           setForm({
                             full_name: ctxUser?.full_name || '',
+                            contact_number: ctxUser?.contact_number || '',
                             visa_status: ctxUser?.visa_status || '',
                             company_name: ctxUser?.company_name || '',
                             company_website: ctxUser?.company_website || '',
                             company_size: ctxUser?.company_size || '',
                             industry: ctxUser?.industry || '',
+                            company_description: ctxUser?.company_description || '',
                           });
                         }}
                       >
@@ -429,11 +443,20 @@ const ProfilePage: React.FC = () => {
                   disabled={!isEditing}
                 />
                 <Input 
-                  label="Visa Status" 
-                  value={form.visa_status} 
-                  onChange={(e) => setForm({ ...form, visa_status: e.target.value })} 
+                  label="Contact Number" 
+                  value={form.contact_number} 
+                  onChange={(e) => setForm({ ...form, contact_number: e.target.value })} 
+                  placeholder="+61 4XX XXX XXX"
                   disabled={!isEditing}
                 />
+                {ctxUser?.role === 'student' && (
+                  <Input 
+                    label="Visa Status" 
+                    value={form.visa_status} 
+                    onChange={(e) => setForm({ ...form, visa_status: e.target.value })} 
+                    disabled={!isEditing}
+                  />
+                )}
               </div>
 
               {ctxUser?.role === 'student' ? (
@@ -469,6 +492,55 @@ const ProfilePage: React.FC = () => {
                 </div>
               )}
 
+              {/* Company Details and Logo (employers only) */}
+              {ctxUser?.role === 'employer' && (
+                <>
+                  <div className="mt-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Company Details</label>
+                    <textarea
+                      value={form.company_description}
+                      onChange={(e) => setForm({ ...form, company_description: e.target.value })}
+                      placeholder="Tell us about your company... Include information like:
+• Company mission and values
+• What makes your company unique
+• Company culture and work environment
+• Growth opportunities for employees
+• Any awards or recognition
+• Company history or milestones
+• Benefits and perks you offer
+• Team structure and collaboration style"
+                      rows={8}
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-vertical disabled:bg-gray-100 disabled:text-gray-500"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      This information will help students understand your company better and make more informed decisions about applying to your roles.
+                    </p>
+                  </div>
+
+                  <div className="mt-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company Logo</label>
+                    {ctxUser?.company_logo_url && (
+                      <div className="text-sm text-slate-600 mb-2">
+                        Current logo: <a className="text-cyan-600 underline" href={apiService.getFileUrl(ctxUser.company_logo_url)} target="_blank" rel="noreferrer">View</a>
+                      </div>
+                    )}
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                          className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">PNG, JPG, JPEG, WEBP, or SVG.</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">Click "Edit Profile" to upload a new logo</p>
+                    )}
+                  </div>
+                </>
+              )}
 
             </form>
             {/* Resume Upload */}

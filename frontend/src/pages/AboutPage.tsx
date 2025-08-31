@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Lightbulb, CheckCircle, GraduationCap, Globe, Rocket, Star, Users, Shield, Target } from 'lucide-react';
 import Card from '../components/ui/Card';
 import { useAuth } from '../contexts/AuthContext';
 
 const AboutPage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   return (
     <div className="min-h-screen bg-slate-50">
@@ -24,15 +24,33 @@ const AboutPage: React.FC = () => {
                 Our founder, <strong>Manav Arora</strong>, came to Australia as an international student to study a Bachelor of IT and Bachelor of Business at the University of Newcastle. Like many international students, he quickly realised that finding a job wasn't as simple as sending out applications.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-8">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-800 font-medium">Too many jobs weren't actually open to international students.</p>
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <p className="text-orange-800 font-medium">Visa rules and compliance created constant uncertainty.</p>
-                </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-yellow-800 font-medium">Employers often weren't sure what students could or couldn't do.</p>
-                </div>
+                <Card className="p-6 bg-cyan-50 border-cyan-200">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Users className="w-6 h-6 text-primary-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Access Barriers</h3>
+                    <p className="text-slate-700">Too many jobs weren't actually open to international students.</p>
+                  </div>
+                </Card>
+                <Card className="p-6 bg-cyan-50 border-cyan-200">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Shield className="w-6 h-6 text-primary-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Compliance Confusion</h3>
+                    <p className="text-slate-700">Visa rules and compliance created constant uncertainty.</p>
+                  </div>
+                </Card>
+                <Card className="p-6 bg-cyan-50 border-cyan-200">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Target className="w-6 h-6 text-primary-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Employer Uncertainty</h3>
+                    <p className="text-slate-700">Employers often weren't sure what students could or couldn't do.</p>
+                  </div>
+                </Card>
               </div>
               <p>
                 The result? Countless rejections, wasted applications, and missed opportunities.
@@ -50,9 +68,14 @@ const AboutPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-r from-primary-50 to-cyan-50 rounded-2xl p-8">
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-6">
-                💡 Our Mission
-              </h2>
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mr-4">
+                  <Lightbulb className="w-6 h-6 text-primary-600" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
+                  Our Mission
+                </h2>
+              </div>
               <p className="text-lg text-slate-700 max-w-3xl mx-auto">
                 To empower international students with equal access to real job opportunities, while helping employers hire confidently and inclusively.
               </p>
@@ -68,27 +91,33 @@ const AboutPage: React.FC = () => {
             What We Do
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="p-6 bg-green-50 border-green-200">
+            <Card className="p-6 bg-cyan-50 border-cyan-200">
               <div className="text-center">
-                <div className="text-3xl mb-4">✅</div>
+                <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <GraduationCap className="w-6 h-6 text-primary-600" />
+                </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-3">For Students</h3>
                 <p className="text-slate-700">
                   Every job listing on Joborra is verified as visa-compliant and student-eligible, so you never waste time applying to roles you can't legally do.
                 </p>
               </div>
             </Card>
-            <Card className="p-6 bg-blue-50 border-blue-200">
+            <Card className="p-6 bg-cyan-50 border-cyan-200">
               <div className="text-center">
-                <div className="text-3xl mb-4">✅</div>
+                <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-6 h-6 text-primary-600" />
+                </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-3">For Employers</h3>
                 <p className="text-slate-700">
                   We simplify hiring international students by handling the compliance checks and connecting you with motivated, resilient, globally minded talent.
                 </p>
               </div>
             </Card>
-            <Card className="p-6 bg-purple-50 border-purple-200">
+            <Card className="p-6 bg-cyan-50 border-cyan-200">
               <div className="text-center">
-                <div className="text-3xl mb-4">✅</div>
+                <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-6 h-6 text-primary-600" />
+                </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-3">For Partners</h3>
                 <p className="text-slate-700">
                   We collaborate with universities, programs, and networks like Bridge2Work and the I2N Accelerator to create scalable impact.
@@ -107,22 +136,30 @@ const AboutPage: React.FC = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
-              <div className="text-3xl mb-3">🎓</div>
+              <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <GraduationCap className="w-6 h-6 text-primary-600" />
+              </div>
               <h3 className="font-bold text-slate-900 mb-2">Built on Real Experience</h3>
               <p className="text-sm text-slate-600">Founded by a student who lived the challenges firsthand.</p>
             </div>
             <div className="text-center">
-              <div className="text-3xl mb-3">✅</div>
+              <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-6 h-6 text-primary-600" />
+              </div>
               <h3 className="font-bold text-slate-900 mb-2">Verified Jobs Only</h3>
               <p className="text-sm text-slate-600">Every role is checked for compliance before it's posted.</p>
             </div>
             <div className="text-center">
-              <div className="text-3xl mb-3">🌍</div>
+              <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Globe className="w-6 h-6 text-primary-600" />
+              </div>
               <h3 className="font-bold text-slate-900 mb-2">Inclusive Hiring Made Easy</h3>
               <p className="text-sm text-slate-600">Employers gain access to diverse, driven candidates.</p>
             </div>
             <div className="text-center">
-              <div className="text-3xl mb-3">🚀</div>
+              <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Rocket className="w-6 h-6 text-primary-600" />
+              </div>
               <h3 className="font-bold text-slate-900 mb-2">Student-First Platform</h3>
               <p className="text-sm text-slate-600">Designed to remove barriers and unlock potential.</p>
             </div>
@@ -135,9 +172,14 @@ const AboutPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-8">
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-6">
-                🌟 Our Vision
-              </h2>
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mr-4">
+                  <Star className="w-6 h-6 text-primary-600" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900">
+                  Our Vision
+                </h2>
+              </div>
               <p className="text-lg text-slate-700 max-w-3xl mx-auto">
                 A future where every international student in Australia has equal opportunity to succeed, and every employer benefits from their unique skills and perspectives.
               </p>
@@ -185,9 +227,9 @@ const AboutPage: React.FC = () => {
                 </button>
               </Link>
             )}
-            <Link to="/jobs">
+            <Link to={isAuthenticated && user?.role === 'employer' ? "/employer/post-job" : "/jobs"}>
               <button className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold rounded-xl bg-transparent border-2 border-white text-white hover:bg-white hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-cyan-700 transition-colors duration-200">
-                Explore Opportunities
+                {isAuthenticated && user?.role === 'employer' ? 'Post Opportunities' : 'Explore Opportunities'}
               </button>
             </Link>
           </div>

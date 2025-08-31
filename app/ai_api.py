@@ -37,25 +37,87 @@ def _build_prompt_from_context(payload: GenerateJobDescriptionRequest) -> str:
     title = payload.title or ctx.get("title") or "Team Member"
     location = ctx.get("location", "Australia")
     employment_type = ctx.get("employment_type", "Part-time")
+    role_category = ctx.get("role_category", "")
+    company_name = ctx.get("company_name", "Our Company")
     salary = ctx.get("salary", "Competitive")
     intl = ctx.get("international_student_friendly")
     visasp = ctx.get("visa_sponsorship")
     intl_txt = "Yes" if intl else "No"
     visasp_txt = "Yes" if visasp else "No"
+    
+    # Get skills from payload
+    skills = payload.skills or []
+    skills_text = ", ".join(skills) if skills else "relevant skills"
 
     return (
-        "You are an expert HR copywriter. Write a concise, friendly, student-inclusive job description.\n\n"
-        "Constraints:\n"
-        "- 160–260 words.\n"
-        "- Use Australian spelling.\n"
-        "- Plain text paragraphs and short bullet lists only; no markdown headers.\n"
-        "- Emphasise international student friendliness and legal work constraints if applicable.\n\n"
-        f"Job context:\n- Title: {title}\n- Location: {location}\n- Employment type: {employment_type}\n- Pay text: {salary}\n"
-        f"- International student friendly: {intl_txt}\n- Visa sponsorship available: {visasp_txt}\n\n"
-        "Output sections (no labels needed):\n"
-        "1) 2–3 sentence overview of the role and team.\n"
-        "2) 4–6 bullet points of day‑to‑day responsibilities.\n"
-        "3) 3–5 bullet points of what you’re looking for (soft skills welcomed)."
+        "You are an expert HR copywriter specializing in Australian job descriptions for international students. "
+        "Create a professional, industry-standard job description using the following EXACT format:\n\n"
+        
+        "FORMAT REQUIREMENTS:\n"
+        "- Use HTML formatting with proper tags\n"
+        "- Use <strong> tags for bold headings (NOT <h3> tags)\n"
+        "- Follow this exact structure with these exact headings\n"
+        "- Use Australian spelling throughout\n"
+        "- Target 300-400 words total\n"
+        "- Add one blank line between each section\n"
+        "- DO NOT wrap the output in markdown code blocks (no ```html or ```)\n"
+        "- Return only the HTML content directly\n\n"
+        
+        "REQUIRED STRUCTURE (follow EXACTLY with proper spacing):\n"
+        "<strong>About the Role</strong>\n"
+        "<p>[2-3 sentences describing the role, company culture, and team environment. Use the actual company name: {company_name}]</p>\n"
+        "<br><br>\n"
+        
+        "<strong>Key Responsibilities</strong>\n"
+        "<ul>\n"
+        "<li>[Responsibility 1 - specific and actionable]</li>\n"
+        "<li>[Responsibility 2 - specific and actionable]</li>\n"
+        "<li>[Responsibility 3 - specific and actionable]</li>\n"
+        "<li>[Responsibility 4 - specific and actionable]</li>\n"
+        "<li>[Responsibility 5 - specific and actionable]</li>\n"
+        "</ul>\n"
+        "<br><br>\n"
+        
+        "<strong>What We're Looking For</strong>\n"
+        "<ul>\n"
+        "<li>[Essential requirement 1]</li>\n"
+        "<li>[Essential requirement 2]</li>\n"
+        "<li>[Essential requirement 3]</li>\n"
+        "<li>[Preferred skill or experience]</li>\n"
+        "<li>[Soft skill or attitude]</li>\n"
+        "</ul>\n"
+        "<br><br>\n"
+        
+        "<strong>What We Offer</strong>\n"
+        "<ul>\n"
+        "<li>[Benefit 1 - e.g., flexible hours, training opportunities]</li>\n"
+        "<li>[Benefit 2 - e.g., supportive team environment]</li>\n"
+        "<li>[Benefit 3 - e.g., career development opportunities]</li>\n"
+        "</ul>\n"
+        
+        f"JOB CONTEXT:\n"
+        f"- Title: {title}\n"
+        f"- Company: {company_name}\n"
+        f"- Location: {location}\n"
+        f"- Employment type: {employment_type}\n"
+        f"- Role category: {role_category}\n"
+        f"- Key skills: {skills_text}\n"
+        f"- International student friendly: {intl_txt}\n"
+        f"- Visa sponsorship available: {visasp_txt}\n\n"
+        
+        "IMPORTANT NOTES:\n"
+        "- ALWAYS use the actual company name '{company_name}' in the description, never use '[Company Name]' or placeholders\n"
+        "- Make it welcoming to international students\n"
+        "- Emphasize learning opportunities and growth\n"
+        "- Use inclusive, encouraging language\n"
+        "- Focus on transferable skills and cultural diversity\n"
+        "- If visa sponsorship is available, mention it naturally in the benefits\n"
+        "- Keep the tone professional but approachable\n"
+        "- Use <strong> tags for headings, not <h3> tags\n"
+        "- CRITICAL: Add <br><br> after each section to create proper spacing\n"
+        "- Follow the exact structure above with <br><br> tags between sections\n\n"
+        
+        "Generate the complete job description following this exact format:"
     )
 
 
@@ -83,6 +145,17 @@ async def generate_job_description(payload: GenerateJobDescriptionRequest) -> Ge
         if not text:
             logger.error("Gemini returned empty text")
             raise HTTPException(status_code=502, detail="AI generated empty content")
+        
+        # Clean up any markdown code block syntax that might be added
+        text = text.strip()
+        if text.startswith("```html"):
+            text = text[7:]  # Remove ```html
+        if text.startswith("```"):
+            text = text[3:]  # Remove ```
+        if text.endswith("```"):
+            text = text[:-3]  # Remove trailing ```
+        text = text.strip()
+        
         return GenerateJobDescriptionResponse(text=text)
     except Exception as e:
         logger.error(f"Gemini generation error: {e}")

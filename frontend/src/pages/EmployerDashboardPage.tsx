@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { 
@@ -12,7 +13,8 @@ import {
   Edit,
   Calendar,
   MapPin,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 import apiService from '../services/api';
 
@@ -37,9 +39,11 @@ interface JobSummary {
 const EmployerDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [stats, setStats] = useState<JobStats | null>(null);
   const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingJobId, setDeletingJobId] = useState<number | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -75,15 +79,15 @@ const EmployerDashboardPage: React.FC = () => {
 
       // Get recent jobs (last 5)
       const recent = jobs
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort((a, b) => new Date(b.posted_date || b.scraped_at || b.created_at).getTime() - new Date(a.posted_date || a.scraped_at || a.created_at).getTime())
         .slice(0, 5)
         .map(job => ({
           id: job.id,
           title: job.title,
           location: job.location || 'Location not specified',
           applications_count: applications.filter(app => app.job_id === job.id).length,
-          posted_date: job.created_at,
-          is_active: true, // For now, consider all jobs as active
+          posted_date: job.posted_date || job.scraped_at || job.created_at,
+          is_active: job.is_active !== false, // Use actual is_active field
           salary_min: job.salary_min,
           salary_max: job.salary_max
         }));
@@ -104,11 +108,45 @@ const EmployerDashboardPage: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-AU', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (!dateString) return 'Date not available';
+    try {
+      return new Date(dateString).toLocaleDateString('en-AU', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  const handleDeleteJob = async (jobId: number) => {
+    if (!window.confirm('Are you sure you want to delete this job posting? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeletingJobId(jobId);
+      await apiService.deleteJob(jobId);
+      toast('Job deleted successfully', 'success');
+      // Reload dashboard data
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Failed to delete job:', error);
+      toast('Failed to delete job', 'error');
+    } finally {
+      setDeletingJobId(null);
+    }
+  };
+
+  const handleViewJob = (jobId: number) => {
+    navigate(`/employer/jobs/${jobId}`);
+  };
+
+  const handleEditJob = (jobId: number) => {
+    // For now, navigate to post job page
+    // TODO: Create a dedicated job edit page
+    navigate(`/employer/post-job?edit=${jobId}`);
   };
 
   if (loading) {
@@ -238,7 +276,7 @@ const EmployerDashboardPage: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {recentJobs.map((job) => (
-                  <div key={job.id} className="border border-slate-200 rounded-lg p-4">
+                  <div key={job.id} className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer" onClick={() => handleViewJob(job.id)}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="font-medium text-slate-900">{job.title}</h3>
@@ -270,13 +308,38 @@ const EmployerDashboardPage: React.FC = () => {
                             {job.is_active ? 'Active' : 'Inactive'}
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => navigate(`/employer/applications?job=${job.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewJob(job.id)}
+                            title="View Job Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEditJob(job.id)}
+                            title="Edit Job"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteJob(job.id)}
+                            disabled={deletingJobId === job.id}
+                            title="Delete Job"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            {deletingJobId === job.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

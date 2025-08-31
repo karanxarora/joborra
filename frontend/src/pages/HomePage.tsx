@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Users, Briefcase, TrendingUp, CheckCircle, Star, Shield, GraduationCap, Brain, RefreshCw, MapPin, ArrowRight } from 'lucide-react';
-import Button from '../components/ui/Button';
+
 import Card from '../components/ui/Card';
 import SearchBar from '../components/home/SearchBar';
+import DisabledLink from '../components/ui/DisabledLink';
 import { JobStats } from '../types';
 import apiService from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const HomePage: React.FC = () => {
   const [stats, setStats] = useState<JobStats | null>(null);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   // removed unused loading state
 
   useEffect(() => {
@@ -329,11 +330,17 @@ const HomePage: React.FC = () => {
                 </button>
               </Link>
             )}
-            <Link to="/jobs">
-              <button className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold rounded-xl bg-transparent border-2 border-white text-white hover:bg-white hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-cyan-700 transition-colors duration-200">
-                Explore Opportunities
-              </button>
-            </Link>
+            {isAuthenticated && user?.role === 'employer' ? (
+              <Link to="/employer/post-job">
+                <button className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold rounded-xl bg-transparent border-2 border-white text-white hover:bg-white hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-cyan-700 transition-colors duration-200">
+                  Post Opportunities
+                </button>
+              </Link>
+            ) : (
+              <span className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold rounded-xl bg-transparent border-2 border-white text-white opacity-50 cursor-not-allowed relative">
+                <DisabledLink className="text-white">Explore Opportunities</DisabledLink>
+              </span>
+            )}
           </div>
         </div>
       </section>

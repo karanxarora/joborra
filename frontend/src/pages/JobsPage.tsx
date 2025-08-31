@@ -77,6 +77,10 @@ const JobsPage: React.FC = () => {
           scraped_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          is_active: true,
+          remote_option: false,
+          is_joborra_job: false,
+          is_duplicate: false,
         },
         {
           id: 2,
@@ -96,6 +100,10 @@ const JobsPage: React.FC = () => {
           scraped_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          is_active: true,
+          remote_option: false,
+          is_joborra_job: false,
+          is_duplicate: false,
         },
         {
           id: 3,
@@ -115,6 +123,10 @@ const JobsPage: React.FC = () => {
           scraped_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          is_active: true,
+          remote_option: false,
+          is_joborra_job: false,
+          is_duplicate: false,
         }
       ]);
       setTotalPages(5);
