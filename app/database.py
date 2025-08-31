@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -11,31 +11,46 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Use SQLite for development if PostgreSQL not available
+# Always use SQLite for both development and production
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./joborra.db")
 
-if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        echo=os.getenv("DEBUG", "False").lower() == "true"
-    )
-else:
-    # For Postgres (e.g., Supabase), use default pooling and require SSL
-    # Ensure your DATABASE_URL includes credentials and host, optionally with `?sslmode=require`.
-    # We also pass sslmode via connect_args for safety.
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        pool_size=10,
-        max_overflow=20,
-        connect_args={"sslmode": "require"},
-        echo=os.getenv("DEBUG", "False").lower() == "true"
-    )
+# Force SQLite if any PostgreSQL URL is provided
+if not DATABASE_URL.startswith("sqlite"):
+    logger.info(f"Converting non-SQLite DATABASE_URL to SQLite for consistency")
+    DATABASE_URL = "sqlite:///./joborra.db"
+
+logger.info(f"Using SQLite database: {DATABASE_URL}")
+
+# SQLite configuration optimized for production use
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 20,
+    },
+    poolclass=StaticPool,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    echo=os.getenv("DEBUG", "False").lower() == "true"
+)
+
+# Configure SQLite pragmas after engine creation
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Set SQLite pragmas for better performance and concurrency"""
+    if DATABASE_URL.startswith("sqlite"):
+        cursor = dbapi_connection.cursor()
+        # Enable foreign keys
+        cursor.execute("PRAGMA foreign_keys=ON")
+        # Use WAL mode for better concurrency
+        cursor.execute("PRAGMA journal_mode=WAL")
+        # Balance between safety and performance
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        # 64MB cache
+        cursor.execute("PRAGMA cache_size=-64000")
+        # Store temp tables in memory
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

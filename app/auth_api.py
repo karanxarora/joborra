@@ -28,10 +28,11 @@ import logging
 import uuid
 from pathlib import Path
 from sqlalchemy import text
-from .supabase_utils import (
-    upload_public_object,
-    SUPABASE_STORAGE_BUCKET,
-    supabase_configured,
+from .local_storage import (
+    upload_resume,
+    upload_company_logo,
+    upload_job_document,
+    local_storage_configured,
     resolve_storage_url,
 )
 
@@ -892,34 +893,17 @@ async def upload_job_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Try Supabase first
-    doc_url_value = None
-    if supabase_configured():
+    # Use local storage only
+    if local_storage_configured():
         try:
-            object_path = f"job_docs/{current_user.id}/{job_id}/doc_{uuid.uuid4()}{ext}"
-            uploaded = upload_public_object(
-                bucket=SUPABASE_STORAGE_BUCKET,
-                object_path=object_path,
-                data=content,
-                content_type="application/octet-stream",
-            )
-            if uploaded:
-                doc_url_value = uploaded
-        except Exception:
-            logger.exception("Supabase job document upload failed; will fallback to local storage")
-
-    # Fallback to local
-    if not doc_url_value:
-        upload_dir = Path("data/job_docs") / str(current_user.id) / str(job_id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        unique_name = f"doc_{uuid.uuid4()}{ext}"
-        file_path = upload_dir / unique_name
-        try:
-            with open(file_path, "wb") as f:
-                f.write(content)
-            doc_url_value = f"/data/job_docs/{current_user.id}/{job_id}/{unique_name}"
+            doc_url_value = upload_job_document(current_user.id, job_id, content, file.filename)
+            if not doc_url_value:
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+            logger.error(f"Local storage upload error: {e}")
+            raise HTTPException(status_code=500, detail="Storage upload failed")
+    else:
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update DB
     job.job_document_url = doc_url_value
@@ -1487,34 +1471,17 @@ async def upload_resume(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Try Supabase Storage first (public bucket)
-    resume_url_value = None
-    if supabase_configured():
+    # Use local storage only
+    if local_storage_configured():
         try:
-            object_path = f"resumes/{current_user.id}/resume_{uuid.uuid4()}{ext}"
-            uploaded = upload_public_object(
-                bucket=None,  # always use current master bucket internally
-                object_path=object_path,
-                data=content,
-                content_type="application/pdf",
-            )
-            if uploaded:
-                resume_url_value = uploaded
-        except Exception:
-            logger.exception("Supabase resume upload failed; will fallback to local storage")
-
-    # Fallback to local filesystem if Supabase not configured or failed
-    if not resume_url_value:
-        upload_dir = Path("data/resumes") / str(current_user.id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        unique_name = f"resume_{uuid.uuid4()}{ext}"
-        file_path = upload_dir / unique_name
-        try:
-            with open(file_path, "wb") as f:
-                f.write(content)
-            resume_url_value = f"/data/resumes/{current_user.id}/{unique_name}"
+            resume_url_value = upload_resume(current_user.id, content, file.filename)
+            if not resume_url_value:
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+            logger.error(f"Local storage upload error: {e}")
+            raise HTTPException(status_code=500, detail="Storage upload failed")
+    else:
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update user profile
     try:
@@ -1587,40 +1554,17 @@ async def upload_company_logo(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Try Supabase first
-    logo_url_value = None
-    if supabase_configured():
+    # Use local storage only
+    if local_storage_configured():
         try:
-            object_path = f"company_logos/{current_user.id}/logo_{uuid.uuid4()}{ext}"
-            uploaded = upload_public_object(
-                bucket=SUPABASE_STORAGE_BUCKET,
-                object_path=object_path,
-                data=content,
-                content_type={
-                    ".png": "image/png",
-                    ".jpg": "image/jpeg",
-                    ".jpeg": "image/jpeg",
-                    ".webp": "image/webp",
-                    ".svg": "image/svg+xml",
-                }.get(ext, "application/octet-stream"),
-            )
-            if uploaded:
-                logo_url_value = uploaded
-        except Exception:
-            logger.exception("Supabase logo upload failed; will fallback to local storage")
-
-    # Fallback to local storage
-    if not logo_url_value:
-        upload_dir = Path("data/company_logos") / str(current_user.id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        unique_name = f"logo_{uuid.uuid4()}{ext}"
-        file_path = upload_dir / unique_name
-        try:
-            with open(file_path, "wb") as f:
-                f.write(content)
-            logo_url_value = f"/data/company_logos/{current_user.id}/{unique_name}"
+            logo_url_value = upload_company_logo(current_user.id, content, file.filename)
+            if not logo_url_value:
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+            logger.error(f"Local storage upload error: {e}")
+            raise HTTPException(status_code=500, detail="Storage upload failed")
+    else:
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update user profile
     current_user.company_logo_url = logo_url_value
