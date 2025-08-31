@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 from supabase import create_client, Client
 import uuid
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +49,20 @@ def upload_resume(user_id: int, content: bytes, filename: str) -> Optional[str]:
             file_options={"content-type": "application/pdf"}
         )
         
-        if result.get("error"):
-            logger.error(f"Failed to upload resume: {result['error']}")
+        # Check if result is a coroutine and await it
+        if asyncio.iscoroutine(result):
+            result = asyncio.run(result)
+        
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Failed to upload resume: {result.error}")
             return None
         
         # Return public URL
-        return client.storage.from_("resumes").get_public_url(unique_filename)
+        url_result = client.storage.from_("resumes").get_public_url(unique_filename)
+        if asyncio.iscoroutine(url_result):
+            url_result = asyncio.run(url_result)
+        
+        return url_result
         
     except Exception as e:
         logger.error(f"Error uploading resume: {e}")
@@ -81,12 +90,20 @@ def upload_company_logo(user_id: int, content: bytes, filename: str) -> Optional
             file_options={"content-type": f"image/{file_ext}"}
         )
         
-        if result.get("error"):
-            logger.error(f"Failed to upload company logo: {result['error']}")
+        # Check if result is a coroutine and await it
+        if asyncio.iscoroutine(result):
+            result = asyncio.run(result)
+        
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Failed to upload company logo: {result.error}")
             return None
         
         # Return public URL
-        return client.storage.from_("company-logos").get_public_url(unique_filename)
+        url_result = client.storage.from_("company-logos").get_public_url(unique_filename)
+        if asyncio.iscoroutine(url_result):
+            url_result = asyncio.run(url_result)
+        
+        return url_result
         
     except Exception as e:
         logger.error(f"Error uploading company logo: {e}")
@@ -114,12 +131,20 @@ def upload_job_document(user_id: int, job_id: int, content: bytes, filename: str
             file_options={"content-type": "application/pdf"}
         )
         
-        if result.get("error"):
-            logger.error(f"Failed to upload job document: {result['error']}")
+        # Check if result is a coroutine and await it
+        if asyncio.iscoroutine(result):
+            result = asyncio.run(result)
+        
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Failed to upload job document: {result.error}")
             return None
         
         # Return public URL
-        return client.storage.from_("job-documents").get_public_url(unique_filename)
+        url_result = client.storage.from_("job-documents").get_public_url(unique_filename)
+        if asyncio.iscoroutine(url_result):
+            url_result = asyncio.run(url_result)
+        
+        return url_result
         
     except Exception as e:
         logger.error(f"Error uploading job document: {e}")
@@ -147,12 +172,20 @@ def upload_visa_document(user_id: int, document_type: str, content: bytes, filen
             file_options={"content-type": "application/pdf"}
         )
         
-        if result.get("error"):
-            logger.error(f"Failed to upload visa document: {result['error']}")
+        # Check if result is a coroutine and await it
+        if asyncio.iscoroutine(result):
+            result = asyncio.run(result)
+        
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Failed to upload visa document: {result.error}")
             return None
         
         # Return public URL
-        return client.storage.from_("visa-documents").get_public_url(unique_filename)
+        url_result = client.storage.from_("visa-documents").get_public_url(unique_filename)
+        if asyncio.iscoroutine(url_result):
+            url_result = asyncio.run(url_result)
+        
+        return url_result
         
     except Exception as e:
         logger.error(f"Error uploading visa document: {e}")
