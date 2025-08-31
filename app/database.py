@@ -1,32 +1,41 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 import os
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
-# Use SQLite for development if PostgreSQL not available
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./joborra.db")
+logger = logging.getLogger(__name__)
 
-if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        echo=os.getenv("DEBUG", "False").lower() == "true"
+# Require Supabase PostgreSQL connection
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Please set it to your Supabase PostgreSQL connection string. "
+        "Example: postgresql://postgres:[password]@[host]:5432/postgres?sslmode=require"
     )
-else:
-    # For Postgres (e.g., Supabase), use default pooling and require SSL
-    # Ensure your DATABASE_URL includes credentials and host, optionally with `?sslmode=require`.
-    # We also pass sslmode via connect_args for safety.
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        connect_args={"sslmode": "require"},
-        echo=os.getenv("DEBUG", "False").lower() == "true"
+
+if not DATABASE_URL.startswith("postgresql://"):
+    raise ValueError(
+        "DATABASE_URL must be a PostgreSQL connection string for Supabase. "
+        f"Current value: {DATABASE_URL[:20]}..."
     )
+
+# Create Supabase PostgreSQL engine with SSL
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    connect_args={"sslmode": "require"},
+    echo=os.getenv("DEBUG", "False").lower() == "true",
+    pool_size=10,
+    max_overflow=20
+)
+
+logger.info("Connected to Supabase PostgreSQL database")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

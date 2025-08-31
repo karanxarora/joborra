@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, FastAPI
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, text
 from typing import List, Optional
 from app.database import get_db
 from app.schemas import Job, JobFilter, JobSearchResponse, VisaKeyword, VisaKeywordCreate
 from app.services import JobService, ScrapingService
 from .auth import AuthService, get_current_user
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +30,76 @@ ALLOWED_SOURCES = [
 async def root():
     """Health check endpoint"""
     return {"message": "Joborra API is running", "status": "healthy"}
+
+@router.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    """Comprehensive health check including database"""
+    try:
+        # Test database connection
+        result = db.execute(text("SELECT 1 as test"))
+        test_result = result.scalar()
+        
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "test_query": test_result,
+            "timestamp": "2024-01-01T00:00:00Z"  # You can add actual timestamp if needed
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e),
+            "timestamp": "2024-01-01T00:00:00Z"
+        }
+
+@router.get("/debug/database")
+async def debug_database(db: Session = Depends(get_db)):
+    """Debug database connection and schema"""
+    try:
+        # Test basic connection
+        result = db.execute(text("SELECT 1 as test"))
+        test_result = result.scalar()
+        
+        # Check if users table exists and get count
+        try:
+            user_count = db.execute(text("SELECT COUNT(*) FROM users")).scalar()
+            users_table_exists = True
+        except Exception as e:
+            user_count = 0
+            users_table_exists = False
+            users_error = str(e)
+        
+        # Check if companies table exists
+        try:
+            company_count = db.execute(text("SELECT COUNT(*) FROM companies")).scalar()
+            companies_table_exists = True
+        except Exception as e:
+            company_count = 0
+            companies_table_exists = False
+            companies_error = str(e)
+        
+        return {
+            "database_connection": "success",
+            "test_query": test_result,
+            "users_table": {
+                "exists": users_table_exists,
+                "count": user_count,
+                "error": users_error if not users_table_exists else None
+            },
+            "companies_table": {
+                "exists": companies_table_exists,
+                "count": company_count,
+                "error": companies_error if not companies_table_exists else None
+            },
+            "database_url_prefix": os.getenv("DATABASE_URL", "")[:30] + "..." if os.getenv("DATABASE_URL") else "Not set"
+        }
+    except Exception as e:
+        return {
+            "database_connection": "failed",
+            "error": str(e),
+            "database_url_prefix": os.getenv("DATABASE_URL", "")[:30] + "..." if os.getenv("DATABASE_URL") else "Not set"
+        }
 
 # Job search endpoint
 @router.get("/jobs/search", response_model=JobSearchResponse)

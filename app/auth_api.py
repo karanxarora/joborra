@@ -45,13 +45,69 @@ RATE_LIMIT_SECONDS = 60  # min interval between requests per user
 @router.post("/register", response_model=UserResponse)
 def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user (Student or Employer)"""
-    auth_service = AuthService(db)
-    # Prevent registering a password account if email belongs to an OAuth account
-    existing = db.query(User).filter(User.email == user_data.email.lower().strip()).first()
-    if existing and existing.oauth_sub:
-        raise HTTPException(status_code=409, detail="This email is registered with Google. Use Google Sign-In.")
-    user = auth_service.create_user(user_data)
-    return user
+    try:
+        logger.info(f"Registration attempt for email: {user_data.email}, role: {user_data.role}")
+        
+        # Test database connection first
+        try:
+            db.execute(text("SELECT 1"))
+            logger.info("Database connection verified for registration")
+        except Exception as db_error:
+            logger.error(f"Database connection failed during registration: {db_error}")
+            raise HTTPException(status_code=500, detail="Database connection failed")
+        
+        auth_service = AuthService(db)
+        
+        # Prevent registering a password account if email belongs to an OAuth account
+        existing = db.query(User).filter(User.email == user_data.email.lower().strip()).first()
+        if existing and existing.oauth_sub:
+            logger.warning(f"Registration blocked - email {user_data.email} already registered with Google")
+            raise HTTPException(status_code=409, detail="This email is registered with Google. Use Google Sign-In.")
+        
+        logger.info(f"Creating user account for: {user_data.email}")
+        user = auth_service.create_user(user_data)
+        logger.info(f"User registered successfully: {user.email} (ID: {user.id}, Role: {user.role})")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration failed for {user_data.email}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@router.get("/debug/registration")
+def debug_registration(db: Session = Depends(get_db)):
+    """Debug registration system"""
+    try:
+        # Test database connection
+        result = db.execute(text("SELECT 1 as test"))
+        test_result = result.scalar()
+        
+        # Check users table structure
+        columns_result = db.execute(text("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' 
+            ORDER BY ordinal_position
+        """))
+        columns = [{"name": row[0], "type": row[1]} for row in columns_result.fetchall()]
+        
+        # Check if we can create a test user (without actually creating it)
+        test_email = "test@example.com"
+        existing = db.query(User).filter(User.email == test_email).first()
+        
+        return {
+            "database_connection": "success",
+            "test_query": test_result,
+            "users_table_columns": columns,
+            "can_query_users": existing is not None or True,  # True if query worked
+            "auth_service_available": "AuthService imported successfully"
+        }
+    except Exception as e:
+        return {
+            "database_connection": "failed",
+            "error": str(e),
+            "auth_service_available": "Unknown"
+        }
 
 # Email verification endpoints
 @router.post("/verify/request")
