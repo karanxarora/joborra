@@ -1,5 +1,5 @@
 """
-Authentication and User Schemas
+Authentication and User Schema
 """
 
 from pydantic import BaseModel, EmailStr, validator
