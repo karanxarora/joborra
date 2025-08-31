@@ -3,6 +3,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import apiService from '../services/api';
+import { extractErrorMessage } from '../utils/errorUtils';
 import { User } from '../types';
 
 const EmployerCompanyInfoPage: React.FC = () => {
@@ -11,6 +12,7 @@ const EmployerCompanyInfoPage: React.FC = () => {
     company_website: '',
     company_size: '',
     industry: '',
+    company_description: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -25,6 +27,7 @@ const EmployerCompanyInfoPage: React.FC = () => {
         company_website: u.company_website || '',
         company_size: u.company_size || '',
         industry: u.industry || '',
+        company_description: u.company_description || '',
       });
     }
   }, []);
@@ -45,6 +48,7 @@ const EmployerCompanyInfoPage: React.FC = () => {
         company_website: form.company_website,
         company_size: form.company_size,
         industry: form.industry,
+        company_description: form.company_description,
       });
       // Persist locally for immediate UI reflection
       localStorage.setItem('user', JSON.stringify(updated));
@@ -71,7 +75,7 @@ const EmployerCompanyInfoPage: React.FC = () => {
       <p className="text-slate-600 mb-6">Keep your company profile up to date. These details appear on your job posts.</p>
       <Card>
         <form onSubmit={onSubmit} className="p-6 space-y-6">
-          {error && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{error}</div>}
+          {error && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{extractErrorMessage(error)}</div>}
           {message && <div className="p-3 rounded bg-green-50 text-green-700 text-sm">{message}</div>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -99,6 +103,28 @@ const EmployerCompanyInfoPage: React.FC = () => {
               value={form.industry || ''}
               onChange={(e) => handleChange('industry', e.target.value)}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Company Details</label>
+            <textarea
+              value={form.company_description || ''}
+              onChange={(e) => handleChange('company_description', e.target.value)}
+              placeholder="Tell us about your company... Include information like:
+• Company mission and values
+• What makes your company unique
+• Company culture and work environment
+• Growth opportunities for employees
+• Any awards or recognition
+• Company history or milestones
+• Benefits and perks you offer
+• Team structure and collaboration style"
+              rows={8}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-vertical"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              This information will help students understand your company better and make more informed decisions about applying to your roles.
+            </p>
           </div>
 
           <div>

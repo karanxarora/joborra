@@ -102,10 +102,10 @@ async def search_jobs(
             query_obj = query_obj.filter(JobModel.remote_option == bool(remote))
 
         if visa_types:
-            # Match if any of the provided visa type tokens appear in visa_type field
+            # Match if any of the provided visa type tokens appear in visa_types field
             tokens = [t.strip() for t in visa_types.split(',') if t.strip()]
             if tokens:
-                like_clauses = [JobModel.visa_type.ilike(f"%{t}%") for t in tokens]
+                like_clauses = [JobModel.visa_types.ilike(f"%{t}%") for t in tokens]
                 query_obj = query_obj.filter(or_(*like_clauses))
 
         if industry:

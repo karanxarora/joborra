@@ -14,6 +14,8 @@ export interface User {
   degree?: string;
   graduation_year?: number;
   visa_status?: string;
+  city_suburb?: string;
+  date_of_birth?: string; // ISO datetime string
   // Study details (moved from visa verification)
   course_name?: string;
   institution_name?: string;
@@ -24,6 +26,8 @@ export interface User {
   company_website?: string;
   company_size?: string;
   industry?: string;
+  company_description?: string;
+  company_logo_url?: string;
   resume_url?: string;
   created_at: string;
   updated_at: string;
@@ -49,7 +53,7 @@ export interface Job {
   salary?: string;
   visa_sponsorship: boolean;
   visa_sponsorship_confidence: number;
-  visa_type?: string;
+  visa_types?: string[];
   international_student_friendly: boolean;
   source_website: string;
   source_url: string;
@@ -58,6 +62,17 @@ export interface Job {
   scraped_at: string;
   created_at: string;
   updated_at: string;
+  posted_date?: string;
+  is_active: boolean;
+  remote_option: boolean;
+  required_skills?: string[];
+  preferred_skills?: string[];
+  education_requirements?: string;
+  expires_at?: string;
+  posted_by_user_id?: number;
+  is_joborra_job: boolean;
+  is_duplicate: boolean;
+  company_id?: number;
 }
 
 export interface JobStats {
@@ -110,6 +125,8 @@ export interface RegisterForm {
   degree?: string;
   graduation_year?: number;
   visa_status?: string;
+  city_suburb?: string;
+  date_of_birth?: string; // ISO datetime string
   // Study details for students
   course_name?: string;
   institution_name?: string;
@@ -120,6 +137,9 @@ export interface RegisterForm {
   company_website?: string;
   company_size?: string;
   industry?: string;
+  company_description?: string;
+  company_abn?: string;
+  employer_role_title?: string;
 }
 
 export interface JobFilters {
@@ -180,10 +200,11 @@ export interface EmployerJobCreate {
   salary?: string;
   employment_type?: string;
   job_type?: string;
+  role_category?: string;
   experience_level?: string;
   remote_option?: boolean;
   visa_sponsorship?: boolean;
-  visa_type?: string;
+  visa_types?: string[];
   international_student_friendly?: boolean;
   required_skills?: string[];
   preferred_skills?: string[];
@@ -193,6 +214,62 @@ export interface EmployerJobCreate {
 
 export interface EmployerJobUpdate extends Partial<EmployerJobCreate> {
   is_active?: boolean;
+}
+
+export interface JobDraft {
+  id: number;
+  title: string;
+  description?: string;
+  location?: string;
+  city?: string;
+  state?: string;
+  salary_min?: number;
+  salary_max?: number;
+  salary_currency: string;
+  salary?: string;
+  employment_type?: string;
+  job_type?: string;
+  role_category?: string;
+  experience_level?: string;
+  remote_option: boolean;
+  visa_sponsorship: boolean;
+  visa_types?: string[];
+  international_student_friendly: boolean;
+  required_skills?: string[];
+  preferred_skills?: string[];
+  education_requirements?: string;
+  expires_at?: string;
+  draft_name?: string;
+  step: number;
+  created_by_user_id: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface JobDraftCreate {
+  title: string;
+  description?: string;
+  location?: string;
+  city?: string;
+  state?: string;
+  salary_min?: number;
+  salary_max?: number;
+  salary_currency?: string;
+  salary?: string;
+  employment_type?: string;
+  job_type?: string;
+  role_category?: string;
+  experience_level?: string;
+  remote_option?: boolean;
+  visa_sponsorship?: boolean;
+  visa_types?: string[];
+  international_student_friendly?: boolean;
+  required_skills?: string[];
+  preferred_skills?: string[];
+  education_requirements?: string;
+  expires_at?: string;
+  draft_name?: string;
+  step?: number;
 }
 
 // UI State Types

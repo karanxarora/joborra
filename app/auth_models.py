@@ -46,6 +46,8 @@ class User(Base):
     degree = Column(String(255), nullable=True)
     graduation_year = Column(Integer, nullable=True)
     visa_status = Column(String(100), nullable=True)  # e.g., "student_visa", "work_visa", "citizen"
+    city_suburb = Column(String(255), nullable=True)  # City/Suburb field for students
+    date_of_birth = Column(DateTime, nullable=True)  # Date of birth for students
     # Study details (moved from visa verification)
     course_name = Column(String(200), nullable=True)
     institution_name = Column(String(200), nullable=True)
@@ -75,6 +77,8 @@ class User(Base):
     company_website = Column(String(255), nullable=True)
     company_size = Column(String(100), nullable=True)
     industry = Column(String(255), nullable=True)
+    company_abn = Column(String(20), nullable=True)  # Australian Business Number
+    employer_role_title = Column(String(255), nullable=True)  # Role/Title of the registering person
     
     # Enhanced employer profile fields
     company_description = Column(Text, nullable=True)

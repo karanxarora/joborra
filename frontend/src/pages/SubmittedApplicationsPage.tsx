@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import DisabledButton from '../components/ui/DisabledButton';
 
 interface ApplicationItem {
   id: number;
@@ -86,7 +87,7 @@ const SubmittedApplicationsPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Button variant="secondary">View Job</Button>
-                <Button variant="ghost" disabled>Withdraw</Button>
+                <DisabledButton variant="ghost">Withdraw</DisabledButton>
               </div>
             </div>
           </Card>

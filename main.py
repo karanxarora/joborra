@@ -11,6 +11,9 @@ from sqlalchemy import text
 import logging
 import os
 
+# Import all models to ensure they're registered with SQLAlchemy
+from app.models import JobDraft  # noqa: F401
+
 # Configure logging EARLY so helpers can use logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,91 +21,45 @@ logger = logging.getLogger(__name__)
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-# SQLite compatibility: ensure new columns exist when models are updated without migrations
+# SQLite schema compatibility: ensure new columns exist when models are updated without migrations
 def ensure_schema_compatibility():
-    # Handle lightweight compatibility for SQLite and Postgres.
-    dialect = engine.dialect.name
-    if dialect not in ('sqlite', 'postgresql'):
-        return
+    # Simplified schema compatibility for SQLite only
     try:
-        # Use a transactional connection so DDL is committed on Postgres
         with engine.begin() as conn:
-            # Determine current schema for Postgres
-            pg_schema = 'public'
-            if dialect == 'postgresql':
-                try:
-                    row = conn.execute(text("SELECT current_schema()"))
-                    schema_val = row.fetchone()
-                    if schema_val and schema_val[0]:
-                        pg_schema = schema_val[0]
-                except Exception as ce:
-                    logger.warning(f"Could not determine current schema, defaulting to 'public': {ce}")
-
-            # Fetch existing columns by dialect
-            if dialect == 'sqlite':
-                result = conn.execute(text("PRAGMA table_info(users);"))
-                columns = [row[1] for row in result.fetchall()]  # row format: (cid, name, type, ...)
-            else:  # postgresql
-                result = conn.execute(text(
-                    """
-                    SELECT column_name FROM information_schema.columns
-                    WHERE table_name = 'users' AND table_schema = :schema
-                    """
-                ), {"schema": pg_schema})
-                columns = [row[0] for row in result.fetchall()]
-            logger.info(f"Schema compat: dialect={dialect}, schema={pg_schema if dialect=='postgresql' else 'sqlite'}, users columns found={len(columns)}")
+            # Fetch existing columns for users table
+            result = conn.execute(text("PRAGMA table_info(users);"))
+            columns = [row[1] for row in result.fetchall()]  # row format: (cid, name, type, ...)
+            logger.info(f"Schema compat: SQLite users columns found={len(columns)}")
             logger.info(f"Schema compat: users.education present? {'education' in columns}, users.experience present? {'experience' in columns}")
             
             # Common columns (resume + company_logo + contact_number)
             if 'resume_url' not in columns:
-                if dialect == 'postgresql':
-                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS resume_url VARCHAR(500)"))
-                else:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN resume_url VARCHAR(500)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN resume_url VARCHAR(500)"))
                 logger.info("Added missing column users.resume_url for compatibility")
             if 'contact_number' not in columns:
-                if dialect == 'postgresql':
-                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS contact_number VARCHAR(20)"))
-                else:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN contact_number VARCHAR(20)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN contact_number VARCHAR(20)"))
                 logger.info("Added missing column users.contact_number for compatibility")
-            # Check if company_logo_url exists on users table
             if 'company_logo_url' not in columns:
-                if dialect == 'postgresql':
-                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_logo_url VARCHAR(500)"))
-                else:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN company_logo_url VARCHAR(500)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN company_logo_url VARCHAR(500)"))
                 logger.info("Added missing column users.company_logo_url for compatibility")
             # OAuth columns for Google Sign-In
             if 'oauth_provider' not in columns:
-                if dialect == 'postgresql':
-                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_provider VARCHAR(50)"))
-                else:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(50)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(50)"))
                 logger.info("Added missing column users.oauth_provider for compatibility")
             if 'oauth_sub' not in columns:
-                if dialect == 'postgresql':
-                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS oauth_sub VARCHAR(255)"))
-                else:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN oauth_sub VARCHAR(255)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN oauth_sub VARCHAR(255)"))
                 logger.info("Added missing column users.oauth_sub for compatibility")
 
             # Education & Experience JSON text columns for student profiles
             if 'education' not in columns:
                 try:
-                    if dialect == 'postgresql':
-                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS education TEXT"))
-                    else:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN education TEXT"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN education TEXT"))
                     logger.info("Added missing column users.education for compatibility")
                 except Exception as ce:
                     logger.warning(f"Could not add column users.education: {ce}")
             if 'experience' not in columns:
                 try:
-                    if dialect == 'postgresql':
-                        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS experience TEXT"))
-                    else:
-                        conn.execute(text("ALTER TABLE users ADD COLUMN experience TEXT"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN experience TEXT"))
                     logger.info("Added missing column users.experience for compatibility")
                 except Exception as ce:
                     logger.warning(f"Could not add column users.experience: {ce}")
@@ -124,54 +81,28 @@ def ensure_schema_compatibility():
             for col_name, col_type in employer_cols:
                 if col_name not in columns:
                     try:
-                        if dialect == 'postgresql':
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
-                        else:
-                            conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+                        conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
                         logger.info(f"Added missing column users.{col_name} for compatibility")
                     except Exception as ce:
                         logger.warning(f"Could not add column users.{col_name}: {ce}")
 
             # Ensure new employer posting fields on jobs table
-            job_cols: list[str] = []
-            if dialect == 'sqlite':
-                result_jobs = conn.execute(text("PRAGMA table_info(jobs);"))
-                job_cols = [row[1] for row in result_jobs.fetchall()]
-                to_add = []
-                if 'salary' not in job_cols:
-                    to_add.append("ADD COLUMN salary VARCHAR(255)")
-                if 'job_type' not in job_cols:
-                    to_add.append("ADD COLUMN job_type VARCHAR(100)")
-                if 'visa_type' not in job_cols:
-                    to_add.append("ADD COLUMN visa_type VARCHAR(100)")
-                if 'job_document_url' not in job_cols:
-                    to_add.append("ADD COLUMN job_document_url VARCHAR(500)")
-                for clause in to_add:
-                    conn.execute(text(f"ALTER TABLE jobs {clause}"))
-                    logger.info(f"Added missing column on jobs: {clause}")
-            else:  # postgresql
-                result_jobs = conn.execute(text(
-                    """
-                    SELECT column_name FROM information_schema.columns
-                    WHERE table_name = 'jobs' AND table_schema = :schema
-                    """
-                ), {"schema": pg_schema})
-                job_cols = [row[0] for row in result_jobs.fetchall()]
-                # Add columns with IF NOT EXISTS where applicable
-                if 'salary' not in job_cols:
-                    conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS salary VARCHAR(255)"))
-                    logger.info("Added missing column on jobs: salary")
-                if 'job_type' not in job_cols:
-                    conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_type VARCHAR(100)"))
-                    logger.info("Added missing column on jobs: job_type")
-                if 'visa_type' not in job_cols:
-                    conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS visa_type VARCHAR(100)"))
-                    logger.info("Added missing column on jobs: visa_type")
-                if 'job_document_url' not in job_cols:
-                    conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_document_url VARCHAR(500)"))
-                    logger.info("Added missing column on jobs: job_document_url")
+            result_jobs = conn.execute(text("PRAGMA table_info(jobs);"))
+            job_cols = [row[1] for row in result_jobs.fetchall()]
+            to_add = []
+            if 'salary' not in job_cols:
+                to_add.append("ADD COLUMN salary VARCHAR(255)")
+            if 'job_type' not in job_cols:
+                to_add.append("ADD COLUMN job_type VARCHAR(100)")
+            if 'visa_type' not in job_cols:
+                to_add.append("ADD COLUMN visa_type VARCHAR(100)")
+            if 'job_document_url' not in job_cols:
+                to_add.append("ADD COLUMN job_document_url VARCHAR(500)")
+            for clause in to_add:
+                conn.execute(text(f"ALTER TABLE jobs {clause}"))
+                logger.info(f"Added missing column on jobs: {clause}")
 
-            # Create helpful indexes for filtering/search (SQLite safe)
+            # Create helpful indexes for filtering/search
             try:
                 result_idx = conn.execute(text("PRAGMA index_list('jobs');"))
                 existing_indexes = {row[1] for row in result_idx.fetchall()}  # row: (seq, name, unique, origin, partial)
@@ -201,7 +132,6 @@ def ensure_schema_compatibility():
             except Exception as ie:
                 logger.warning(f"Index creation skipped or failed: {ie}")
 
-            # Transaction will auto-commit on exiting the context
     except Exception as e:
         logger.warning(f"Schema compatibility check failed: {e}")
 
@@ -212,6 +142,17 @@ app = FastAPI(
     description="Scalable job scraping service for Australia with visa-friendly filtering",
     version="1.0.0"
 )
+
+# Global exception handler for database and other errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"Global exception handler caught: {exc}")
+    # Don't let database errors cause 500s that might log out users
+    if "sqlite3" in str(exc) or "database" in str(exc).lower():
+        logger.warning(f"Database error handled gracefully: {exc}")
+        return {"detail": "Service temporarily unavailable, please try again"}
+    # For other errors, let them be handled normally
+    raise exc
 
 # Add CORS middleware FIRST so it wraps all responses (including errors and preflight)
 app.add_middleware(

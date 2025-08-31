@@ -57,6 +57,8 @@ class Job(Base):
     employment_type = Column(String(50))  # full-time, part-time, contract, internship
     # Job type e.g. "software_engineer", "data_scientist", free text from employer
     job_type = Column(String(100))
+    # Role category: SERVICE_RETAIL_HOSPITALITY or STUDY_ALIGNED_PROFESSIONAL
+    role_category = Column(String(50))
     experience_level = Column(String(50))  # entry, junior, mid, senior, lead
     remote_option = Column(Boolean, default=False)
     
@@ -64,8 +66,8 @@ class Job(Base):
     visa_sponsorship = Column(Boolean, default=False)
     visa_sponsorship_confidence = Column(Float, default=0.0)  # 0-1 confidence score
     international_student_friendly = Column(Boolean, default=False)
-    # Employer-specified visa type (e.g., "Subclass 482 TSS", "Subclass 500 Student")
-    visa_type = Column(String(100))
+    # Employer-specified visa types (e.g., ["Subclass 482 TSS", "Subclass 500 Student"])
+    visa_types = Column(Text)  # JSON array of visa types
     
     # Job source metadata
     source_website = Column(String(100), nullable=False)
@@ -97,6 +99,62 @@ class Job(Base):
     favorited_by = relationship("JobFavorite", back_populates="job")
     applications = relationship("JobApplication", back_populates="job")
     views = relationship("JobView", back_populates="job")
+    
+    @property
+    def visa_types_list(self):
+        """Parse visa_types JSON string to list"""
+        if not self.visa_types:
+            return []
+        try:
+            import json
+            return json.loads(self.visa_types)
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+class JobDraft(Base):
+    __tablename__ = "job_drafts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    location = Column(String(200))
+    city = Column(String(100))
+    state = Column(String(50))
+    # Salary fields
+    salary_min = Column(Float)
+    salary_max = Column(Float)
+    salary_currency = Column(String(3), default="AUD")
+    salary = Column(String(255))
+    employment_type = Column(String(50))
+    job_type = Column(String(100))
+    role_category = Column(String(50))
+    experience_level = Column(String(50))
+    remote_option = Column(Boolean, default=False)
+    
+    # Visa-friendly indicators
+    visa_sponsorship = Column(Boolean, default=False)
+    visa_types = Column(Text)  # JSON array of visa types
+    international_student_friendly = Column(Boolean, default=False)
+    
+    # Skills and requirements
+    required_skills = Column(Text)  # JSON string of required skills
+    preferred_skills = Column(Text)  # JSON string of preferred skills
+    education_requirements = Column(Text)
+    expires_at = Column(DateTime)
+    
+    # Draft metadata
+    draft_name = Column(String(255))  # Optional name for the draft
+    step = Column(Integer, default=0)  # Current step in the form (0-4)
+    
+    # User relationship
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    created_by_user = relationship("User")
 
 class VisaKeyword(Base):
     __tablename__ = "visa_keywords"

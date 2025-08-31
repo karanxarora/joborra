@@ -16,10 +16,9 @@ from .visa_schemas import (
     VisaVerificationSummary, DocumentUploadResponse
 )
 from .visa_service import VisaVerificationService
-from .supabase_utils import (
-    upload_public_object,
-    SUPABASE_STORAGE_BUCKET,
-    supabase_configured,
+from .local_storage import (
+    upload_visa_document,
+    local_storage_configured,
     resolve_storage_url,
 )
 import logging
@@ -189,45 +188,17 @@ async def upload_visa_document(
             detail=f"Failed to read file: {str(e)}"
         )
 
-    # Try Supabase first
-    doc_url_value = None
-    if supabase_configured():
+    # Use local storage only
+    if local_storage_configured():
         try:
-            object_path = f"visa_documents/{current_user.id}/{document_type}_{uuid.uuid4()}{file_extension}"
-            mime = {
-                ".pdf": "application/pdf",
-                ".jpg": "image/jpeg",
-                ".jpeg": "image/jpeg",
-                ".png": "image/png",
-                ".doc": "application/msword",
-                ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            }.get(file_extension, "application/octet-stream")
-            uploaded = upload_public_object(
-                bucket=SUPABASE_STORAGE_BUCKET,
-                object_path=object_path,
-                data=content,
-                content_type=mime,
-            )
-            if uploaded:
-                doc_url_value = uploaded
-        except Exception:
-            logger.exception("Supabase visa document upload failed; will fallback to local storage")
-
-    # Fallback to local storage
-    if not doc_url_value:
-        upload_dir = Path("data/visa_documents") / str(current_user.id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        unique_filename = f"{document_type}_{uuid.uuid4()}{file_extension}"
-        file_path = upload_dir / unique_filename
-        try:
-            with open(file_path, "wb") as buffer:
-                buffer.write(content)
-            doc_url_value = f"/data/visa_documents/{current_user.id}/{unique_filename}"
+            doc_url_value = upload_visa_document(current_user.id, document_type, content, filename)
+            if not doc_url_value:
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save file: {str(e)}"
-            )
+            logger.error(f"Local storage upload error: {e}")
+            raise HTTPException(status_code=500, detail="Storage upload failed")
+    else:
+        raise HTTPException(status_code=500, detail="Storage not configured")
     
     # Update verification record with document URL
     service = VisaVerificationService(db)

@@ -1,25 +1,38 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Building, GraduationCap, Calendar, Phone } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Mail, Lock, User, Building, GraduationCap, Calendar, Phone, ExternalLink, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 import { LoginForm, RegisterForm } from '../types';
 import { AU_UNIVERSITIES } from '../constants/universities';
+import { AUSTRALIAN_SUBURBS } from '../constants/australianSuburbs';
 // import { DEGREES } from '../constants/degrees';
 import { useToast } from '../contexts/ToastContext';
 import apiService from '../services/api';
 import LogoIcon from '../components/ui/LogoIcon';
 import GoogleIcon from '../components/ui/GoogleIcon';
+import { extractErrorMessage } from '../utils/errorUtils';
 
 const AuthPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Set initial tab based on URL parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'register' || tab === 'signup') {
+      setActiveTab('register');
+    } else if (tab === 'login') {
+      setActiveTab('login');
+    }
+  }, [searchParams]);
 
   const [loginForm, setLoginForm] = useState<LoginForm>({
     email: '',
@@ -44,18 +57,23 @@ const AuthPage: React.FC = () => {
   // Split name fields (UI-only), keep full_name for backend
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [citySuburb, setCitySuburb] = useState('');
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
 
   const visaOptions = useMemo(() => [
-    'Student Visa (500)',
-    'Temporary Graduate (485)',
-    'Skilled Independent (189)',
-    'Skilled Nominated (190)',
-    'Skilled Work Regional (491)',
-    'Employer Sponsored TSS (482)',
-    'Employer Nomination (186)',
-    'Working Holiday (417/462)',
+    'Student Visa (subclass 500)',
+    'Temporary Graduate (subclass 485)',
+    'Skilled Independent (subclass 189)',
+    'Skilled Nominated (subclass 190)',
+    'Skilled Work Regional (subclass 491)',
+    'Employer Sponsored TSS (subclass 482)',
+    'Employer Nomination (subclass 186)',
+    'Working Holiday (subclass 417/462)',
     'Other/Not Sure',
   ], []);
+
+  const australianSuburbs = AUSTRALIAN_SUBURBS;
 
   const gradYears = useMemo(() => {
     const current = new Date().getFullYear();
@@ -63,6 +81,27 @@ const AuthPage: React.FC = () => {
     for (let y = current - 10; y <= current + 6; y++) years.push(y);
     return years;
   }, []);
+
+  // Handle city/suburb autocomplete
+  const handleCityChange = (value: string) => {
+    setCitySuburb(value);
+    if (value.length > 1) {
+      const filtered = australianSuburbs.filter(suburb =>
+        suburb.toLowerCase().includes(value.toLowerCase())
+      ).slice(0, 10); // Limit to 10 suggestions
+      setCitySuggestions(filtered);
+      setShowCitySuggestions(true);
+    } else {
+      setCitySuggestions([]);
+      setShowCitySuggestions(false);
+    }
+  };
+
+  const selectCity = (city: string) => {
+    setCitySuburb(city);
+    setShowCitySuggestions(false);
+    setCitySuggestions([]);
+  };
 
   // Handle OAuth redirect tokens (?oauth=success&access_token=...)
   useEffect(() => {
@@ -80,7 +119,12 @@ const AuthPage: React.FC = () => {
           const me = await apiService.getCurrentUser();
           localStorage.setItem('user', JSON.stringify(me));
           toast('Signed in with Google', 'success');
-          navigate('/profile');
+          // Redirect based on user role
+          if (me.role === 'employer') {
+            navigate('/employer/dashboard');
+          } else {
+            navigate('/profile');
+          }
         } catch (e) {
           setError('Failed to complete Google sign-in');
         }
@@ -132,9 +176,14 @@ const AuthPage: React.FC = () => {
                 return;
               }
               try {
-                await apiService.googleLoginWithIdToken(id_token);
+                const authResponse = await apiService.googleLoginWithIdToken(id_token);
                 toast('Signed in with Google', 'success');
-                navigate('/profile');
+                // Redirect based on user role
+                if (authResponse.user.role === 'employer') {
+                  navigate('/employer/dashboard');
+                } else {
+                  navigate('/profile');
+                }
                 resolve();
               } catch (err: any) {
                 const detail = err?.response?.data?.detail || '';
@@ -179,9 +228,16 @@ const AuthPage: React.FC = () => {
     try {
       await login(loginForm);
       toast('Successfully logged in', 'success');
-      navigate('/profile');
+      // Get user from context after login
+      const currentUser = await apiService.getCurrentUser();
+      // Redirect based on user role
+      if (currentUser.role === 'employer') {
+        navigate('/employer/dashboard');
+      } else {
+        navigate('/profile');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -195,7 +251,12 @@ const AuthPage: React.FC = () => {
     try {
       // Build full_name from split fields
       const full_name = `${firstName} ${lastName}`.trim();
-      const payload: RegisterForm = { ...registerForm, full_name };
+      const payload: RegisterForm = { 
+        ...registerForm, 
+        full_name, 
+        city_suburb: citySuburb,
+        date_of_birth: dob ? new Date(dob).toISOString() : undefined
+      };
       // Normalize company website (allow domain without protocol)
       if (payload.company_website && !/^https?:\/\//i.test(payload.company_website)) {
         payload.company_website = `https://${payload.company_website}`;
@@ -225,7 +286,7 @@ const AuthPage: React.FC = () => {
         navigate('/profile');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -240,7 +301,10 @@ const AuthPage: React.FC = () => {
             <LogoIcon className="h-12 w-12 mb-3" />
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">Joborra</h1>
             <p className="text-base text-slate-700 font-semibold">
-              1st International Student's Job Portal
+              1<sup>st</sup> International Students' Job Portal
+            </p>
+            <p className="text-sm text-slate-600 mt-2">
+              Join the Joborra Pilot — Verified jobs for international students. Confident hiring for employers.
             </p>
           </div>
         </div>
@@ -276,7 +340,7 @@ const AuthPage: React.FC = () => {
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
               <div className="flex items-center">
                 <span className="text-red-500 mr-2">⚠️</span>
-                <span className="font-medium">{error}</span>
+                <span className="font-medium">{extractErrorMessage(error)}</span>
               </div>
             </div>
           )}
@@ -357,13 +421,20 @@ const AuthPage: React.FC = () => {
                   required
                 />
                 <Input
-                  label="Contact Number"
+                  label="Contact Number (optional)"
                   type="tel"
-                  placeholder="+61 4XX XXX XXX"
+                  placeholder="4XX XXX XXX"
                   value={registerForm.contact_number || ''}
-                  onChange={(e) => setRegisterForm({ ...registerForm, contact_number: e.target.value })}
+                  onChange={(e) => {
+                    let value = e.target.value;
+                    // Remove any existing +61 prefix and non-digits except spaces
+                    value = value.replace(/^\+61\s*/, '').replace(/[^\d\s]/g, '');
+                    // Add +61 prefix automatically
+                    const formattedNumber = value ? `+61 ${value}` : '';
+                    setRegisterForm({ ...registerForm, contact_number: formattedNumber });
+                  }}
                   icon={<Phone className="h-4 w-4" />}
-                  helperText="Include country code (e.g., +61 for Australia)"
+                  helperText="Australian mobile number (country code +61 added automatically)"
                 />
                 <Input
                   label="Password"
@@ -416,7 +487,7 @@ const AuthPage: React.FC = () => {
                     type="date"
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
-                    helperText="We currently don't store DOB. This is for future profile enhancements."
+                    required
                   />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -436,6 +507,42 @@ const AuthPage: React.FC = () => {
                       <GraduationCap className="h-4 w-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
+                  
+                  {/* City/Suburb field with autocomplete */}
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      City/Suburb
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={citySuburb}
+                        onChange={(e) => handleCityChange(e.target.value)}
+                        onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
+                        onFocus={() => citySuburb.length > 1 && setShowCitySuggestions(true)}
+                        placeholder="Start typing your city or suburb..."
+                        className="input-field w-full pl-10"
+                        required
+                      />
+                      <MapPin className="h-4 w-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                      
+                      {/* Autocomplete suggestions */}
+                      {showCitySuggestions && citySuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {citySuggestions.map((suggestion, index) => (
+                            <div
+                              key={index}
+                              className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-sm"
+                              onClick={() => selectCity(suggestion)}
+                            >
+                              {suggestion}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   {/* Degree free text input */}
                   <div>
                     <Input
@@ -443,6 +550,7 @@ const AuthPage: React.FC = () => {
                       placeholder="e.g., Bachelor of Computer Science, Master of Business Administration"
                       value={registerForm.degree || ''}
                       onChange={(e) => setRegisterForm({ ...registerForm, degree: e.target.value })}
+                      required
                     />
                   </div>
                   <div>
@@ -462,7 +570,18 @@ const AuthPage: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Visa Type</label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="block text-sm font-medium text-slate-700">Visa Type</label>
+                      <a 
+                        href="https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-cyan-600 hover:text-cyan-700 transition-colors"
+                        title="Learn about Australian visa types"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
                     <select
                       value={registerForm.visa_status || ''}
                       onChange={(e) => setRegisterForm({ ...registerForm, visa_status: e.target.value })}
@@ -485,6 +604,31 @@ const AuthPage: React.FC = () => {
                     value={registerForm.company_name || ''}
                     onChange={(e) => setRegisterForm({ ...registerForm, company_name: e.target.value })}
                     icon={<Building className="h-4 w-4" />}
+                    required
+                  />
+                  <Input
+                    label="Your Role/Title in the Company"
+                    value={registerForm.employer_role_title || ''}
+                    onChange={(e) => setRegisterForm({ ...registerForm, employer_role_title: e.target.value })}
+                    placeholder="e.g., HR Manager, CEO, Hiring Manager"
+                    required
+                  />
+                  <Input
+                    label="Company ABN"
+                    value={registerForm.company_abn || ''}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      // Remove any non-digit characters except spaces and hyphens
+                      value = value.replace(/[^\d\s-]/g, '');
+                      // Limit to 11 digits
+                      const digits = value.replace(/[^\d]/g, '');
+                      if (digits.length <= 11) {
+                        setRegisterForm({ ...registerForm, company_abn: value });
+                      }
+                    }}
+                    placeholder="XX XXX XXX XXX"
+                    helperText="11-digit Australian Business Number"
+                    required
                   />
                   <Input
                     label="Company Website (optional)"
@@ -501,6 +645,7 @@ const AuthPage: React.FC = () => {
                         value={registerForm.company_size || ''}
                         onChange={(e) => setRegisterForm({ ...registerForm, company_size: e.target.value })}
                         className="input-field"
+                        required
                       >
                         <option value="">Select size</option>
                         <option value="1-10">1-10 employees</option>
@@ -516,6 +661,7 @@ const AuthPage: React.FC = () => {
                         value={registerForm.industry || ''}
                         onChange={(e) => setRegisterForm({ ...registerForm, industry: e.target.value })}
                         className="input-field w-full"
+                        required
                       >
                         <option value="">Select industry</option>
                         {[

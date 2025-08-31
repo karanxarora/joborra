@@ -4,10 +4,12 @@ import Button from '../components/ui/Button';
 import JobCard from '../components/jobs/JobCard';
 import { useFavorites } from '../contexts/FavoritesContext';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const SavedJobsPage: React.FC = () => {
   const { favorites, loading, remove } = useFavorites();
   const { toast } = useToast();
+  const { isAuthenticated, user } = useAuth();
   const [saving, setSaving] = useState<Record<number, boolean>>({});
 
   const unsave = async (favoriteId: number) => {
@@ -36,9 +38,13 @@ const SavedJobsPage: React.FC = () => {
         ) : favorites.length === 0 ? (
           <Card className="text-center py-12">
             <p className="text-slate-700 mb-4">You haven't saved any jobs yet.</p>
-            <a href="/jobs">
-              <Button>Browse Jobs</Button>
-            </a>
+            {isAuthenticated && user?.role === 'employer' ? (
+              <a href="/employer/post-job">
+                <Button>Post Jobs</Button>
+              </a>
+            ) : (
+              <Button disabled className="opacity-50 cursor-not-allowed bg-slate-300 text-slate-500 border-slate-300" title="Disabled for Pilot">Browse Jobs</Button>
+            )}
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

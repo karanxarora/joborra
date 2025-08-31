@@ -116,6 +116,9 @@ jobs:
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
 
+            # Ensure storage directories exist for SQLite setup
+            mkdir -p data
+            
             # Ensure env files exist (backend .env)
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
               echo "${{ secrets.BACKEND_ENV }}" > .env
@@ -127,8 +130,15 @@ jobs:
               echo "REACT_APP_API_URL=/api" > frontend/.env.production
             fi
 
+            # Stop services before rebuild to handle SQLite file locks
+            docker compose -f docker-compose.yml down || true
+            
             # Build and start services
             docker compose -f docker-compose.yml build --no-cache
             docker compose -f docker-compose.yml up -d
+            
+            # Verify deployment
+            sleep 10
+            docker compose logs api --tail=50
             # Cleanup old images
             docker image prune -f || true

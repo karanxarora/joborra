@@ -6,10 +6,20 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data              # Local file storage
+      - sqlite_data:/app/             # SQLite database persistence (handles all .db* files)
     expose:
       - "8000"
     restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///./joborra.db
+      - LOCAL_STORAGE_PATH=/app/data
+      - LOCAL_STORAGE_URL_PREFIX=/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:
@@ -36,3 +46,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  sqlite_data:  # Named volume for SQLite database files

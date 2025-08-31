@@ -137,23 +137,24 @@ docker-compose logs -f frontend
 
 ## Environment Configuration
 
-The application supports both SQLite (development) and PostgreSQL (production):
-- SQLite: Used when `DATABASE_URL` not set or starts with `sqlite://`
-- PostgreSQL: Used for production (Supabase integration)
+The application uses SQLite for both development and production:
+- SQLite: Always used, optimized for production with WAL mode and caching
+- Local Storage: Replaces Supabase for file storage
 - Redis: Required for background task processing with Celery
 
 Critical environment variables:
-- `DATABASE_URL`: Database connection string
+- `DATABASE_URL`: SQLite connection string (defaults to sqlite:///./joborra.db)
+- `LOCAL_STORAGE_PATH`: Local file storage directory (defaults to ./data)
 - `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`: OAuth credentials
 - `GOOGLE_GENAI_API_KEY`: For AI job description analysis
-- `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE`: File storage
 
 ## Database Schema Compatibility
 
 The application includes dynamic schema compatibility in `main.py` that:
-- Automatically adds missing columns for SQLite and PostgreSQL
+- Automatically adds missing columns for SQLite
 - Creates indexes for performance optimization
 - Handles schema evolution without breaking existing deployments
+- SQLite is configured with WAL mode for better concurrency and performance
 
 ## Testing Strategy
 

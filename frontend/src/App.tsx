@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
@@ -17,11 +17,15 @@ import './App.css';
 import EmployerPostJobPage from './pages/EmployerPostJobPage';
 import EmployerQuickPostPage from './pages/EmployerQuickPostPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
-import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
+
 import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
+import EmployerDashboardPage from './pages/EmployerDashboardPage';
 import SubmittedApplicationsPage from './pages/SubmittedApplicationsPage';
 import AccessDeniedPage from './pages/AccessDeniedPage';
 import SavedJobsPage from './pages/SavedJobsPage';
+import EmployerVisaGuidePage from './pages/EmployerVisaGuidePage';
+import JobDraftsPage from './pages/JobDraftsPage';
+import EmployerJobViewPage from './pages/EmployerJobViewPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -122,14 +126,7 @@ const AppContent: React.FC = () => {
               </RoleProtectedRoute>
             }
           />
-          <Route
-            path="/employer/company"
-            element={
-              <RoleProtectedRoute role="employer">
-                <EmployerCompanyInfoPage />
-              </RoleProtectedRoute>
-            }
-          />
+
           <Route
             path="/employer/applications"
             element={
@@ -138,7 +135,32 @@ const AppContent: React.FC = () => {
               </RoleProtectedRoute>
             }
           />
+          <Route
+            path="/employer/dashboard"
+            element={
+              <RoleProtectedRoute role="employer">
+                <EmployerDashboardPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/jobs/:id"
+            element={
+              <RoleProtectedRoute role="employer">
+                <EmployerJobViewPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/drafts"
+            element={
+              <RoleProtectedRoute role="employer">
+                <JobDraftsPage />
+              </RoleProtectedRoute>
+            }
+          />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/employer-visa-guide" element={<EmployerVisaGuidePage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -164,6 +186,21 @@ const AppContent: React.FC = () => {
 };
 
 function App() {
+  useEffect(() => {
+    // Handle ResizeObserver errors globally
+    const handleResizeObserverError = (e: ErrorEvent) => {
+      if (e.message === 'ResizeObserver loop completed with undelivered notifications.') {
+        e.stopImmediatePropagation();
+      }
+    };
+
+    window.addEventListener('error', handleResizeObserverError);
+    
+    return () => {
+      window.removeEventListener('error', handleResizeObserverError);
+    };
+  }, []);
+
   return (
     <Router>
       <AuthProvider>

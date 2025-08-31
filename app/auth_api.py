@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 import os
 import secrets
+import json
+import time
 
 from .database import get_db
 from .auth import AuthService, get_current_user, get_current_student, get_current_employer
@@ -19,21 +21,31 @@ from .auth_schemas import (
     StudentProfileUpdate, EmployerProfileUpdate, JobViewCreate, JobViewResponse, JobAnalytics, 
     EmployerJobCreate, EmployerJobUpdate, JobApplicationWithJob, EmployerApplicationWithUser, ApplicationStatusUpdate
 )
-from .models import Job, Company
-from .schemas import Job as JobSchema
+from .models import Job, Company, JobDraft
+from .schemas import Job as JobSchema, JobDraft as JobDraftSchema, JobDraftCreate, JobDraftUpdate
 from .session_service import SessionService
 import logging
 import uuid
 from pathlib import Path
 from sqlalchemy import text
-from .supabase_utils import (
-    upload_public_object,
-    SUPABASE_STORAGE_BUCKET,
-    supabase_configured,
+from .local_storage import (
+    upload_resume,
+    upload_company_logo,
+    upload_job_document,
+    local_storage_configured,
     resolve_storage_url,
 )
 
 logger = logging.getLogger(__name__)
+
+def safe_json_loads(json_str):
+    """Safely parse JSON string, return None if invalid or empty"""
+    if not json_str or not json_str.strip() or json_str == 'null':
+        return None
+    try:
+        return json.loads(json_str)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 router = APIRouter(tags=["authentication"])
 
@@ -782,13 +794,14 @@ def create_job_posting(
         salary=job_data.salary,
         employment_type=job_data.employment_type,
         job_type=job_data.job_type,
+        role_category=job_data.role_category,
         experience_level=job_data.experience_level,
         remote_option=job_data.remote_option,
         visa_sponsorship=job_data.visa_sponsorship,
-        visa_type=job_data.visa_type,
+        visa_types=json.dumps(job_data.visa_types) if job_data.visa_types else None,
         international_student_friendly=job_data.international_student_friendly,
         source_website="joborra.com",
-        source_url=f"https://joborra.com/jobs/{job_data.title.lower().replace(' ', '-')}",
+        source_url=f"https://joborra.com/jobs/{job_data.title.lower().replace(' ', '-')}-{int(time.time())}",
         required_skills=job_data.required_skills,
         preferred_skills=job_data.preferred_skills,
         education_requirements=job_data.education_requirements,
@@ -803,7 +816,45 @@ def create_job_posting(
     db.refresh(job)
     
     logger.info(f"Employer {current_user.id} created job posting: {job.title}")
-    return job
+    
+    # Return properly formatted response
+    return {
+        "id": job.id,
+        "title": job.title,
+        "description": job.description,
+        "location": job.location,
+        "state": job.state,
+        "city": job.city,
+        "salary_min": job.salary_min,
+        "salary_max": job.salary_max,
+        "salary_currency": job.salary_currency,
+        "salary": job.salary,
+        "employment_type": job.employment_type,
+        "job_type": job.job_type,
+        "role_category": job.role_category,
+        "experience_level": job.experience_level,
+        "remote_option": job.remote_option,
+        "visa_sponsorship": job.visa_sponsorship,
+        "visa_sponsorship_confidence": job.visa_sponsorship_confidence,
+        "international_student_friendly": job.international_student_friendly,
+        "visa_types": safe_json_loads(job.visa_types),
+        "source_website": job.source_website,
+        "source_url": job.source_url,
+        "source_job_id": job.source_job_id,
+        "required_skills": safe_json_loads(job.required_skills),
+        "preferred_skills": safe_json_loads(job.preferred_skills),
+        "education_requirements": job.education_requirements,
+        "posted_date": job.posted_date,
+        "expires_at": job.expires_at,
+        "job_document_url": job.job_document_url,
+        "posted_by_user_id": job.posted_by_user_id,
+        "is_joborra_job": job.is_joborra_job,
+        "scraped_at": job.scraped_at,
+        "updated_at": job.updated_at,
+        "is_active": job.is_active,
+        "is_duplicate": job.is_duplicate,
+        "company_id": job.company_id
+    }
 
 @employer_router.post("/jobs/{job_id}/document")
 async def upload_job_document(
@@ -842,34 +893,17 @@ async def upload_job_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Try Supabase first
-    doc_url_value = None
-    if supabase_configured():
+    # Use local storage only
+    if local_storage_configured():
         try:
-            object_path = f"job_docs/{current_user.id}/{job_id}/doc_{uuid.uuid4()}{ext}"
-            uploaded = upload_public_object(
-                bucket=SUPABASE_STORAGE_BUCKET,
-                object_path=object_path,
-                data=content,
-                content_type="application/octet-stream",
-            )
-            if uploaded:
-                doc_url_value = uploaded
-        except Exception:
-            logger.exception("Supabase job document upload failed; will fallback to local storage")
-
-    # Fallback to local
-    if not doc_url_value:
-        upload_dir = Path("data/job_docs") / str(current_user.id) / str(job_id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        unique_name = f"doc_{uuid.uuid4()}{ext}"
-        file_path = upload_dir / unique_name
-        try:
-            with open(file_path, "wb") as f:
-                f.write(content)
-            doc_url_value = f"/data/job_docs/{current_user.id}/{job_id}/{unique_name}"
+            doc_url_value = upload_job_document(current_user.id, job_id, content, file.filename)
+            if not doc_url_value:
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+            logger.error(f"Local storage upload error: {e}")
+            raise HTTPException(status_code=500, detail="Storage upload failed")
+    else:
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update DB
     job.job_document_url = doc_url_value
@@ -895,7 +929,401 @@ def get_employer_jobs(
         Job.posted_by_user_id == current_user.id
     ).all()
     
-    return jobs
+    # Return properly formatted response for each job
+    return [
+        {
+            "id": job.id,
+            "title": job.title,
+            "description": job.description,
+            "location": job.location,
+            "state": job.state,
+            "city": job.city,
+            "salary_min": job.salary_min,
+            "salary_max": job.salary_max,
+            "salary_currency": job.salary_currency,
+            "salary": job.salary,
+            "employment_type": job.employment_type,
+            "job_type": job.job_type,
+            "role_category": job.role_category,
+            "experience_level": job.experience_level,
+            "remote_option": job.remote_option,
+            "visa_sponsorship": job.visa_sponsorship,
+            "visa_sponsorship_confidence": job.visa_sponsorship_confidence,
+            "international_student_friendly": job.international_student_friendly,
+            "visa_types": safe_json_loads(job.visa_types),
+            "source_website": job.source_website,
+            "source_url": job.source_url,
+            "source_job_id": job.source_job_id,
+            "required_skills": safe_json_loads(job.required_skills),
+            "preferred_skills": safe_json_loads(job.preferred_skills),
+            "education_requirements": job.education_requirements,
+            "posted_date": job.posted_date,
+            "expires_at": job.expires_at,
+            "job_document_url": job.job_document_url,
+            "posted_by_user_id": job.posted_by_user_id,
+            "is_joborra_job": job.is_joborra_job,
+            "scraped_at": job.scraped_at,
+            "updated_at": job.updated_at,
+            "is_active": job.is_active,
+            "is_duplicate": job.is_duplicate,
+            "company_id": job.company_id
+        }
+        for job in jobs
+    ]
+
+# Job Draft Management Endpoints
+@employer_router.post("/job-drafts")
+def create_job_draft(
+    draft_data: JobDraftCreate,
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Create a new job draft"""
+    try:
+        # Serialize skills to JSON strings
+        import json
+        required_skills_json = json.dumps(draft_data.required_skills) if draft_data.required_skills else None
+        preferred_skills_json = json.dumps(draft_data.preferred_skills) if draft_data.preferred_skills else None
+        
+        # Use raw SQL to insert the draft
+        from sqlalchemy import text
+        
+        result = db.execute(text("""
+            INSERT INTO job_drafts (title, description, location, city, state, salary_min, salary_max, 
+                                  salary_currency, salary, employment_type, job_type, role_category, 
+                                  experience_level, remote_option, visa_sponsorship, visa_types, 
+                                  international_student_friendly, required_skills, preferred_skills, 
+                                  education_requirements, expires_at, draft_name, step, created_by_user_id)
+            VALUES (:title, :description, :location, :city, :state, :salary_min, :salary_max, 
+                   :salary_currency, :salary, :employment_type, :job_type, :role_category, 
+                   :experience_level, :remote_option, :visa_sponsorship, :visa_types, 
+                   :international_student_friendly, :required_skills, :preferred_skills, 
+                   :education_requirements, :expires_at, :draft_name, :step, :created_by_user_id)
+        """), {
+            'title': draft_data.title,
+            'description': draft_data.description,
+            'location': draft_data.location,
+            'city': draft_data.city,
+            'state': draft_data.state,
+            'salary_min': draft_data.salary_min,
+            'salary_max': draft_data.salary_max,
+            'salary_currency': draft_data.salary_currency or "AUD",
+            'salary': draft_data.salary,
+            'employment_type': draft_data.employment_type,
+            'job_type': draft_data.job_type,
+            'role_category': draft_data.role_category,
+            'experience_level': draft_data.experience_level,
+            'remote_option': draft_data.remote_option or False,
+            'visa_sponsorship': draft_data.visa_sponsorship or False,
+            'visa_types': json.dumps(draft_data.visa_types) if draft_data.visa_types else None,
+            'international_student_friendly': draft_data.international_student_friendly or False,
+            'required_skills': required_skills_json,
+            'preferred_skills': preferred_skills_json,
+            'education_requirements': draft_data.education_requirements,
+            'expires_at': draft_data.expires_at,
+            'draft_name': draft_data.draft_name,
+            'step': draft_data.step or 0,
+            'created_by_user_id': current_user.id
+        })
+        
+        db.commit()
+        draft_id = result.lastrowid
+        
+        logger.info(f"Employer {current_user.id} created job draft: {draft_data.title}")
+        
+        # Return simple response
+        return {
+            'id': draft_id,
+            'title': draft_data.title,
+            'message': 'Draft saved successfully'
+        }
+    except Exception as e:
+        logger.error(f"Error creating job draft: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating job draft: {str(e)}")
+
+@employer_router.get("/job-drafts")
+def get_employer_job_drafts(
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Get all job drafts created by current employer"""
+    drafts = db.query(JobDraft).filter(
+        JobDraft.created_by_user_id == current_user.id
+    ).order_by(JobDraft.updated_at.desc()).all()
+    
+    # Convert to response format
+    response_data = []
+    for draft in drafts:
+        response_data.append({
+            'id': draft.id,
+            'title': draft.title,
+            'description': draft.description,
+            'location': draft.location,
+            'city': draft.city,
+            'state': draft.state,
+            'salary_min': draft.salary_min,
+            'salary_max': draft.salary_max,
+            'salary_currency': draft.salary_currency,
+            'salary': draft.salary,
+            'employment_type': draft.employment_type,
+            'job_type': draft.job_type,
+            'role_category': draft.role_category,
+            'experience_level': draft.experience_level,
+            'remote_option': draft.remote_option,
+            'visa_sponsorship': draft.visa_sponsorship,
+            'visa_types': safe_json_loads(draft.visa_types),
+            'international_student_friendly': draft.international_student_friendly,
+            'required_skills': json.loads(draft.required_skills) if draft.required_skills else None,
+            'preferred_skills': json.loads(draft.preferred_skills) if draft.preferred_skills else None,
+            'education_requirements': draft.education_requirements,
+            'expires_at': draft.expires_at,
+            'draft_name': draft.draft_name,
+            'step': draft.step,
+            'created_by_user_id': draft.created_by_user_id,
+            'created_at': draft.created_at,
+            'updated_at': draft.updated_at
+        })
+    return response_data
+
+@employer_router.get("/job-drafts/{draft_id}")
+def get_job_draft(
+    draft_id: int,
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Get a specific job draft by ID"""
+    draft = db.query(JobDraft).filter(
+        JobDraft.id == draft_id,
+        JobDraft.created_by_user_id == current_user.id
+    ).first()
+    
+    if not draft:
+        raise HTTPException(status_code=404, detail="Job draft not found")
+    
+    # Convert to response format
+    response_data = {
+        'id': draft.id,
+        'title': draft.title,
+        'description': draft.description,
+        'location': draft.location,
+        'city': draft.city,
+        'state': draft.state,
+        'salary_min': draft.salary_min,
+        'salary_max': draft.salary_max,
+        'salary_currency': draft.salary_currency,
+        'salary': draft.salary,
+        'employment_type': draft.employment_type,
+        'job_type': draft.job_type,
+        'role_category': draft.role_category,
+        'experience_level': draft.experience_level,
+        'remote_option': draft.remote_option,
+        'visa_sponsorship': draft.visa_sponsorship,
+        'visa_types': safe_json_loads(draft.visa_types),
+        'international_student_friendly': draft.international_student_friendly,
+        'required_skills': safe_json_loads(draft.required_skills),
+        'preferred_skills': safe_json_loads(draft.preferred_skills),
+        'education_requirements': draft.education_requirements,
+        'expires_at': draft.expires_at,
+        'draft_name': draft.draft_name,
+        'step': draft.step,
+        'created_by_user_id': draft.created_by_user_id,
+        'created_at': draft.created_at,
+        'updated_at': draft.updated_at
+    }
+    return response_data
+
+@employer_router.put("/job-drafts/{draft_id}")
+def update_job_draft(
+    draft_id: int,
+    draft_data: JobDraftUpdate,
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Update a job draft"""
+    draft = db.query(JobDraft).filter(
+        JobDraft.id == draft_id,
+        JobDraft.created_by_user_id == current_user.id
+    ).first()
+    
+    if not draft:
+        raise HTTPException(status_code=404, detail="Job draft not found")
+    
+    # Update fields
+    for field, value in draft_data.dict(exclude_unset=True).items():
+        if field in ['required_skills', 'preferred_skills', 'visa_types'] and value is not None:
+            setattr(draft, field, json.dumps(value))
+        else:
+            setattr(draft, field, value)
+    
+    db.commit()
+    db.refresh(draft)
+    
+    logger.info(f"Employer {current_user.id} updated job draft {draft_id}")
+    
+    # Convert to response format
+    response_data = {
+        'id': draft.id,
+        'title': draft.title,
+        'description': draft.description,
+        'location': draft.location,
+        'city': draft.city,
+        'state': draft.state,
+        'salary_min': draft.salary_min,
+        'salary_max': draft.salary_max,
+        'salary_currency': draft.salary_currency,
+        'salary': draft.salary,
+        'employment_type': draft.employment_type,
+        'job_type': draft.job_type,
+        'role_category': draft.role_category,
+        'experience_level': draft.experience_level,
+        'remote_option': draft.remote_option,
+        'visa_sponsorship': draft.visa_sponsorship,
+        'visa_types': safe_json_loads(draft.visa_types),
+        'international_student_friendly': draft.international_student_friendly,
+        'required_skills': safe_json_loads(draft.required_skills),
+        'preferred_skills': safe_json_loads(draft.preferred_skills),
+        'education_requirements': draft.education_requirements,
+        'expires_at': draft.expires_at,
+        'draft_name': draft.draft_name,
+        'step': draft.step,
+        'created_by_user_id': draft.created_by_user_id,
+        'created_at': draft.created_at,
+        'updated_at': draft.updated_at
+    }
+    return response_data
+
+@employer_router.delete("/job-drafts/{draft_id}")
+def delete_job_draft(
+    draft_id: int,
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Delete a job draft"""
+    draft = db.query(JobDraft).filter(
+        JobDraft.id == draft_id,
+        JobDraft.created_by_user_id == current_user.id
+    ).first()
+    
+    if not draft:
+        raise HTTPException(status_code=404, detail="Job draft not found")
+    
+    db.delete(draft)
+    db.commit()
+    
+    logger.info(f"Employer {current_user.id} deleted job draft {draft_id}")
+    return {"message": "Job draft deleted successfully"}
+
+@employer_router.post("/job-drafts/{draft_id}/publish", response_model=JobSchema)
+def publish_job_draft(
+    draft_id: int,
+    current_user: User = Depends(get_current_employer),
+    db: Session = Depends(get_db)
+):
+    """Publish a job draft as a live job posting"""
+    draft = db.query(JobDraft).filter(
+        JobDraft.id == draft_id,
+        JobDraft.created_by_user_id == current_user.id
+    ).first()
+    
+    if not draft:
+        raise HTTPException(status_code=404, detail="Job draft not found")
+    
+    # Get or create company
+    company = None
+    if current_user.company_name:
+        company = db.query(Company).filter(
+            Company.name == current_user.company_name
+        ).first()
+        
+        if not company:
+            company = Company(
+                name=current_user.company_name,
+                website=current_user.company_website,
+                size=current_user.company_size,
+                industry=current_user.industry
+            )
+            db.add(company)
+            db.commit()
+            db.refresh(company)
+    
+    # Create job from draft
+    job = Job(
+        title=draft.title,
+        description=draft.description,
+        location=draft.location,
+        city=draft.city,
+        state=draft.state,
+        salary_min=draft.salary_min,
+        salary_max=draft.salary_max,
+        salary_currency=draft.salary_currency,
+        salary=draft.salary,
+        employment_type=draft.employment_type,
+        job_type=draft.job_type,
+        role_category=draft.role_category,
+        experience_level=draft.experience_level,
+        remote_option=draft.remote_option,
+        visa_sponsorship=draft.visa_sponsorship,
+        visa_types=draft.visa_types,
+        international_student_friendly=draft.international_student_friendly,
+        source_website="joborra.com",
+        source_url=f"https://joborra.com/jobs/{draft.title.lower().replace(' ', '-')}-{int(time.time())}",
+        required_skills=safe_json_loads(draft.required_skills),
+        preferred_skills=safe_json_loads(draft.preferred_skills),
+        education_requirements=draft.education_requirements,
+        expires_at=draft.expires_at,
+        company_id=company.id if company else None,
+        posted_by_user_id=current_user.id,
+        is_joborra_job=True
+    )
+    
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    
+    # Delete the draft after successful publishing
+    db.delete(draft)
+    db.commit()
+    
+    logger.info(f"Employer {current_user.id} published job draft {draft_id} as job {job.id}")
+    
+    # Return properly formatted response
+    return {
+        "id": job.id,
+        "title": job.title,
+        "description": job.description,
+        "location": job.location,
+        "state": job.state,
+        "city": job.city,
+        "salary_min": job.salary_min,
+        "salary_max": job.salary_max,
+        "salary_currency": job.salary_currency,
+        "salary": job.salary,
+        "employment_type": job.employment_type,
+        "job_type": job.job_type,
+        "role_category": job.role_category,
+        "experience_level": job.experience_level,
+        "remote_option": job.remote_option,
+        "visa_sponsorship": job.visa_sponsorship,
+        "visa_sponsorship_confidence": job.visa_sponsorship_confidence,
+        "international_student_friendly": job.international_student_friendly,
+        "visa_types": safe_json_loads(job.visa_types),
+        "source_website": job.source_website,
+        "source_url": job.source_url,
+        "source_job_id": job.source_job_id,
+        "required_skills": safe_json_loads(job.required_skills),
+        "preferred_skills": safe_json_loads(job.preferred_skills),
+        "education_requirements": job.education_requirements,
+        "posted_date": job.posted_date,
+        "expires_at": job.expires_at,
+        "job_document_url": job.job_document_url,
+        "posted_by_user_id": job.posted_by_user_id,
+        "is_joborra_job": job.is_joborra_job,
+        "scraped_at": job.scraped_at,
+        "updated_at": job.updated_at,
+        "is_active": job.is_active,
+        "is_duplicate": job.is_duplicate,
+        "company_id": job.company_id
+    }
 
 @employer_router.get("/applications", response_model=List[EmployerApplicationWithUser])
 def list_employer_applications(
@@ -1043,34 +1471,17 @@ async def upload_resume(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Try Supabase Storage first (public bucket)
-    resume_url_value = None
-    if supabase_configured():
+    # Use local storage only
+    if local_storage_configured():
         try:
-            object_path = f"resumes/{current_user.id}/resume_{uuid.uuid4()}{ext}"
-            uploaded = upload_public_object(
-                bucket=SUPABASE_STORAGE_BUCKET,
-                object_path=object_path,
-                data=content,
-                content_type="application/pdf",
-            )
-            if uploaded:
-                resume_url_value = uploaded
-        except Exception:
-            logger.exception("Supabase resume upload failed; will fallback to local storage")
-
-    # Fallback to local filesystem if Supabase not configured or failed
-    if not resume_url_value:
-        upload_dir = Path("data/resumes") / str(current_user.id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        unique_name = f"resume_{uuid.uuid4()}{ext}"
-        file_path = upload_dir / unique_name
-        try:
-            with open(file_path, "wb") as f:
-                f.write(content)
-            resume_url_value = f"/data/resumes/{current_user.id}/{unique_name}"
+            resume_url_value = upload_resume(current_user.id, content, file.filename)
+            if not resume_url_value:
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+            logger.error(f"Local storage upload error: {e}")
+            raise HTTPException(status_code=500, detail="Storage upload failed")
+    else:
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update user profile
     try:
@@ -1091,11 +1502,40 @@ async def upload_resume(
     # For response, resolve to public/signed URL
     resolved_url = resolve_storage_url(current_user.resume_url)
     logger.info(f"User {current_user.id} uploaded resume: {resolved_url}")
+    logger.info(f"Stored URL: {current_user.resume_url}")
+    logger.info(f"Resolved URL: {resolved_url}")
     return {
         "resume_url": resolved_url,
         "file_name": file.filename,
         "file_size": len(content)
     }
+
+@router.get("/resume/view")
+async def view_resume(
+    current_user: User = Depends(get_current_user)
+):
+    """Get the current user's resume URL for viewing."""
+    if not current_user.resume_url:
+        raise HTTPException(status_code=404, detail="No resume found")
+    
+    try:
+        # Always resolve to master bucket
+        resolved_url = resolve_storage_url(current_user.resume_url)
+        logger.info(f"Resolving resume URL for user {current_user.id}: {current_user.resume_url} -> {resolved_url}")
+        
+        if not resolved_url:
+            raise HTTPException(status_code=404, detail="Resume not accessible")
+        
+        return {
+            "resume_url": resolved_url,
+            "accessible": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to get resume URL for user {current_user.id}")
+        raise HTTPException(status_code=500, detail="Failed to access resume")
+
 
 @employer_router.post("/company/logo")
 async def upload_company_logo(
@@ -1114,40 +1554,17 @@ async def upload_company_logo(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Try Supabase first
-    logo_url_value = None
-    if supabase_configured():
+    # Use local storage only
+    if local_storage_configured():
         try:
-            object_path = f"company_logos/{current_user.id}/logo_{uuid.uuid4()}{ext}"
-            uploaded = upload_public_object(
-                bucket=SUPABASE_STORAGE_BUCKET,
-                object_path=object_path,
-                data=content,
-                content_type={
-                    ".png": "image/png",
-                    ".jpg": "image/jpeg",
-                    ".jpeg": "image/jpeg",
-                    ".webp": "image/webp",
-                    ".svg": "image/svg+xml",
-                }.get(ext, "application/octet-stream"),
-            )
-            if uploaded:
-                logo_url_value = uploaded
-        except Exception:
-            logger.exception("Supabase logo upload failed; will fallback to local storage")
-
-    # Fallback to local storage
-    if not logo_url_value:
-        upload_dir = Path("data/company_logos") / str(current_user.id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        unique_name = f"logo_{uuid.uuid4()}{ext}"
-        file_path = upload_dir / unique_name
-        try:
-            with open(file_path, "wb") as f:
-                f.write(content)
-            logo_url_value = f"/data/company_logos/{current_user.id}/{unique_name}"
+            logo_url_value = upload_company_logo(current_user.id, content, file.filename)
+            if not logo_url_value:
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+            logger.error(f"Local storage upload error: {e}")
+            raise HTTPException(status_code=500, detail="Storage upload failed")
+    else:
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update user profile
     current_user.company_logo_url = logo_url_value
@@ -1287,7 +1704,45 @@ def update_job_posting(
     db.refresh(job)
     
     logger.info(f"Employer {current_user.id} updated job {job_id}")
-    return job
+    
+    # Return properly formatted response
+    return {
+        "id": job.id,
+        "title": job.title,
+        "description": job.description,
+        "location": job.location,
+        "state": job.state,
+        "city": job.city,
+        "salary_min": job.salary_min,
+        "salary_max": job.salary_max,
+        "salary_currency": job.salary_currency,
+        "salary": job.salary,
+        "employment_type": job.employment_type,
+        "job_type": job.job_type,
+        "role_category": job.role_category,
+        "experience_level": job.experience_level,
+        "remote_option": job.remote_option,
+        "visa_sponsorship": job.visa_sponsorship,
+        "visa_sponsorship_confidence": job.visa_sponsorship_confidence,
+        "international_student_friendly": job.international_student_friendly,
+        "visa_types": safe_json_loads(job.visa_types),
+        "source_website": job.source_website,
+        "source_url": job.source_url,
+        "source_job_id": job.source_job_id,
+        "required_skills": safe_json_loads(job.required_skills),
+        "preferred_skills": safe_json_loads(job.preferred_skills),
+        "education_requirements": job.education_requirements,
+        "posted_date": job.posted_date,
+        "expires_at": job.expires_at,
+        "job_document_url": job.job_document_url,
+        "posted_by_user_id": job.posted_by_user_id,
+        "is_joborra_job": job.is_joborra_job,
+        "scraped_at": job.scraped_at,
+        "updated_at": job.updated_at,
+        "is_active": job.is_active,
+        "is_duplicate": job.is_duplicate,
+        "company_id": job.company_id
+    }
 
 @employer_router.delete("/jobs/{job_id}")
 def delete_job_posting(
@@ -1296,19 +1751,29 @@ def delete_job_posting(
     db: Session = Depends(get_db)
 ):
     """Delete job posting"""
-    job = db.query(Job).filter(
-        Job.id == job_id,
-        Job.posted_by_user_id == current_user.id
-    ).first()
-    
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    db.delete(job)
-    db.commit()
-    
-    logger.info(f"Employer {current_user.id} deleted job {job_id}")
-    return {"message": "Job deleted successfully"}
+    try:
+        logger.info(f"Attempting to delete job {job_id} for user {current_user.id}")
+        
+        job = db.query(Job).filter(
+            Job.id == job_id,
+            Job.posted_by_user_id == current_user.id
+        ).first()
+        
+        if not job:
+            logger.warning(f"Job {job_id} not found for user {current_user.id}")
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        logger.info(f"Found job {job_id}, proceeding with deletion")
+        db.delete(job)
+        db.commit()
+        
+        logger.info(f"Employer {current_user.id} deleted job {job_id}")
+        return {"message": "Job deleted successfully"}
+        
+    except Exception as e:
+        logger.error(f"Error deleting job {job_id} for user {current_user.id}: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete job: {str(e)}")
 
 @employer_router.put("/profile", response_model=UserResponse)
 def update_employer_profile(

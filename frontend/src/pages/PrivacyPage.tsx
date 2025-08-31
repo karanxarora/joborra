@@ -78,7 +78,7 @@ const PrivacyPage: React.FC = () => {
           <h2 className="text-xl font-semibold mb-2">7. Access &amp; Correction</h2>
           <p>
             You may access, update, or correct your personal information at any time by logging into your account or
-            contacting us at <a className="text-primary-600" href="mailto:support@joborra.com">support@joborra.com</a>.
+            contacting us at <a className="text-primary-600" href="mailto:Manav@Joborra.com">Manav@Joborra.com</a>.
           </p>
         </section>
 
@@ -102,14 +102,14 @@ const PrivacyPage: React.FC = () => {
           <p className="mb-2">If you have any privacy concerns or complaints, please contact:</p>
           <p>Privacy Officer – Joborra Pty Ltd</p>
           <p>
-            Email: <a className="text-primary-600" href="mailto:privacy@joborra.com">privacy@joborra.com</a>
+            Email: <a className="text-primary-600" href="mailto:Manav@Joborra.com">Manav@Joborra.com</a>
           </p>
           <p>We aim to respond within 30 days of receiving your complaint.</p>
         </section>
       </div>
 
       <div className="mt-8">
-        <Link to="/auth" className="text-primary-600 hover:text-primary-500">Back to Sign In</Link>
+        <Link to="/auth?tab=login" className="text-primary-600 hover:text-primary-500">Back to Sign In</Link>
       </div>
     </div>
   );

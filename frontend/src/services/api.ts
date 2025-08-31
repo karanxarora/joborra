@@ -8,6 +8,8 @@ import {
   LoginForm, 
   RegisterForm, 
   JobFilters,
+  JobDraft,
+  JobDraftCreate,
   PaginatedResponse,
   EmployerJobCreate,
   EmployerJobUpdate 
@@ -58,6 +60,17 @@ class ApiService {
       return `${origin}${path}`;
     } catch {
       return `${this.baseURL.replace(/\/api$/, '')}${path}`;
+    }
+  }
+
+  // Simple method to get resume view URL
+  async getResumeViewUrl(): Promise<string | null> {
+    try {
+      const response = await this.api.get('/auth/resume/view');
+      return response.data.resume_url;
+    } catch (error) {
+      console.error('Failed to get resume view URL:', error);
+      return null;
     }
   }
 
@@ -274,6 +287,11 @@ class ApiService {
     return response.data;
   }
 
+  async getVisaDocuments(): Promise<any> {
+    const response = await this.api.get('/auth/visa/documents');
+    return response.data;
+  }
+
   async uploadResume(file: File): Promise<{ resume_url: string }>{
     const form = new FormData();
     form.append('file', file);
@@ -297,6 +315,37 @@ class ApiService {
     return response.data;
   }
 
+  // Job Draft methods
+  async createJobDraft(draftData: JobDraftCreate): Promise<JobDraft> {
+    const response = await this.api.post('/auth/employer/job-drafts', draftData);
+    return response.data;
+  }
+
+  async getJobDrafts(): Promise<JobDraft[]> {
+    const response = await this.api.get('/auth/employer/job-drafts');
+    return response.data;
+  }
+
+  async getJobDraft(draftId: number): Promise<JobDraft> {
+    const response = await this.api.get(`/auth/employer/job-drafts/${draftId}`);
+    return response.data;
+  }
+
+  async updateJobDraft(draftId: number, draftData: Partial<JobDraftCreate>): Promise<JobDraft> {
+    const response = await this.api.put(`/auth/employer/job-drafts/${draftId}`, draftData);
+    return response.data;
+  }
+
+  async deleteJobDraft(draftId: number): Promise<{ message: string }> {
+    const response = await this.api.delete(`/auth/employer/job-drafts/${draftId}`);
+    return response.data;
+  }
+
+  async publishJobDraft(draftId: number): Promise<Job> {
+    const response = await this.api.post(`/auth/employer/job-drafts/${draftId}/publish`);
+    return response.data;
+  }
+
   // Employer job posting methods
   async createEmployerJob(data: EmployerJobCreate): Promise<Job> {
     const response: AxiosResponse<Job> = await this.api.post('/auth/employer/jobs', data);
@@ -310,6 +359,11 @@ class ApiService {
 
   async listEmployerJobs(): Promise<Job[]> {
     const response: AxiosResponse<Job[]> = await this.api.get('/auth/employer/jobs');
+    return response.data;
+  }
+
+  async deleteJob(jobId: number): Promise<{ message: string }> {
+    const response = await this.api.delete(`/auth/employer/jobs/${jobId}`);
     return response.data;
   }
 
@@ -358,6 +412,9 @@ class ApiService {
   async generateJobDescription(input: {
     title?: string;
     skills?: string[];
+    role_category?: string;
+    employment_type?: string;
+    location?: string;
     prompt?: string;         // system prompt constructed on client
     model?: string;          // e.g., 'gemini-1.5-flash' | 'gemini-1.5-pro'
     context?: Record<string, any>; // optional structured context
@@ -368,8 +425,17 @@ class ApiService {
     };
     if (input?.prompt) body.prompt = input.prompt;
     if (input?.model) body.model = input.model;
-    if (input?.context) body.context = input.context;
-    const resp: AxiosResponse<any> = await this.api.post('/api/ai/generate/job-description', body);
+    
+    // Build context with additional job details
+    const context = {
+      ...input?.context,
+      role_category: input?.role_category,
+      employment_type: input?.employment_type,
+      location: input?.location,
+    };
+    body.context = context;
+    
+    const resp: AxiosResponse<any> = await this.api.post('/ai/generate/job-description', body);
     const text = resp.data?.text || resp.data?.description || '';
     if (!text || typeof text !== 'string') {
       throw new Error('AI generated empty or invalid content');
@@ -380,7 +446,7 @@ class ApiService {
   // AI Services
   async getSkillRecommendations(query: string, context?: string): Promise<string[]> {
     try {
-      const response = await this.api.post('/api/ai/skill-recommendations', {
+      const response = await this.api.post('/ai/skill-recommendations', {
         query,
         context
       });

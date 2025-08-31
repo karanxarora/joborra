@@ -15,7 +15,8 @@ A scalable backend service that scrapes genuine job sources in Australia, filter
 ## Tech Stack
 
 - **Backend**: FastAPI, Python 3.8+
-- **Database**: PostgreSQL with SQLAlchemy ORM
+- **Database**: SQLite with SQLAlchemy ORM (production-optimized with WAL mode)
+- **File Storage**: Local filesystem storage with organized directory structure
 - **Scraping**: Selenium, BeautifulSoup4, Requests
 - **Task Queue**: Celery with Redis (for background scraping)
 - **Migration**: Alembic
@@ -40,16 +41,13 @@ pip install -r requirements.txt
 ### 2. Database Setup
 
 ```bash
-# Create .env file from example
+# Create .env file from example (optional for SQLite)
 cp .env.example .env
 
-# Edit .env with your database credentials
-# DATABASE_URL=postgresql://username:password@localhost:5432/joborra_db
+# SQLite database will be created automatically at ./joborra.db
+# No additional database setup required
 
-# Create database (ensure PostgreSQL is running)
-createdb joborra_db
-
-# Run migrations
+# Run migrations (optional, schema is created automatically)
 alembic upgrade head
 ```
 
@@ -138,7 +136,8 @@ Identifies jobs suitable for international students by detecting:
 ## Configuration
 
 ### Environment Variables
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_URL`: SQLite connection string (defaults to sqlite:///./joborra.db)
+- `LOCAL_STORAGE_PATH`: Local file storage directory (defaults to ./data)
 - `REDIS_URL`: Redis connection for background tasks
 - `SCRAPER_DELAY`: Delay between requests (seconds)
 - `MAX_CONCURRENT_SCRAPERS`: Maximum concurrent scraping processes
