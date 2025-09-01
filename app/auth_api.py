@@ -29,9 +29,9 @@ import uuid
 from pathlib import Path
 from sqlalchemy import text
 from .supabase_utils import (
-    upload_resume,
-    upload_company_logo,
-    upload_job_document,
+    upload_resume as supabase_upload_resume,
+    upload_company_logo as supabase_upload_company_logo,
+    upload_job_document as supabase_upload_job_document,
     supabase_configured,
     resolve_storage_url,
 )
@@ -857,7 +857,7 @@ def create_job_posting(
     }
 
 @employer_router.post("/jobs/{job_id}/document")
-async def upload_job_document(
+async def upload_employer_job_document(
     job_id: int,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_employer),
@@ -896,7 +896,7 @@ async def upload_job_document(
     # Use local storage only
     if supabase_configured():
         try:
-            doc_url_value = upload_job_document(current_user.id, job_id, content, file.filename)
+            doc_url_value = supabase_upload_job_document(current_user.id, job_id, content, file.filename)
             if not doc_url_value:
                 raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
@@ -1453,7 +1453,7 @@ def update_employer_profile(
     return current_user
 
 @router.post("/profile/resume")
-async def upload_resume(
+async def upload_user_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -1474,7 +1474,7 @@ async def upload_resume(
     # Use local storage only
     if supabase_configured():
         try:
-            resume_url_value = upload_resume(current_user.id, content, file.filename)
+            resume_url_value = supabase_upload_resume(current_user.id, content, file.filename)
             if not resume_url_value:
                 raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
@@ -1538,7 +1538,7 @@ async def view_resume(
 
 
 @employer_router.post("/company/logo")
-async def upload_company_logo(
+async def upload_employer_company_logo(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_employer),
     db: Session = Depends(get_db)
@@ -1557,7 +1557,7 @@ async def upload_company_logo(
     # Use local storage only
     if supabase_configured():
         try:
-            logo_url_value = upload_company_logo(current_user.id, content, file.filename)
+            logo_url_value = supabase_upload_company_logo(current_user.id, content, file.filename)
             if not logo_url_value:
                 raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:

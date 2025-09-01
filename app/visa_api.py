@@ -17,7 +17,7 @@ from .visa_schemas import (
 )
 from .visa_service import VisaVerificationService
 from .supabase_utils import (
-    upload_visa_document,
+    upload_visa_document as supabase_upload_visa_document,
     supabase_configured,
     resolve_storage_url,
 )
@@ -191,7 +191,7 @@ async def upload_visa_document(
     # Use local storage only
     if supabase_configured():
         try:
-            doc_url_value = upload_visa_document(current_user.id, document_type, content, filename)
+            doc_url_value = supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
             if not doc_url_value:
                 raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
@@ -200,13 +200,17 @@ async def upload_visa_document(
     else:
         raise HTTPException(status_code=500, detail="Storage not configured")
     
-    # Update verification record with document URL
-    service = VisaVerificationService(db)
-    verification = service.get_user_visa_status(current_user.id)
-    
-    if verification:
-        update_data = {f"{document_type}_document_url": doc_url_value}
-        service.update_visa_verification(verification.id, update_data)
+    # Update verification record with document URL (if exists)
+    try:
+        service = VisaVerificationService(db)
+        verification = service.get_user_visa_status(current_user.id)
+        
+        if verification:
+            update_data = {f"{document_type}_document_url": doc_url_value}
+            service.update_visa_verification(verification.id, update_data)
+    except Exception as e:
+        logger.warning(f"Could not update verification record: {e}")
+        # Continue with upload response even if verification update fails
     
     return DocumentUploadResponse(
         document_url=resolve_storage_url(doc_url_value),

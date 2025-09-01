@@ -59,9 +59,6 @@ def upload_resume(user_id: int, content: bytes, filename: str) -> Optional[str]:
         
         # Return public URL
         url_result = client.storage.from_("resumes").get_public_url(unique_filename)
-        if asyncio.iscoroutine(url_result):
-            url_result = asyncio.run(url_result)
-        
         return url_result
         
     except Exception as e:
@@ -100,9 +97,6 @@ def upload_company_logo(user_id: int, content: bytes, filename: str) -> Optional
         
         # Return public URL
         url_result = client.storage.from_("company-logos").get_public_url(unique_filename)
-        if asyncio.iscoroutine(url_result):
-            url_result = asyncio.run(url_result)
-        
         return url_result
         
     except Exception as e:
@@ -141,9 +135,6 @@ def upload_job_document(user_id: int, job_id: int, content: bytes, filename: str
         
         # Return public URL
         url_result = client.storage.from_("job-documents").get_public_url(unique_filename)
-        if asyncio.iscoroutine(url_result):
-            url_result = asyncio.run(url_result)
-        
         return url_result
         
     except Exception as e:
@@ -182,9 +173,6 @@ def upload_visa_document(user_id: int, document_type: str, content: bytes, filen
         
         # Return public URL
         url_result = client.storage.from_("visa-documents").get_public_url(unique_filename)
-        if asyncio.iscoroutine(url_result):
-            url_result = asyncio.run(url_result)
-        
         return url_result
         
     except Exception as e:
