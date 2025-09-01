@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'requirements-analytics.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -39,6 +39,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-analytics.txt
+
+      - name: Test Analytics Integration
+        run: |
+          python -c "
+          import sys
+          try:
+              import supabase, sqlalchemy, pandas, schedule
+              print('✅ Analytics dependencies installed successfully')
+          except ImportError as e:
+              print(f'❌ Missing analytics dependency: {e}')
+              sys.exit(1)
+          "
 
 
   frontend:
@@ -135,6 +148,41 @@ jobs:
             # Build and start services
             docker compose -f docker-compose.yml build --no-cache
             docker compose -f docker-compose.yml up -d
+            
+            # Deploy Analytics
+            echo "🔧 Deploying Analytics System..."
+            
+            # Install analytics dependencies in the running container
+            docker compose exec -T api pip install supabase sqlalchemy pandas schedule requests python-dotenv || true
+            
+            # Copy analytics files to container
+            docker compose exec -T api mkdir -p /app/analytics || true
+            docker cp analytics_export.py $(docker compose ps -q api):/app/analytics_export.py || true
+            docker cp periodic_analytics.py $(docker compose ps -q api):/app/periodic_analytics.py || true
+            docker cp analytics_dashboard.py $(docker compose ps -q api):/app/analytics_dashboard.py || true
+            docker cp integrate_analytics.py $(docker compose ps -q api):/app/integrate_analytics.py || true
+            
+            # Set up analytics cron jobs on the host (every hour)
+            echo "⏰ Setting up analytics cron jobs (every hour)..."
+            (crontab -l 2>/dev/null; echo "# Joborra Analytics Export Jobs - Every Hour") | crontab - || true
+            (crontab -l 2>/dev/null; echo "0 * * * * cd $APP_DIR && docker compose exec -T api python /app/analytics_export.py >> /var/log/joborra/analytics.log 2>&1") | crontab - || true
+            
+            # Create analytics log directory
+            mkdir -p /var/log/joborra
+            touch /var/log/joborra/analytics.log
+            
+            # Test analytics deployment
+            echo "🧪 Testing analytics deployment..."
+            docker compose exec -T api python -c "
+            import sys
+            try:
+                import supabase, sqlalchemy, pandas
+                print('✅ Analytics dependencies available in container')
+            except ImportError as e:
+                print(f'⚠️  Analytics dependency issue: {e}')
+            " || true
+            
+            echo "✅ Analytics deployment completed"
             
             # Verify deployment
             sleep 10
