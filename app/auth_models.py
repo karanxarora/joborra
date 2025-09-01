@@ -102,8 +102,8 @@ class User(Base):
         cascade="all, delete-orphan"
     )
     posted_jobs = relationship("Job", back_populates="posted_by_user", foreign_keys="Job.posted_by_user_id")
-    job_favorites = relationship("JobFavorite", back_populates="user", cascade="all, delete-orphan")
-    job_applications = relationship("JobApplication", back_populates="user", cascade="all, delete-orphan")
+    job_favorites = relationship("JobFavorite", back_populates="user", cascade="all, delete-orphan", overlaps="favorites")
+    job_applications = relationship("JobApplication", back_populates="user", cascade="all, delete-orphan", overlaps="applications")
     
     def verify_password(self, password: str) -> bool:
         """Verify password against hash"""

@@ -60,7 +60,7 @@ class JobCreate(JobBase):
 
 class Job(JobBase):
     id: int
-    company_id: int
+    company_id: Optional[int] = None
     scraped_at: datetime
     updated_at: Optional[datetime] = None
     is_active: bool = True
