@@ -98,6 +98,17 @@ class ApiService {
     return response.data;
   }
 
+  // Forgot Password methods
+  async forgotPassword(email: string): Promise<{ message: string; email_sent: boolean }> {
+    const response = await this.api.post('/auth/forgot-password', { email });
+    return response.data;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string; success: boolean }> {
+    const response = await this.api.post('/auth/reset-password', { token, new_password: newPassword });
+    return response.data;
+  }
+
   async linkGoogleWithIdToken(id_token: string): Promise<User> {
     const response: AxiosResponse<User> = await this.api.post('/auth/oauth/google/link', { id_token });
     // Update local user cache
@@ -299,21 +310,21 @@ class ApiService {
     return response.data;
   }
 
-  // Email verification methods
-  async requestEmailVerification(): Promise<{ verification_token: string; verify_url: string } | { message: string }>{
-    const response = await this.api.post('/auth/verify/request');
-    return response.data;
-  }
+  // Email verification methods - DISABLED FOR NOW
+  // async requestEmailVerification(): Promise<{ verification_token: string; verify_url: string } | { message: string }>{
+  //   const response = await this.api.post('/auth/verify/request');
+  //   return response.data;
+  // }
 
-  async confirmEmailVerification(token: string): Promise<User> {
-    const response: AxiosResponse<User> = await this.api.get(`/auth/verify/confirm`, { params: { token } });
-    // Update stored user with verified flag
-    const stored = this.getCurrentUserFromStorage();
-    if (stored && response.data) {
-      localStorage.setItem('user', JSON.stringify(response.data));
-    }
-    return response.data;
-  }
+  // async confirmEmailVerification(token: string): Promise<User> {
+  //   const response: AxiosResponse<User> = await this.api.get(`/auth/verify/confirm`, { params: { token } });
+  //   // Update stored user with verified flag
+  //   const stored = this.getCurrentUserFromStorage();
+  //   if (stored && response.data) {
+  //     localStorage.setItem('user', JSON.stringify(response.data);
+  //   }
+  //   return response.data;
+  // }
 
   // Job Draft methods
   async createJobDraft(draftData: JobDraftCreate): Promise<JobDraft> {

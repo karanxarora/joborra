@@ -176,24 +176,24 @@ const AuthPage: React.FC = () => {
         payload.company_website = `https://${payload.company_website}`;
       }
       await register(payload);
-      // Request verification email automatically (best-effort)
-      try {
-        const res: any = await apiService.requestEmailVerification();
-        if (res && (res as any).email_sent) {
-          toast('Account created. Verification email sent. Please check your inbox.', 'success', 6000);
-        } else if (res && (res as any).verify_url) {
-          toast('Account created. Copy the verification link shown in your profile to verify.', 'info', 6000);
-        } else {
-          toast('Account created. Please request a verification link from your Profile.', 'info', 6000);
-        }
-      } catch (ve: any) {
-        const code = ve?.response?.status;
-        if (code === 429) {
-          toast('Account created. Please wait a moment before requesting verification again.', 'info', 6000);
-        } else {
-          toast('Account created. Please verify your email to unlock all features.', 'info', 6000);
-        }
-      }
+      // Email verification disabled for now
+      // try {
+      //   const res: any = await apiService.requestEmailVerification();
+      //   if (res && (res as any).email_sent) {
+      //     toast('Account created. Verification email sent. Please check your inbox.', 'success', 6000);
+      //   } else if (res && (res as any).verify_url) {
+      //     toast('Account created. Copy the verification link shown in your profile to verify.', 'info', 6000);
+      //   } else {
+      //     toast('Account created. Please request a verification link from your Profile.', 'info', 6000);
+      //   }
+      // } catch (ve: any) {
+      //   const code = ve?.response?.status;
+      //   if (code === 429) {
+      //     toast('Account created. Please wait a moment before requesting verification again.', 'info', 6000);
+      //   } else {
+      //     // toast('Account created. Please verify your email to unlock all features.', 'info', 6000);  // DISABLED FOR NOW
+      //   }
+      // }
       if (payload.role === 'employer') {
         navigate('/employer/fast-post');
       } else {
@@ -285,6 +285,18 @@ const AuthPage: React.FC = () => {
                   required
                 />
               </div>
+              
+              {/* Forgot Password Link */}
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              </div>
+              
               <Button
                 type="submit"
                 loading={loading}

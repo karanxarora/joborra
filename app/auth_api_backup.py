@@ -52,8 +52,7 @@ router = APIRouter(tags=["authentication"])
 
 # Simple in-memory rate limiting and token invalidation for verification
 from typing import Dict
-# VERIFICATION_STATE: Dict[int, dict] = {}
-  # DISABLED FOR NOW
+VERIFICATION_STATE: Dict[int, dict] = {}
 RATE_LIMIT_SECONDS = 60  # min interval between requests per user
 
 @router.post("/register", response_model=UserResponse)
@@ -67,7 +66,7 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
     user = auth_service.create_user(user_data)
     return user
 
-# # Email verification endpoints - DISABLED FOR NOW
+# Email verification endpoints - DISABLED FOR NOW
 # @router.post("/verify/request")
 # def request_email_verification(
 #     current_user: User = Depends(get_current_user),
@@ -81,117 +80,117 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 #         if current_user.is_verified:
 #             return {"message": "Email already verified"}
 
-#         # Rate limit per user
-#         state = VERIFICATION_STATE.get(current_user.id)
-#         now = datetime.utcnow()
-#         if state:
-#             last = state.get("issued_at")
-#             if last and (now - last).total_seconds() < RATE_LIMIT_SECONDS:
-#                 raise HTTPException(status_code=429, detail="Please wait before requesting another verification email")
+        # Rate limit per user
+        state = VERIFICATION_STATE.get(current_user.id)
+        now = datetime.utcnow()
+        if state:
+            last = state.get("issued_at")
+            if last and (now - last).total_seconds() < RATE_LIMIT_SECONDS:
+                raise HTTPException(status_code=429, detail="Please wait before requesting another verification email")
 
-#         auth_service = AuthService(db)
-#         # Create a short-lived token specifically for email verification
-#         from jose import jwt
-#         from .auth import SECRET_KEY, ALGORITHM
+        auth_service = AuthService(db)
+        # Create a short-lived token specifically for email verification
+        from jose import jwt
+        from .auth import SECRET_KEY, ALGORITHM
 
-#         import uuid
-#         token_id = uuid.uuid4().hex
-#         payload = {
-#             "sub": str(current_user.id),
-#             "type": "email_verify",
-#             "email": current_user.email,
-#             "jti": token_id,
-#             "exp": datetime.utcnow() + timedelta(hours=24),
-#             "iat": datetime.utcnow(),
-#         }
-#         try:
-#             token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-#         except Exception as e:
-#             logger.exception("Failed to create verification token")
-#             raise HTTPException(status_code=500, detail=f"Failed to create verification token: {str(e)}")
+        import uuid
+        token_id = uuid.uuid4().hex
+        payload = {
+            "sub": str(current_user.id),
+            "type": "email_verify",
+            "email": current_user.email,
+            "jti": token_id,
+            "exp": datetime.utcnow() + timedelta(hours=24),
+            "iat": datetime.utcnow(),
+        }
+        try:
+            token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        except Exception as e:
+            logger.exception("Failed to create verification token")
+            raise HTTPException(status_code=500, detail=f"Failed to create verification token: {str(e)}")
 
-#         # Construct a frontend URL using FRONTEND_ORIGIN if provided, else request.base_url
-#         try:
-#             frontend_origin = os.getenv("FRONTEND_ORIGIN")
-#             if frontend_origin:
-#                 base = frontend_origin.rstrip('/')
-#             else:
-#                 base = str(request.base_url).rstrip('/') if request else ""
-#             verify_url = f"{base}/verify-email?token={token}" if base else f"/verify-email?token={token}"
-#         except Exception as e:
-#             logger.exception("Failed to construct verify_url")
-#             raise HTTPException(status_code=500, detail=f"Failed to construct verify_url: {str(e)}")
+        # Construct a frontend URL using FRONTEND_ORIGIN if provided, else request.base_url
+        try:
+            frontend_origin = os.getenv("FRONTEND_ORIGIN")
+            if frontend_origin:
+                base = frontend_origin.rstrip('/')
+            else:
+                base = str(request.base_url).rstrip('/') if request else ""
+            verify_url = f"{base}/verify-email?token={token}" if base else f"/verify-email?token={token}"
+        except Exception as e:
+            logger.exception("Failed to construct verify_url")
+            raise HTTPException(status_code=500, detail=f"Failed to construct verify_url: {str(e)}")
 
-#         # Save state for invalidation and rate limiting
-#         VERIFICATION_STATE[current_user.id] = {"issued_at": now, "token_id": token_id}
+        # Save state for invalidation and rate limiting
+        VERIFICATION_STATE[current_user.id] = {"issued_at": now, "token_id": token_id}
 
-#         # Attempt to send email if SMTP configured
-#         try:
-#             from .email_utils import send_email
-#             subject = "Verify your Joborra email"
-#             body = (
-#                 f"Hello {current_user.full_name},\n\n"
-#                 f"Please verify your email by clicking the link below:\n{verify_url}\n\n"
-#                 f"This link expires in 24 hours.\n\nIf you didn't request this, you can ignore this email.\n\n— Joborra"
-#             )
-#             html = (
-#                 f"<p>Hello {current_user.full_name},</p>"
-#                 f"<p>Please verify your email by clicking the button below:</p>"
-#                 f"<p><a href=\"{verify_url}\" style=\"display:inline-block;padding:10px 16px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px\">Verify Email</a></p>"
-#                 f"<p>Or copy and paste this link into your browser:<br><a href=\"{verify_url}\">{verify_url}</a></p>"
-#                 f"<p>This link expires in 24 hours.</p>"
-#                 f"<p>If you didn't request this, you can ignore this email.</p>"
-#                 f"<p>— Joborra</p>"
-#             )
-#             sent = send_email(current_user.email, subject, body, html)
-#         except Exception:
-#             sent = False
+        # Attempt to send email if SMTP configured
+        try:
+            from .email_utils import send_email
+            subject = "Verify your Joborra email"
+            body = (
+                f"Hello {current_user.full_name},\n\n"
+                f"Please verify your email by clicking the link below:\n{verify_url}\n\n"
+                f"This link expires in 24 hours.\n\nIf you didn't request this, you can ignore this email.\n\n— Joborra"
+            )
+            html = (
+                f"<p>Hello {current_user.full_name},</p>"
+                f"<p>Please verify your email by clicking the button below:</p>"
+                f"<p><a href=\"{verify_url}\" style=\"display:inline-block;padding:10px 16px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px\">Verify Email</a></p>"
+                f"<p>Or copy and paste this link into your browser:<br><a href=\"{verify_url}\">{verify_url}</a></p>"
+                f"<p>This link expires in 24 hours.</p>"
+                f"<p>If you didn't request this, you can ignore this email.</p>"
+                f"<p>— Joborra</p>"
+            )
+            sent = send_email(current_user.email, subject, body, html)
+        except Exception:
+            sent = False
 
-#         return {
-#             "message": "Verification email (token) issued",
-#             "verification_token": token,
-#             "verify_url": verify_url,
-#             "email_sent": sent,
-#         }
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         logger.exception("/auth/verify/request failed unexpectedly")
-#         raise HTTPException(status_code=500, detail=f"Unexpected error in verify/request: {str(e)}")
+        return {
+            "message": "Verification email (token) issued",
+            "verification_token": token,
+            "verify_url": verify_url,
+            "email_sent": sent,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("/auth/verify/request failed unexpectedly")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in verify/request: {str(e)}")
 
-# @router.get("/verify/confirm", response_model=UserResponse)
-# def confirm_email_verification(token: str, db: Session = Depends(get_db)):
-#     """Confirm user email via verification token and set is_verified=True."""
-#     from jose import jwt
-#     from .auth import SECRET_KEY, ALGORITHM
+@router.get("/verify/confirm", response_model=UserResponse)
+def confirm_email_verification(token: str, db: Session = Depends(get_db)):
+    """Confirm user email via verification token and set is_verified=True."""
+    from jose import jwt
+    from .auth import SECRET_KEY, ALGORITHM
 
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         if payload.get("type") != "email_verify":
-#             raise HTTPException(status_code=400, detail="Invalid verification token type")
-#         user_id = int(payload.get("sub"))
-#         token_id = payload.get("jti")
-#     except jwt.ExpiredSignatureError:
-#         raise HTTPException(status_code=400, detail="Verification token has expired")
-#     except Exception:
-#         raise HTTPException(status_code=400, detail="Invalid verification token")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "email_verify":
+            raise HTTPException(status_code=400, detail="Invalid verification token type")
+        user_id = int(payload.get("sub"))
+        token_id = payload.get("jti")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Verification token has expired")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
 
-#     user = db.query(User).filter(User.id == user_id).first()
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-#     # Check invalidation state
-#     state = VERIFICATION_STATE.get(user.id)
-#     if state and state.get("token_id") and token_id != state.get("token_id"):
-#         raise HTTPException(status_code=400, detail="This verification link has been superseded. Please request a new one.")
+    # Check invalidation state
+    state = VERIFICATION_STATE.get(user.id)
+    if state and state.get("token_id") and token_id != state.get("token_id"):
+        raise HTTPException(status_code=400, detail="This verification link has been superseded. Please request a new one.")
 
-#     if user.is_verified:
-#         return user
+    if user.is_verified:
+        return user
 
-#     user.is_verified = True
-#     db.commit()
-#     db.refresh(user)
-#     return user
+    user.is_verified = True
+    db.commit()
+    db.refresh(user)
+    return user
 
 @router.post("/login", response_model=TokenResponse)
 def login_user(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
@@ -311,7 +310,7 @@ def google_callback(code: Optional[str] = None, error: Optional[str] = None, req
         raise HTTPException(status_code=400, detail="Google token audience mismatch")
     sub = info.get("sub")
     email = (info.get("email") or "").lower().strip()
-    # email_verified = info.get("email_verified") in (True, "true", "1", 1)  # DISABLED FOR NOW
+    email_verified = info.get("email_verified") in (True, "true", "1", 1)
     name = info.get("name") or email.split('@')[0]
 
     if not sub or not email:
@@ -340,7 +339,7 @@ def google_callback(code: Optional[str] = None, error: Optional[str] = None, req
                 full_name=name,
                 role=UserRole.STUDENT,
                 is_active=True,
-        # is_verified=bool(email_verified),  # DISABLED FOR NOW
+                is_verified=bool(email_verified),
                 oauth_provider="google",
                 oauth_sub=sub,
             )
@@ -391,7 +390,7 @@ def oauth_google_login(payload: dict, request: Request, db: Session = Depends(ge
         raise HTTPException(status_code=400, detail="Google token audience mismatch")
     sub = info.get("sub")
     email = (info.get("email") or "").lower().strip()
-    # email_verified = info.get("email_verified") in (True, "true", "1", 1)  # DISABLED FOR NOW
+    email_verified = info.get("email_verified") in (True, "true", "1", 1)
     name = info.get("name") or email.split('@')[0]
     if not sub or not email:
         raise HTTPException(status_code=400, detail="Google token missing subject or email")
@@ -412,7 +411,7 @@ def oauth_google_login(payload: dict, request: Request, db: Session = Depends(ge
                 full_name=name,
                 role=UserRole.STUDENT,
                 is_active=True,
-        # is_verified=bool(email_verified),  # DISABLED FOR NOW
+                is_verified=bool(email_verified),
                 oauth_provider="google",
                 oauth_sub=sub,
             )
@@ -895,21 +894,17 @@ async def upload_employer_job_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Use Supabase storage with master bucket
+    # Use local storage only
     if supabase_configured():
         try:
-            doc_url_value = await supabase_upload_job_document(current_user.id, job_id, content, file.filename)
+            doc_url_value = supabase_upload_job_document(current_user.id, job_id, content, file.filename)
             if not doc_url_value:
-                raise HTTPException(status_code=500, detail="Failed to upload job document")
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            logger.error(f"Supabase upload error: {e}")
+            logger.error(f"Local storage upload error: {e}")
             raise HTTPException(status_code=500, detail="Storage upload failed")
     else:
-        logger.error("Supabase not configured - missing environment variables")
-        raise HTTPException(
-            status_code=503, 
-            detail="File upload service is currently unavailable. Please contact support or try again later."
-        )
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update DB
     job.job_document_url = doc_url_value
@@ -1477,21 +1472,17 @@ async def upload_user_resume(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Use Supabase storage with master bucket
+    # Use local storage only
     if supabase_configured():
         try:
-            resume_url_value = await supabase_upload_resume(current_user.id, content, file.filename)
+            resume_url_value = supabase_upload_resume(current_user.id, content, file.filename)
             if not resume_url_value:
-                raise HTTPException(status_code=500, detail="Failed to upload resume")
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            logger.error(f"Supabase upload error: {e}")
+            logger.error(f"Local storage upload error: {e}")
             raise HTTPException(status_code=500, detail="Storage upload failed")
     else:
-        logger.error("Supabase not configured - missing environment variables")
-        raise HTTPException(
-            status_code=503, 
-            detail="File upload service is currently unavailable. Please contact support or try again later."
-        )
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update user profile
     try:
@@ -1564,21 +1555,17 @@ async def upload_employer_company_logo(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
 
-    # Use Supabase storage with master bucket
+    # Use local storage only
     if supabase_configured():
         try:
-            logo_url_value = await supabase_upload_company_logo(current_user.id, content, file.filename)
+            logo_url_value = supabase_upload_company_logo(current_user.id, content, file.filename)
             if not logo_url_value:
-                raise HTTPException(status_code=500, detail="Failed to upload company logo")
+                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
-            logger.error(f"Supabase upload error: {e}")
+            logger.error(f"Local storage upload error: {e}")
             raise HTTPException(status_code=500, detail="Storage upload failed")
     else:
-        logger.error("Supabase not configured - missing environment variables")
-        raise HTTPException(
-            status_code=503, 
-            detail="File upload service is currently unavailable. Please contact support or try again later."
-        )
+        raise HTTPException(status_code=500, detail="Storage not configured")
 
     # Update user profile
     current_user.company_logo_url = logo_url_value

@@ -198,6 +198,71 @@ class AuthService:
         session_service = SessionService(self.db)
         return session_service.invalidate_all_user_sessions(user_id)
 
+    def verify_password_reset_token(self, token: str) -> Optional[User]:
+        """Verify password reset token and return user if valid"""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get("sub")
+            token_type = payload.get("type")
+            
+            if not user_id or token_type != "password_reset":
+                return None
+                
+            user = self.db.query(User).filter(User.id == user_id).first()
+            if not user or not user.is_active:
+                return None
+                
+            return user
+        except jwt.ExpiredSignatureError:
+            logger.warning("Password reset token expired")
+            return None
+        except jwt.JWTError:
+            logger.warning("Invalid password reset token")
+            return None
+    
+    def reset_password(self, token: str, new_password: str) -> bool:
+        """Reset user password using valid token"""
+        user = self.verify_password_reset_token(token)
+        if not user:
+            return False
+            
+        try:
+            # Hash new password
+            hashed_password = User.hash_password(new_password)
+            user.hashed_password = hashed_password
+            user.updated_at = datetime.utcnow()
+            
+            self.db.commit()
+            logger.info(f"Password reset successful for user {user.email}")
+            return True
+        except Exception as e:
+            logger.error(f"Password reset failed for user {user.email}: {e}")
+            self.db.rollback()
+            return False
+    
+    def create_password_reset_token(self, email: str) -> Optional[str]:
+        """Create a password reset token for the given email"""
+        user = self.db.query(User).filter(User.email == email.lower().strip()).first()
+        if not user or not user.is_active:
+            return None
+            
+        try:
+            # Create a short-lived token for password reset
+            payload = {
+                "sub": str(user.id),
+                "type": "password_reset",
+                "email": user.email,
+                "jti": secrets.token_urlsafe(32),
+                "exp": datetime.utcnow() + timedelta(hours=1),  # 1 hour expiry
+                "iat": datetime.utcnow(),
+            }
+            
+            token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+            return token
+        except Exception as e:
+            logger.error(f"Failed to create password reset token for {email}: {e}")
+            return None
+
 # Enhanced dependency functions with session management
 def get_current_user(
     request: Request,

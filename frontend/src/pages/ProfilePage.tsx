@@ -12,7 +12,7 @@ const ProfilePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
-  const [verifyLink, setVerifyLink] = useState<string | null>(null);
+  // const [verifyLink, setVerifyLink] = useState<string | null>(null);  // DISABLED FOR NOW
   const [resumeViewUrl, setResumeViewUrl] = useState<string | null>(null);
   const [resumeViewError, setResumeViewError] = useState<string | null>(null);
   const [visaDocs, setVisaDocs] = useState<any>(null);
@@ -360,10 +360,9 @@ const ProfilePage: React.FC = () => {
                   <div className="text-sm text-slate-600">{ctxUser?.email}</div>
                 </div>
               </div>
-              {/* Email verification banner */}
-              {!ctxUser?.is_verified && (
+              {/* Email verification banner - DISABLED FOR NOW */}
+              {/* {!ctxUser?.is_verified && (
                 <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
-                  <div className="text-sm font-medium">Verify your email to unlock all features</div>
                   <div className="text-xs mt-1">Your account is not verified yet. Click the button below to get a verification link.</div>
                   <Button
                     type="button"
@@ -397,7 +396,7 @@ const ProfilePage: React.FC = () => {
                     </div>
                   )}
                 </div>
-              )}
+              )} */}
               {ctxUser?.role === 'student' && (
                 <div className="mt-4 grid grid-cols-2 gap-3 text-center">
                   <div className="rounded-md border border-slate-200 p-3">

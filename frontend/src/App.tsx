@@ -16,7 +16,9 @@ import PrivacyPage from './pages/PrivacyPage';
 import './App.css';
 import EmployerPostJobPage from './pages/EmployerPostJobPage';
 import EmployerQuickPostPage from './pages/EmployerQuickPostPage';
-import VerifyEmailPage from './pages/VerifyEmailPage';
+// import VerifyEmailPage from './pages/VerifyEmailPage';  // DISABLED FOR NOW
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
 import EmployerDashboardPage from './pages/EmployerDashboardPage';
@@ -164,7 +166,9 @@ const AppContent: React.FC = () => {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          {/* <Route path="/verify-email" element={<VerifyEmailPage />} />  DISABLED FOR NOW */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/access-denied" element={<AccessDeniedPage />} />
           {/** Dashboard disabled for now */}
           {/**

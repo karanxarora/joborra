@@ -3,7 +3,6 @@ import logging
 from typing import Optional
 from supabase import create_client, Client
 import uuid
-import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +26,8 @@ def get_supabase_client() -> Optional[Client]:
         logger.error(f"Failed to create Supabase client: {e}")
         return None
 
-def upload_resume(user_id: int, content: bytes, filename: str) -> Optional[str]:
-    """Upload resume to Supabase storage."""
+async def upload_resume(user_id: int, content: bytes, filename: str) -> Optional[str]:
+    """Upload resume to Supabase storage using master bucket."""
     if not supabase_configured():
         logger.warning("Supabase not configured, cannot upload resume")
         return None
@@ -40,33 +39,29 @@ def upload_resume(user_id: int, content: bytes, filename: str) -> Optional[str]:
     try:
         # Generate unique filename
         file_ext = filename.split('.')[-1] if '.' in filename else 'pdf'
-        unique_filename = f"resume_{user_id}_{uuid.uuid4()}.{file_ext}"
+        unique_filename = f"resumes/resume_{user_id}_{uuid.uuid4()}.{file_ext}"
         
-        # Upload to Supabase storage
-        result = client.storage.from_("resumes").upload(
+        # Upload to master bucket with resumes/ prefix
+        result = client.storage.from_("master").upload(
             unique_filename,
             content,
             file_options={"content-type": "application/pdf"}
         )
         
-        # Check if result is a coroutine and await it
-        if asyncio.iscoroutine(result):
-            result = asyncio.run(result)
-        
+        # Handle the result properly
         if hasattr(result, 'error') and result.error:
             logger.error(f"Failed to upload resume: {result.error}")
             return None
         
-        # Return public URL
-        url_result = client.storage.from_("resumes").get_public_url(unique_filename)
-        return url_result
+        # Return the storage path (not the public URL)
+        return f"/master/{unique_filename}"
         
     except Exception as e:
         logger.error(f"Error uploading resume: {e}")
         return None
 
-def upload_company_logo(user_id: int, content: bytes, filename: str) -> Optional[str]:
-    """Upload company logo to Supabase storage."""
+async def upload_company_logo(user_id: int, content: bytes, filename: str) -> Optional[str]:
+    """Upload company logo to Supabase storage using master bucket."""
     if not supabase_configured():
         logger.warning("Supabase not configured, cannot upload company logo")
         return None
@@ -78,33 +73,29 @@ def upload_company_logo(user_id: int, content: bytes, filename: str) -> Optional
     try:
         # Generate unique filename
         file_ext = filename.split('.')[-1] if '.' in filename else 'png'
-        unique_filename = f"logo_{user_id}_{uuid.uuid4()}.{file_ext}"
+        unique_filename = f"company-logos/logo_{user_id}_{uuid.uuid4()}.{file_ext}"
         
-        # Upload to Supabase storage
-        result = client.storage.from_("company-logos").upload(
+        # Upload to master bucket with company-logos/ prefix
+        result = client.storage.from_("master").upload(
             unique_filename,
             content,
             file_options={"content-type": f"image/{file_ext}"}
         )
         
-        # Check if result is a coroutine and await it
-        if asyncio.iscoroutine(result):
-            result = asyncio.run(result)
-        
+        # Handle the result properly
         if hasattr(result, 'error') and result.error:
             logger.error(f"Failed to upload company logo: {result.error}")
             return None
         
-        # Return public URL
-        url_result = client.storage.from_("company-logos").get_public_url(unique_filename)
-        return url_result
+        # Return the storage path (not the public URL)
+        return f"/master/{unique_filename}"
         
     except Exception as e:
         logger.error(f"Error uploading company logo: {e}")
         return None
 
-def upload_job_document(user_id: int, job_id: int, content: bytes, filename: str) -> Optional[str]:
-    """Upload job document to Supabase storage."""
+async def upload_job_document(user_id: int, job_id: int, content: bytes, filename: str) -> Optional[str]:
+    """Upload job document to Supabase storage using master bucket."""
     if not supabase_configured():
         logger.warning("Supabase not configured, cannot upload job document")
         return None
@@ -116,33 +107,29 @@ def upload_job_document(user_id: int, job_id: int, content: bytes, filename: str
     try:
         # Generate unique filename
         file_ext = filename.split('.')[-1] if '.' in filename else 'pdf'
-        unique_filename = f"job_{job_id}_{user_id}_{uuid.uuid4()}.{file_ext}"
+        unique_filename = f"job-documents/job_{job_id}_{user_id}_{uuid.uuid4()}.{file_ext}"
         
-        # Upload to Supabase storage
-        result = client.storage.from_("job-documents").upload(
+        # Upload to master bucket with job-documents/ prefix
+        result = client.storage.from_("master").upload(
             unique_filename,
             content,
             file_options={"content-type": "application/pdf"}
         )
         
-        # Check if result is a coroutine and await it
-        if asyncio.iscoroutine(result):
-            result = asyncio.run(result)
-        
+        # Handle the result properly
         if hasattr(result, 'error') and result.error:
             logger.error(f"Failed to upload job document: {result.error}")
             return None
         
-        # Return public URL
-        url_result = client.storage.from_("job-documents").get_public_url(unique_filename)
-        return url_result
+        # Return the storage path (not the public URL)
+        return f"/master/{unique_filename}"
         
     except Exception as e:
         logger.error(f"Error uploading job document: {e}")
         return None
 
-def upload_visa_document(user_id: int, document_type: str, content: bytes, filename: str) -> Optional[str]:
-    """Upload visa document to Supabase storage."""
+async def upload_visa_document(user_id: int, document_type: str, content: bytes, filename: str) -> Optional[str]:
+    """Upload visa document to Supabase storage using master bucket."""
     if not supabase_configured():
         logger.warning("Supabase not configured, cannot upload visa document")
         return None
@@ -154,33 +141,29 @@ def upload_visa_document(user_id: int, document_type: str, content: bytes, filen
     try:
         # Generate unique filename
         file_ext = filename.split('.')[-1] if '.' in filename else 'pdf'
-        unique_filename = f"{document_type}_{user_id}_{uuid.uuid4()}.{file_ext}"
+        unique_filename = f"visa-documents/{document_type}_{user_id}_{uuid.uuid4()}.{file_ext}"
         
-        # Upload to Supabase storage
-        result = client.storage.from_("visa-documents").upload(
+        # Upload to master bucket with visa-documents/ prefix
+        result = client.storage.from_("master").upload(
             unique_filename,
             content,
             file_options={"content-type": "application/pdf"}
         )
         
-        # Check if result is a coroutine and await it
-        if asyncio.iscoroutine(result):
-            result = asyncio.run(result)
-        
+        # Handle the result properly
         if hasattr(result, 'error') and result.error:
             logger.error(f"Failed to upload visa document: {result.error}")
             return None
         
-        # Return public URL
-        url_result = client.storage.from_("visa-documents").get_public_url(unique_filename)
-        return url_result
+        # Return the storage path (not the public URL)
+        return f"/master/{unique_filename}"
         
     except Exception as e:
         logger.error(f"Error uploading visa document: {e}")
         return None
 
 def resolve_storage_url(storage_path: Optional[str]) -> Optional[str]:
-    """Resolves a storage path to a full URL."""
+    """Resolves a storage path to a full URL using master bucket."""
     if not storage_path:
         return None
     
@@ -188,15 +171,14 @@ def resolve_storage_url(storage_path: Optional[str]) -> Optional[str]:
     if storage_path.startswith('http'):
         return storage_path
     
-    # If it's a Supabase storage path, construct the full URL
+    # If it's a Supabase storage path, construct the full URL from master bucket
     if supabase_configured():
         client = get_supabase_client()
         if client:
-            # Extract bucket and file path from storage_path
-            # Format: /bucket/path/to/file
-            parts = storage_path.strip('/').split('/', 1)
-            if len(parts) == 2:
-                bucket, file_path = parts
-                return client.storage.from_(bucket).get_public_url(file_path)
+            # Extract file path from storage_path
+            # Format: /master/path/to/file
+            if storage_path.startswith('/master/'):
+                file_path = storage_path[8:]  # Remove '/master/' prefix
+                return client.storage.from_("master").get_public_url(file_path)
     
     return storage_path

@@ -325,3 +325,24 @@ class JobAnalytics(BaseModel):
     views_by_date: dict
     applications_count: int
     favorites_count: int
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+    
+    @validator('new_password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    email_sent: bool
+
+class ResetPasswordResponse(BaseModel):
+    message: str
+    success: bool

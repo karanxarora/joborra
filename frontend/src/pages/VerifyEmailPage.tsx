@@ -1,3 +1,5 @@
+// Email verification page - DISABLED FOR NOW
+/*
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
@@ -38,7 +40,7 @@ const VerifyEmailPage: React.FC = () => {
     <div className="min-h-screen">
       <div className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Card className="p-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Verify your email</h1>
+          <h1 className="text-1xl font-bold text-slate-900 mb-2">Verify your email</h1>
           {status === 'idle' && (
             <p className="text-slate-600">Waiting for token...</p>
           )}
@@ -64,3 +66,7 @@ const VerifyEmailPage: React.FC = () => {
 };
 
 export default VerifyEmailPage;
+*/
+
+// Empty export to make this a module
+export {};
