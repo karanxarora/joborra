@@ -40,7 +40,7 @@ from .supabase_utils import (
 logger = logging.getLogger(__name__)
 
 def safe_json_loads(json_str):
-    """Safely parse JSON string, return None if invalid or empty"""
+    """Safely parse JSON string, return None if invalid or empty - PROD FIX"""
     # If it's already a list or dict, return it as is
     if isinstance(json_str, (list, dict)):
         return json_str

@@ -113,7 +113,7 @@ class AuthService:
             )
     
     def authenticate_user(self, email: str, password: str) -> Optional[User]:
-        """Authenticate user with email and password"""
+        """Authenticate user with email and password - PROD FIX"""
         # Normalize email for case-insensitive comparison
         normalized_email = email.lower().strip()
         user = self.db.query(User).filter(User.email == normalized_email).first()

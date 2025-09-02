@@ -94,8 +94,9 @@ def ensure_schema_compatibility():
                 to_add.append("ADD COLUMN salary VARCHAR(255)")
             if 'job_type' not in job_cols:
                 to_add.append("ADD COLUMN job_type VARCHAR(100)")
-            if 'visa_type' not in job_cols:
-                to_add.append("ADD COLUMN visa_type VARCHAR(100)")
+            # Correct column name is visa_types (TEXT JSON), not visa_type
+            if 'visa_types' not in job_cols:
+                to_add.append("ADD COLUMN visa_types TEXT")
             if 'job_document_url' not in job_cols:
                 to_add.append("ADD COLUMN job_document_url VARCHAR(500)")
             for clause in to_add:
