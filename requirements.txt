@@ -23,3 +23,6 @@ pandas==2.2.3
 
 # Gemini SDK for AI job description generation
 google-generativeai==0.7.2
+
+# Supabase client for file storage
+supabase==2.3.4
