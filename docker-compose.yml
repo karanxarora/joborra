@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile.api
     env_file:
       - .env
+      - .env.production
     volumes:
       - sqlite_data:/app/             # SQLite database persistence (handles all .db* files)
     expose:

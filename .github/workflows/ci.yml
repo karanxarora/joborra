@@ -133,7 +133,9 @@ jobs:
             
             # Ensure env files exist (backend .env)
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
+              # Write to both .env and .env.production to ensure Docker picks it up
               echo "${{ secrets.BACKEND_ENV }}" > .env
+              echo "${{ secrets.BACKEND_ENV }}" > .env.production
             fi
             # Frontend env
             if [ -n "${{ secrets.FRONTEND_ENV }}" ]; then
