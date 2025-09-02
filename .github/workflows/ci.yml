@@ -173,14 +173,7 @@ jobs:
             
             # Test analytics deployment
             echo "🧪 Testing analytics deployment..."
-            docker compose exec -T api python -c "
-            import sys
-            try:
-                import supabase, sqlalchemy, pandas
-                print('✅ Analytics dependencies available in container')
-            except ImportError as e:
-                print(f'⚠️  Analytics dependency issue: {e}')
-            " || true
+            docker compose exec -T api python -c "import sys; import supabase, sqlalchemy, pandas; print('✅ Analytics dependencies available in container')" || echo "⚠️ Analytics dependency issue"
             
             echo "✅ Analytics deployment completed"
             
