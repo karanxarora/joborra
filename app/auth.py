@@ -36,9 +36,10 @@ class AuthService:
     
     def create_user(self, user_data: UserCreate) -> User:
         """Create a new user account with robust defaults and validation"""
-        # Check if user already exists
+        # Check if user already exists (normalize email for case-insensitive comparison)
+        normalized_email = user_data.email.lower().strip()
         existing_user = self.db.query(User).filter(
-            (User.email == user_data.email) | (User.username == user_data.username)
+            (User.email == normalized_email) | (User.username == user_data.username)
         ).first()
         
         if existing_user:
@@ -62,7 +63,7 @@ class AuthService:
         current_time = datetime.utcnow()
         
         user = User(
-            email=user_data.email.lower().strip(),
+            email=normalized_email,
             username=username.strip(),
             hashed_password=hashed_password,
             full_name=user_data.full_name.strip() if user_data.full_name else user_data.email.split('@')[0],
@@ -113,7 +114,9 @@ class AuthService:
     
     def authenticate_user(self, email: str, password: str) -> Optional[User]:
         """Authenticate user with email and password"""
-        user = self.db.query(User).filter(User.email == email).first()
+        # Normalize email for case-insensitive comparison
+        normalized_email = email.lower().strip()
+        user = self.db.query(User).filter(User.email == normalized_email).first()
         
         if not user or not user.verify_password(password):
             return None

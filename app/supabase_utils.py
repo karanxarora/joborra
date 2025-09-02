@@ -3,17 +3,26 @@ import logging
 from typing import Optional
 from supabase import create_client, Client
 import uuid
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-# Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+# Load environment variables
+load_dotenv()
+
+# Supabase configuration - load dynamically to ensure .env is loaded
+def _get_supabase_url() -> Optional[str]:
+    return os.getenv("SUPABASE_URL")
+
+def _get_supabase_key() -> Optional[str]:
+    return os.getenv("SUPABASE_ANON_KEY")
+
+def _get_supabase_service_key() -> Optional[str]:
+    return os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
 
 def supabase_configured() -> bool:
     """Check if Supabase is properly configured."""
-    return bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
+    return bool(_get_supabase_url() and _get_supabase_service_key())
 
 def get_supabase_client() -> Optional[Client]:
     """Get Supabase client if configured."""
@@ -21,7 +30,7 @@ def get_supabase_client() -> Optional[Client]:
         return None
     
     try:
-        return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        return create_client(_get_supabase_url(), _get_supabase_service_key())
     except Exception as e:
         logger.error(f"Failed to create Supabase client: {e}")
         return None

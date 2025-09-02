@@ -61,7 +61,8 @@ const EmployerQuickPostPage: React.FC = () => {
 
   const onAIGenerate = async () => {
     setError(null);
-    const sysPrompt = `You are an expert HR copywriter. Write a concise, friendly, student‑inclusive job description.
+    try {
+      const sysPrompt = `You are an expert HR copywriter. Write a concise, friendly, student‑inclusive job description.
 
 Constraints:
 - 160–260 words.
@@ -80,24 +81,29 @@ Job context:
 Output sections (no labels needed):
 1) 2–3 sentence overview of the role and team.
 2) 4–6 bullet points of day‑to‑day responsibilities.
-3) 3–5 bullet points of what you’re looking for (soft skills welcomed).`;
+3) 3–5 bullet points of what you're looking for (soft skills welcomed).`;
 
-    const draft = await apiService.generateJobDescription({
-      title,
-      skills: [],
-      prompt: sysPrompt,
-      model: 'gemini-1.5-flash',
-      context: {
+      const draft = await apiService.generateJobDescription({
         title,
-        location,
-        employment_type: employmentType,
-        salary: payText,
-        international_student_friendly: studentFriendly,
-        visa_sponsorship: visaSponsorship,
-      },
-    });
-    setDescription(draft);
-    if (descRef.current) descRef.current.value = draft;
+        skills: [],
+        prompt: sysPrompt,
+        model: 'gemini-1.5-flash',
+        context: {
+          title,
+          location,
+          employment_type: employmentType,
+          salary: payText,
+          international_student_friendly: studentFriendly,
+          visa_sponsorship: visaSponsorship,
+        },
+      });
+      setDescription(draft);
+      if (descRef.current) descRef.current.value = draft;
+      setSuccess('Job description generated successfully!');
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      setError('AI generation failed. Please try again or write the description manually.');
+    }
   };
 
   const onPublish = async () => {
@@ -226,7 +232,7 @@ Output sections (no labels needed):
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => navigate('/jobs')}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => navigate('/employer/dashboard')}>Cancel</Button>
               <Button type="button" onClick={onPublish} disabled={loading || !canPublish}>
                 {loading ? 'Publishing…' : 'Publish'}
               </Button>

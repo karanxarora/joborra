@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { EmployerJobCreate, JobDraftCreate } from '../types';
 import apiService from '../services/api';
 import Button from '../components/ui/Button';
@@ -48,8 +48,11 @@ const EmployerPostJobPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingDraft, setLoadingDraft] = useState(false);
+  const [loadingJob, setLoadingJob] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState(0); // 0..4
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingJobId, setEditingJobId] = useState<number | null>(null);
 
   // Role category options
   const roleCategoryOptions: SelectOption[] = [
@@ -75,14 +78,8 @@ const EmployerPostJobPage: React.FC = () => {
 
   // Address autocomplete - removed unused variables
 
-  // Rich text editor (basic) for description
-  const descRef = useRef<HTMLDivElement | null>(null);
-  const applyCmd = (cmd: 'bold' | 'italic' | 'insertUnorderedList') => {
-    document.execCommand(cmd);
-    // Sync back
-    const html = descRef.current?.innerHTML || '';
-    handleChange('description', html);
-  };
+  // Textarea ref for description
+  const descRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Visa types with descriptions (matching student sign-up options)
   const VISA_TYPES: Array<{ value: string; label: string; description: string }> = useMemo(() => ([
@@ -120,7 +117,7 @@ const EmployerPostJobPage: React.FC = () => {
           experience_level: draft.experience_level || '',
           remote_option: draft.remote_option || false,
           visa_sponsorship: draft.visa_sponsorship || false,
-          visa_types: draft.visa_types || [],
+          visa_types: Array.isArray(draft.visa_types) ? draft.visa_types : [],
           international_student_friendly: draft.international_student_friendly || false,
           required_skills: draft.required_skills || [],
           preferred_skills: draft.preferred_skills || [],
@@ -146,13 +143,70 @@ const EmployerPostJobPage: React.FC = () => {
     }
   }, [toast]);
 
+  const loadJobData = useCallback(async (jobId: number) => {
+    try {
+      setLoadingJob(true);
+      const job = await apiService.getJobById(jobId);
+      if (job) {
+        // Populate form with job data
+        setForm({
+          title: job.title || '',
+          description: job.description || '',
+          location: job.location || '',
+          city: job.city || '',
+          state: job.state || '',
+          employment_type: job.employment_type || '',
+          job_type: job.job_type || '',
+          role_category: (job as any).role_category || '',
+          salary: job.salary || '',
+          salary_min: job.salary_min,
+          salary_max: job.salary_max,
+          salary_currency: job.salary_currency || 'AUD',
+          experience_level: job.experience_level || '',
+          remote_option: job.remote_option || false,
+          visa_sponsorship: job.visa_sponsorship || false,
+          visa_types: Array.isArray(job.visa_types) ? job.visa_types : [],
+          international_student_friendly: job.international_student_friendly || false,
+          required_skills: job.required_skills || [],
+          preferred_skills: job.preferred_skills || [],
+          education_requirements: job.education_requirements || '',
+          expires_at: job.expires_at,
+        });
+        
+        // Set skills inputs for display
+        setSkillsInput(job.required_skills ? job.required_skills.join(', ') : '');
+        setPreferredSkillsInput(job.preferred_skills ? job.preferred_skills.join(', ') : '');
+        
+        // Update description in textarea if present
+        if (job.description && descRef.current) {
+          descRef.current.value = job.description;
+        }
+        
+        setIsEditing(true);
+        setEditingJobId(jobId);
+        toast('Job data loaded successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Failed to load job:', error);
+      toast('Failed to load job data', 'error');
+    } finally {
+      setLoadingJob(false);
+    }
+  }, [toast]);
+
   // Load draft data if draft parameter is present in URL
   useEffect(() => {
     const draftId = searchParams.get('draft');
+    const editId = searchParams.get('edit');
+    
     if (draftId) {
       loadDraftData(parseInt(draftId));
+    } else if (editId) {
+      loadJobData(parseInt(editId));
     }
-  }, [searchParams, loadDraftData]);
+  }, [searchParams, loadDraftData, loadJobData]);
+
+
 
   const saveDraft = async () => {
     try {
@@ -168,7 +222,7 @@ const EmployerPostJobPage: React.FC = () => {
       }
       
       // Only validate visa types if user has reached step 3 (where visa types are visible)
-      if (step >= 3 && (!form.visa_types || form.visa_types.length === 0)) {
+      if (step >= 3 && (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0)) {
         setError('Please select at least one visa type.');
         setSubmitting(false);
         return;
@@ -196,7 +250,7 @@ const EmployerPostJobPage: React.FC = () => {
         experience_level: form.experience_level,
         remote_option: form.remote_option,
         visa_sponsorship: form.visa_sponsorship,
-        visa_types: form.visa_types && form.visa_types.length > 0 ? form.visa_types : undefined,
+        visa_types: (form.visa_types && Array.isArray(form.visa_types) && form.visa_types.length > 0) ? form.visa_types : undefined,
         international_student_friendly: form.international_student_friendly,
         required_skills: form.required_skills,
         preferred_skills: form.preferred_skills,
@@ -291,7 +345,7 @@ const EmployerPostJobPage: React.FC = () => {
       }
       
       // Only validate visa types if user has reached step 3 (where visa types are visible)
-      if (step >= 3 && (!form.visa_types || form.visa_types.length === 0)) {
+      if (step >= 3 && (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0)) {
         setError('Please select at least one visa type.');
         setSubmitting(false);
         return;
@@ -314,34 +368,47 @@ const EmployerPostJobPage: React.FC = () => {
         return;
       }
 
-      const created = await apiService.createEmployerJob({
+      const jobData = {
         ...form,
         // Normalize empty strings to undefined for optional fields
         job_type: form.job_type || undefined,
         salary: form.salary || undefined,
-        visa_types: form.visa_types && form.visa_types.length > 0 ? form.visa_types : undefined,
+        visa_types: (form.visa_types && Array.isArray(form.visa_types) && form.visa_types.length > 0) ? form.visa_types : undefined,
         education_requirements: form.education_requirements || undefined,
         city: form.city || undefined,
         state: form.state || undefined,
         location: form.location || undefined,
         experience_level: form.experience_level || undefined,
-      });
+      };
+
+      let result;
+      if (isEditing && editingJobId) {
+        // Update existing job
+        result = await apiService.updateEmployerJob(editingJobId, jobData);
+        toast('Job updated successfully!', 'success');
+        setSuccess('Job updated successfully. Redirecting to job view…');
+        // Redirect to job view after short delay
+        setTimeout(() => navigate(`/employer/job/${editingJobId}`), 900);
+      } else {
+        // Create new job
+        result = await apiService.createEmployerJob(jobData);
+        toast('Job posted successfully!', 'success');
+        setSuccess('Job posted successfully. Redirecting to your profile…');
+        // Redirect employer to their profile after short delay
+        setTimeout(() => navigate('/profile'), 900);
+      }
 
       if (file) {
         try {
-          await apiService.uploadJobDocument(created.id, file);
+          await apiService.uploadJobDocument(result.id, file);
         } catch (uploadErr: any) {
-          // Non-fatal, job is created
+          // Non-fatal, job is created/updated
           console.error('Document upload failed', uploadErr);
         }
       }
-
-      toast('Job posted successfully!', 'success');
-      setSuccess('Job posted successfully. Redirecting to your profile…');
-      // Redirect employer to their profile after short delay
-      setTimeout(() => navigate('/profile'), 900);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || 'Failed to create job';
+      const action = isEditing ? 'update' : 'create';
+      const msg = err?.response?.data?.detail || err?.message || `Failed to ${action} job`;
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -394,8 +461,10 @@ const EmployerPostJobPage: React.FC = () => {
         </div>
       )}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Post a Job</h1>
-        <a href="/employer/company" className="text-sm text-primary-700 hover:underline">Update company info</a>
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
+          {isEditing ? 'Edit Job' : 'Post a Job'}
+        </h1>
+        <Link to="/employer/company" className="text-sm text-primary-700 hover:underline">Update company info</Link>
       </div>
 
       {/* Stepper */}
@@ -475,11 +544,8 @@ const EmployerPostJobPage: React.FC = () => {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    {/* Basic rich editor */}
+                    {/* Job description textarea */}
                     <div className="flex items-center gap-2 mb-2">
-                      <Button type="button" variant="outline" onClick={() => applyCmd('bold')}>Bold</Button>
-                      <Button type="button" variant="outline" onClick={() => applyCmd('italic')}>Italic</Button>
-                      <Button type="button" variant="outline" onClick={() => applyCmd('insertUnorderedList')}>Bullets</Button>
                       <Button
                         type="button"
                         className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
@@ -498,26 +564,30 @@ const EmployerPostJobPage: React.FC = () => {
                               }
                             });
                             handleChange('description', draft);
-                            if (descRef.current) descRef.current.innerHTML = draft;
+                            toast('Job description generated successfully!', 'success');
                           } catch (error) {
                             console.error('AI generation failed:', error);
+                            toast('AI generation failed. Please try again or write the description manually.', 'error');
                           }
                         }}
                       >
                         ✨ AI Auto Generate
                       </Button>
                     </div>
-                    <div
+                    <textarea
                       ref={descRef}
-                      className="w-full rounded-md border border-gray-300 p-2 min-h-[200px] focus:outline-none"
-                      contentEditable
-                      suppressContentEditableWarning
-                      onInput={(e) => handleChange('description', (e.target as HTMLDivElement).innerHTML)}
-                      dangerouslySetInnerHTML={{ __html: form.description || '' }}
+                      className="w-full rounded-md border border-gray-300 p-2 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                      value={form.description || ''}
+                      onChange={(e) => handleChange('description', e.target.value)}
+                      placeholder="Enter job description..."
                       style={{
                         lineHeight: '1.6',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        direction: 'ltr',
+                        textAlign: 'left',
+                        fontFamily: 'inherit'
                       }}
+                      dir="ltr"
                     />
                   </div>
                   <div>
@@ -614,12 +684,12 @@ const EmployerPostJobPage: React.FC = () => {
                           </label>
                         ))}
                       </div>
-                      {form.visa_types && form.visa_types.length > 0 && (
+                      {form.visa_types && Array.isArray(form.visa_types) && form.visa_types.length > 0 && (
                         <p className="mt-2 text-xs text-gray-500">
                           Selected: {form.visa_types.join(', ')}
                         </p>
                       )}
-                      {(!form.visa_types || form.visa_types.length === 0) && (
+                      {(!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0) && (
                         <p className="mt-1 text-xs text-red-500">
                           Please select at least one visa type
                         </p>
@@ -738,7 +808,7 @@ const EmployerPostJobPage: React.FC = () => {
               {/* Footer buttons */}
               <div className="flex justify-between pt-2">
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => navigate('/jobs')}>Cancel</Button>
+                  <Button type="button" variant="outline" onClick={() => navigate('/employer/dashboard')}>Cancel</Button>
                   <Button type="button" variant="outline" onClick={saveDraft} loading={submitting}>
                     {submitting ? 'Saving...' : 'Save Draft'}
                   </Button>
@@ -751,7 +821,10 @@ const EmployerPostJobPage: React.FC = () => {
                     <Button type="button" onClick={next}>Next</Button>
                   ) : (
                     <Button type="button" onClick={() => onSubmit()} disabled={submitting}>
-                      {submitting ? 'Publishing…' : 'Publish Job'}
+                      {submitting 
+                        ? (isEditing ? 'Updating…' : 'Publishing…') 
+                        : (isEditing ? 'Update Job' : 'Publish Job')
+                      }
                     </Button>
                   )}
                 </div>
@@ -772,7 +845,12 @@ const EmployerPostJobPage: React.FC = () => {
                 <div className="mt-1 text-xs text-slate-600">
                   {form.role_category ? getRoleCategoryLabel(form.role_category) : 'Role category'} • {form.employment_type ? getEmploymentBasisLabel(form.employment_type) : 'Employment basis'}
                 </div>
-                <div className="mt-3 text-sm text-slate-700 line-clamp-4 whitespace-pre-wrap">{form.description || 'Add a compelling description to attract candidates.'}</div>
+                <div 
+                  className="mt-3 text-sm text-slate-700 line-clamp-4"
+                  dangerouslySetInnerHTML={{ 
+                    __html: form.description || 'Add a compelling description to attract candidates.' 
+                  }}
+                />
                 <div className="mt-4 flex flex-wrap gap-2">
                   {(form.required_skills || []).slice(0,6).map((s, i) => (
                     <span key={i} className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">{s}</span>

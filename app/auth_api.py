@@ -41,8 +41,14 @@ logger = logging.getLogger(__name__)
 
 def safe_json_loads(json_str):
     """Safely parse JSON string, return None if invalid or empty"""
-    if not json_str or not json_str.strip() or json_str == 'null':
+    # If it's already a list or dict, return it as is
+    if isinstance(json_str, (list, dict)):
+        return json_str
+    
+    # If it's not a string or is empty, return None
+    if not json_str or not isinstance(json_str, str) or not json_str.strip() or json_str == 'null':
         return None
+    
     try:
         return json.loads(json_str)
     except (json.JSONDecodeError, TypeError):
@@ -323,7 +329,7 @@ def google_callback(code: Optional[str] = None, error: Optional[str] = None, req
     if user_by_sub:
         user = user_by_sub
     else:
-        user_by_email = db.query(User).filter(User.email == email).first()
+        user_by_email = db.query(User).filter(User.email == email.lower().strip()).first()
         if user_by_email:
             # If existing standalone account, require linking first
             if not user_by_email.oauth_sub:
@@ -399,14 +405,14 @@ def oauth_google_login(payload: dict, request: Request, db: Session = Depends(ge
     auth_service = AuthService(db)
     user = db.query(User).filter(User.oauth_sub == sub).first()
     if not user:
-        user_by_email = db.query(User).filter(User.email == email).first()
+        user_by_email = db.query(User).filter(User.email == email.lower().strip()).first()
         if user_by_email and not user_by_email.oauth_sub:
             raise HTTPException(status_code=409, detail="link_required")
         if not user_by_email:
             from app.auth_models import UserRole
             random_password = secrets.token_urlsafe(24)
             user = User(
-                email=email,
+                email=email.lower().strip(),
                 username=email.split('@')[0],
                 hashed_password=User.hash_password(random_password),
                 full_name=name,

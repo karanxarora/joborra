@@ -28,6 +28,7 @@ import SavedJobsPage from './pages/SavedJobsPage';
 import EmployerVisaGuidePage from './pages/EmployerVisaGuidePage';
 import JobDraftsPage from './pages/JobDraftsPage';
 import EmployerJobViewPage from './pages/EmployerJobViewPage';
+import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -158,6 +159,14 @@ const AppContent: React.FC = () => {
             element={
               <RoleProtectedRoute role="employer">
                 <JobDraftsPage />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/company"
+            element={
+              <RoleProtectedRoute role="employer">
+                <EmployerCompanyInfoPage />
               </RoleProtectedRoute>
             }
           />

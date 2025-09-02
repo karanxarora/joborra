@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -343,7 +344,7 @@ const ProfilePage: React.FC = () => {
           </h1>
           <div className="flex items-center gap-2">
             {ctxUser?.role === 'employer' && (
-              <a href="/employer/post-job" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">Post a Job</a>
+              <Link to="/employer/post-job" className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-primary-600 text-white hover:bg-primary-700">Post a Job</Link>
             )}
           </div>
         </div>
@@ -419,10 +420,10 @@ const ProfilePage: React.FC = () => {
               {/* Quick Links */}
               <div className="mt-4 border-t border-slate-200 pt-4 space-y-2">
                 {ctxUser?.role === 'student' && (
-                  <a href="/applications" className="block text-sm text-primary-700 hover:underline">Submitted Applications</a>
+                  <Link to="/applications" className="block text-sm text-primary-700 hover:underline">Submitted Applications</Link>
                 )}
                 {ctxUser?.role === 'employer' && (
-                  <a href="/employer/post-job" className="block text-sm text-primary-700 hover:underline">Post a Job</a>
+                  <Link to="/employer/post-job" className="block text-sm text-primary-700 hover:underline">Post a Job</Link>
                 )}
               </div>
             </Card>
