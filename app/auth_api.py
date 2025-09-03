@@ -1035,9 +1035,19 @@ def create_job_draft(
         )
         
         db.add(draft)
-        db.commit()
-        db.refresh(draft)
-        draft_id = draft.id
+        try:
+            db.commit()
+            db.refresh(draft)
+            draft_id = draft.id
+        except Exception as db_error:
+            logger.error(f"Database commit error: {db_error}")
+            db.rollback()
+            # Retry once with a small delay for SQLite concurrency issues
+            import time
+            time.sleep(0.1)
+            db.commit()
+            db.refresh(draft)
+            draft_id = draft.id
         
         logger.info(f"Employer {current_user.id} created job draft: {draft_data.title}")
         
@@ -1303,12 +1313,29 @@ def publish_job_draft(
         )
         
         db.add(job)
-        db.commit()
-        db.refresh(job)
+        try:
+            db.commit()
+            db.refresh(job)
+        except Exception as db_error:
+            logger.error(f"Database commit error during job creation: {db_error}")
+            db.rollback()
+            # Retry once with a small delay for SQLite concurrency issues
+            import time
+            time.sleep(0.1)
+            db.commit()
+            db.refresh(job)
         
         # Delete the draft after successful publishing
         db.delete(draft)
-        db.commit()
+        try:
+            db.commit()
+        except Exception as db_error:
+            logger.error(f"Database commit error during draft deletion: {db_error}")
+            db.rollback()
+            # Retry once with a small delay for SQLite concurrency issues
+            import time
+            time.sleep(0.1)
+            db.commit()
         
         logger.info(f"Successfully published job draft {draft_id} as job {job.id}")
         
