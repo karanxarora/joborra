@@ -30,7 +30,11 @@ def get_supabase_client() -> Optional[Client]:
         return None
     
     try:
-        return create_client(_get_supabase_url(), _get_supabase_service_key())
+        # Use explicit parameter names to avoid proxy argument issues
+        return create_client(
+            supabase_url=_get_supabase_url(),
+            supabase_key=_get_supabase_service_key()
+        )
     except Exception as e:
         logger.error(f"Failed to create Supabase client: {e}")
         return None

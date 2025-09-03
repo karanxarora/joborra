@@ -244,9 +244,10 @@ const ProfilePage: React.FC = () => {
       await refreshUser();
       setResumeMessage('Resume uploaded successfully');
       setResumeFile(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('ProfilePage: Upload failed:', err);
-      setResumeMessage('Failed to upload resume. Please upload a PDF file.');
+      const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to upload resume. Please try again.';
+      setResumeMessage(errorMessage);
     } finally {
       setResumeUploading(false);
     }
@@ -273,8 +274,9 @@ const ProfilePage: React.FC = () => {
       setVisaMsg('VEVO document uploaded successfully');
       setVisaDocFile(null);
       setVisaConsentGiven(false);
-    } catch (err) {
-      setVisaMsg('Failed to upload VEVO document. Allowed: PDF, JPG, PNG, DOC, DOCX');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to upload VEVO document. Please try again.';
+      setVisaMsg(errorMessage);
     } finally {
       setVisaDocUploading(false);
     }

@@ -1490,10 +1490,11 @@ async def upload_user_resume(
         try:
             resume_url_value = await supabase_upload_resume(current_user.id, content, file.filename)
             if not resume_url_value:
-                raise HTTPException(status_code=500, detail="Failed to upload resume")
+                logger.error("Supabase upload returned None - client creation or upload failed")
+                raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
         except Exception as e:
             logger.error(f"Supabase upload error: {e}")
-            raise HTTPException(status_code=500, detail="Storage upload failed")
+            raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
     else:
         logger.error("Supabase not configured - missing environment variables")
         raise HTTPException(
