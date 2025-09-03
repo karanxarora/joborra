@@ -190,11 +190,12 @@ const EmployerPostJobPage: React.FC = () => {
         let parsedVisaTypes = [];
         if (Array.isArray(job.visa_types)) {
           parsedVisaTypes = job.visa_types;
-        } else if (typeof job.visa_types === 'string') {
-          const trimmedVisaTypes = job.visa_types.trim();
-          if (trimmedVisaTypes) {
+        } else {
+          // Handle case where visa_types might be a JSON string (backend inconsistency)
+          const visaTypesValue = job.visa_types as any;
+          if (typeof visaTypesValue === 'string' && visaTypesValue.trim()) {
             try {
-              parsedVisaTypes = JSON.parse(trimmedVisaTypes);
+              parsedVisaTypes = JSON.parse(visaTypesValue.trim());
             } catch (e) {
               console.warn('Failed to parse visa_types:', e);
               parsedVisaTypes = [];
