@@ -208,8 +208,6 @@ export interface EmployerJobCreate {
   visa_sponsorship?: boolean;
   visa_types?: string[];
   international_student_friendly?: boolean;
-  required_skills?: string[];
-  preferred_skills?: string[];
   education_requirements?: string;
   expires_at?: string;
 }

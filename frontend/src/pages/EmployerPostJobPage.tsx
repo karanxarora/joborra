@@ -39,14 +39,11 @@ const EmployerPostJobPage: React.FC = () => {
     visa_sponsorship: false,
     visa_types: [] as string[],
     international_student_friendly: false,
-    required_skills: [],
-    preferred_skills: [],
     education_requirements: '',
     expires_at: undefined,
   });
 
-  const [skillsInput, setSkillsInput] = useState('');
-  const [preferredSkillsInput, setPreferredSkillsInput] = useState('');
+
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,8 +118,7 @@ const EmployerPostJobPage: React.FC = () => {
           visa_sponsorship: draft.visa_sponsorship || false,
           visa_types: Array.isArray(draft.visa_types) ? draft.visa_types : [],
           international_student_friendly: draft.international_student_friendly || false,
-          required_skills: draft.required_skills || [],
-          preferred_skills: draft.preferred_skills || [],
+
           education_requirements: draft.education_requirements || '',
           expires_at: draft.expires_at,
         });
@@ -180,15 +176,12 @@ const EmployerPostJobPage: React.FC = () => {
           visa_sponsorship: job.visa_sponsorship || false,
           visa_types: parsedVisaTypes,
           international_student_friendly: job.international_student_friendly || false,
-          required_skills: job.required_skills || [],
-          preferred_skills: job.preferred_skills || [],
+
           education_requirements: job.education_requirements || '',
           expires_at: job.expires_at,
         });
         
-        // Set skills inputs for display
-        setSkillsInput(job.required_skills ? job.required_skills.join(', ') : '');
-        setPreferredSkillsInput(job.preferred_skills ? job.preferred_skills.join(', ') : '');
+
         
         setIsEditing(true);
         setEditingJobId(jobId);
@@ -267,8 +260,7 @@ const EmployerPostJobPage: React.FC = () => {
         visa_sponsorship: form.visa_sponsorship,
         visa_types: (form.visa_types && Array.isArray(form.visa_types) && form.visa_types.length > 0) ? form.visa_types : undefined,
         international_student_friendly: form.international_student_friendly,
-        required_skills: form.required_skills,
-        preferred_skills: form.preferred_skills,
+
         education_requirements: form.education_requirements || undefined,
         expires_at: form.expires_at,
         step: step
@@ -321,29 +313,9 @@ const EmployerPostJobPage: React.FC = () => {
     }));
   };
 
-  const addSkill = () => {
-    const value = skillsInput.trim();
-    if (!value) return;
-    handleChange('required_skills', [ ...(form.required_skills || []), value ]);
-    setSkillsInput('');
-  };
 
-  const addPreferredSkill = () => {
-    const value = preferredSkillsInput.trim();
-    if (!value) return;
-    handleChange('preferred_skills', [ ...(form.preferred_skills || []), value ]);
-    setPreferredSkillsInput('');
-  };
 
-  const removeSkill = (idx: number) => {
-    const next = (form.required_skills || []).filter((_, i) => i !== idx);
-    handleChange('required_skills', next);
-  };
 
-  const removePreferredSkill = (idx: number) => {
-    const next = (form.preferred_skills || []).filter((_, i) => i !== idx);
-    handleChange('preferred_skills', next);
-  };
 
   const onSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -576,7 +548,7 @@ const EmployerPostJobPage: React.FC = () => {
                           try {
                             const draft = await apiService.generateJobDescription({ 
                               title: form.title, 
-                              skills: form.required_skills || [],
+                              skills: [],
                               role_category: form.role_category,
                               employment_type: form.employment_type,
                               location: form.location || form.city || form.state,
@@ -604,36 +576,7 @@ const EmployerPostJobPage: React.FC = () => {
                       className="w-full"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Required Skills</label>
-                    <div className="flex gap-2">
-                      <Input value={skillsInput} onChange={(e) => setSkillsInput(e.target.value)} placeholder="Add a skill" />
-                      <Button type="button" onClick={addSkill}>Add</Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {(form.required_skills || []).map((s, i) => (
-                        <span key={i} className="px-2 py-1 bg-slate-100 rounded text-sm">
-                          {s}
-                          <button type="button" onClick={() => removeSkill(i)} className="ml-2 text-red-500">×</button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Skills</label>
-                    <div className="flex gap-2">
-                      <Input value={preferredSkillsInput} onChange={(e) => setPreferredSkillsInput(e.target.value)} placeholder="Add a preferred skill" />
-                      <Button type="button" onClick={addPreferredSkill}>Add</Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {(form.preferred_skills || []).map((s, i) => (
-                        <span key={i} className="px-2 py-1 bg-slate-100 rounded text-sm">
-                          {s}
-                          <button type="button" onClick={() => removePreferredSkill(i)} className="ml-2 text-red-500">×</button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+
                 </>
               )}
 
@@ -783,20 +726,7 @@ const EmployerPostJobPage: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Skills */}
-                    {(form.required_skills && form.required_skills.length > 0) && (
-                      <div className="mb-4">
-                        <div className="text-sm font-medium text-slate-700 mb-2">Required Skills:</div>
-                        <div className="flex flex-wrap gap-2">
-                          {form.required_skills.slice(0, 8).map((skill, i) => (
-                            <span key={i} className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">{skill}</span>
-                          ))}
-                          {form.required_skills.length > 8 && (
-                            <span className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">+{form.required_skills.length - 8} more</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
+
 
                     {/* Description Preview */}
                     <div className="border-t border-slate-200 pt-4">
@@ -865,11 +795,7 @@ const EmployerPostJobPage: React.FC = () => {
                     __html: form.description || 'Add a compelling description to attract candidates.' 
                   }}
                 />
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {(form.required_skills || []).slice(0,6).map((s, i) => (
-                    <span key={i} className="px-2 py-1 bg-slate-100 rounded text-xs text-slate-700">{s}</span>
-                  ))}
-                </div>
+
               </Card>
             </div>
           </div>

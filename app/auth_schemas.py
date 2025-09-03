@@ -208,8 +208,6 @@ class EmployerJobCreate(BaseModel):
     visa_sponsorship: bool = False
     visa_types: Optional[List[str]] = None
     international_student_friendly: bool = False
-    required_skills: Optional[List[str]] = None
-    preferred_skills: Optional[List[str]] = None
     education_requirements: Optional[str] = None
     expires_at: Optional[datetime] = None
     

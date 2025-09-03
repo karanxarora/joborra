@@ -698,9 +698,9 @@ def recommended_candidates(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Prepare job skill sets
-    req_skills = set((job.required_skills or []) if isinstance(job.required_skills, list) else [])
-    pref_skills = set((job.preferred_skills or []) if isinstance(job.preferred_skills, list) else [])
+    # Prepare job skill sets (skills are no longer collected in job posting)
+    req_skills = set()
+    pref_skills = set()
 
     # Fetch students
     from .auth_models import UserRole
@@ -810,8 +810,6 @@ def create_job_posting(
         international_student_friendly=job_data.international_student_friendly,
         source_website="joborra.com",
         source_url=f"https://joborra.com/jobs/{job_data.title.lower().replace(' ', '-')}-{int(time.time())}",
-        required_skills=job_data.required_skills,
-        preferred_skills=job_data.preferred_skills,
         education_requirements=job_data.education_requirements,
         expires_at=job_data.expires_at,
         company_id=company.id if company else None,
