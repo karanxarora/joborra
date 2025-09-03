@@ -850,8 +850,8 @@ def create_job_posting(
         "source_website": job.source_website,
         "source_url": job.source_url,
         "source_job_id": job.source_job_id,
-        "required_skills": safe_json_loads(job.required_skills),
-        "preferred_skills": safe_json_loads(job.preferred_skills),
+        "required_skills": job.required_skills,
+        "preferred_skills": job.preferred_skills,
         "education_requirements": job.education_requirements,
         "posted_date": job.posted_date,
         "expires_at": job.expires_at,
@@ -967,8 +967,8 @@ def get_employer_jobs(
             "source_website": job.source_website,
             "source_url": job.source_url,
             "source_job_id": job.source_job_id,
-            "required_skills": safe_json_loads(job.required_skills),
-            "preferred_skills": safe_json_loads(job.preferred_skills),
+            "required_skills": job.required_skills,
+            "preferred_skills": job.preferred_skills,
             "education_requirements": job.education_requirements,
             "posted_date": job.posted_date,
             "expires_at": job.expires_at,
@@ -993,10 +993,16 @@ def create_job_draft(
 ):
     """Create a new job draft"""
     try:
-        # Serialize skills to JSON strings
+        # Serialize skills to JSON strings with better error handling
         import json
-        required_skills_json = json.dumps(draft_data.required_skills) if draft_data.required_skills else None
-        preferred_skills_json = json.dumps(draft_data.preferred_skills) if draft_data.preferred_skills else None
+        try:
+            required_skills_json = json.dumps(draft_data.required_skills) if draft_data.required_skills else None
+            preferred_skills_json = json.dumps(draft_data.preferred_skills) if draft_data.preferred_skills else None
+            logger.info(f"Creating draft with skills: required={draft_data.required_skills}, preferred={draft_data.preferred_skills}")
+        except Exception as e:
+            logger.error(f"Error serializing skills: {e}")
+            required_skills_json = None
+            preferred_skills_json = None
         
         # Use raw SQL to insert the draft
         from sqlalchemy import text
@@ -1233,75 +1239,89 @@ def publish_job_draft(
     db: Session = Depends(get_db)
 ):
     """Publish a job draft as a live job posting"""
-    draft = db.query(JobDraft).filter(
-        JobDraft.id == draft_id,
-        JobDraft.created_by_user_id == current_user.id
-    ).first()
-    
-    if not draft:
-        raise HTTPException(status_code=404, detail="Job draft not found")
-    
-    # Get or create company
-    company = None
-    if current_user.company_name:
-        company = db.query(Company).filter(
-            Company.name == current_user.company_name
+    try:
+        draft = db.query(JobDraft).filter(
+            JobDraft.id == draft_id,
+            JobDraft.created_by_user_id == current_user.id
         ).first()
         
-        if not company:
-            company = Company(
-                name=current_user.company_name,
-                website=current_user.company_website,
-                size=current_user.company_size,
-                industry=current_user.industry
-            )
-            db.add(company)
-            db.commit()
-            db.refresh(company)
-    
-    # Create job from draft
-    job = Job(
-        title=draft.title,
-        description=draft.description,
-        location=draft.location,
-        city=draft.city,
-        state=draft.state,
-        salary_min=draft.salary_min,
-        salary_max=draft.salary_max,
-        salary_currency=draft.salary_currency,
-        salary=draft.salary,
-        employment_type=draft.employment_type,
-        job_type=draft.job_type,
-        role_category=draft.role_category,
-        experience_level=draft.experience_level,
-        remote_option=draft.remote_option,
-        visa_sponsorship=draft.visa_sponsorship,
-        visa_types=draft.visa_types,
-        international_student_friendly=draft.international_student_friendly,
-        source_website="joborra.com",
-        source_url=f"https://joborra.com/jobs/{draft.title.lower().replace(' ', '-')}-{int(time.time())}",
-        required_skills=safe_json_loads(draft.required_skills),
-        preferred_skills=safe_json_loads(draft.preferred_skills),
-        education_requirements=draft.education_requirements,
-        expires_at=draft.expires_at,
-        company_id=company.id if company else None,
-        posted_by_user_id=current_user.id,
-        is_joborra_job=True,
-        posted_date=datetime.now()
-    )
-    
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    
-    # Delete the draft after successful publishing
-    db.delete(draft)
-    db.commit()
-    
-    logger.info(f"Employer {current_user.id} published job draft {draft_id} as job {job.id}")
-    
-    # Return properly formatted response
-    return {
+        if not draft:
+            raise HTTPException(status_code=404, detail="Job draft not found")
+        
+        # Log draft data for debugging
+        logger.info(f"Publishing draft {draft_id} with skills: required={draft.required_skills}, preferred={draft.preferred_skills}")
+        
+        # Get or create company
+        company = None
+        if current_user.company_name:
+            company = db.query(Company).filter(
+                Company.name == current_user.company_name
+            ).first()
+            
+            if not company:
+                company = Company(
+                    name=current_user.company_name,
+                    website=current_user.company_website,
+                    size=current_user.company_size,
+                    industry=current_user.industry
+                )
+                db.add(company)
+                db.commit()
+                db.refresh(company)
+        
+        # Parse skills safely with better error handling
+        try:
+            required_skills_parsed = safe_json_loads(draft.required_skills)
+            preferred_skills_parsed = safe_json_loads(draft.preferred_skills)
+            logger.info(f"Parsed skills: required={required_skills_parsed}, preferred={preferred_skills_parsed}")
+        except Exception as e:
+            logger.error(f"Error parsing skills: {e}")
+            required_skills_parsed = []
+            preferred_skills_parsed = []
+        
+        # Create job from draft
+        job = Job(
+            title=draft.title,
+            description=draft.description,
+            location=draft.location,
+            city=draft.city,
+            state=draft.state,
+            salary_min=draft.salary_min,
+            salary_max=draft.salary_max,
+            salary_currency=draft.salary_currency,
+            salary=draft.salary,
+            employment_type=draft.employment_type,
+            job_type=draft.job_type,
+            role_category=draft.role_category,
+            experience_level=draft.experience_level,
+            remote_option=draft.remote_option,
+            visa_sponsorship=draft.visa_sponsorship,
+            visa_types=draft.visa_types,
+            international_student_friendly=draft.international_student_friendly,
+            source_website="joborra.com",
+            source_url=f"https://joborra.com/jobs/{draft.title.lower().replace(' ', '-')}-{int(time.time())}",
+            required_skills=required_skills_parsed,
+            preferred_skills=preferred_skills_parsed,
+            education_requirements=draft.education_requirements,
+            expires_at=draft.expires_at,
+            company_id=company.id if company else None,
+            posted_by_user_id=current_user.id,
+            is_joborra_job=True,
+            posted_date=datetime.now()
+        )
+        
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        
+        # Delete the draft after successful publishing
+        db.delete(draft)
+        db.commit()
+        
+        logger.info(f"Successfully published job draft {draft_id} as job {job.id}")
+        
+        # Return properly formatted response
+        return {
         "id": job.id,
         "title": job.title,
         "description": job.description,
@@ -1324,8 +1344,8 @@ def publish_job_draft(
         "source_website": job.source_website,
         "source_url": job.source_url,
         "source_job_id": job.source_job_id,
-        "required_skills": safe_json_loads(job.required_skills),
-        "preferred_skills": safe_json_loads(job.preferred_skills),
+        "required_skills": job.required_skills,
+        "preferred_skills": job.preferred_skills,
         "education_requirements": job.education_requirements,
         "posted_date": job.posted_date,
         "expires_at": job.expires_at,
@@ -1337,7 +1357,12 @@ def publish_job_draft(
         "is_active": job.is_active,
         "is_duplicate": job.is_duplicate,
         "company_id": job.company_id
-    }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error publishing job draft {draft_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to publish job draft: {str(e)}")
 
 @employer_router.get("/applications", response_model=List[EmployerApplicationWithUser])
 def list_employer_applications(
@@ -1756,8 +1781,8 @@ def update_job_posting(
         "source_website": job.source_website,
         "source_url": job.source_url,
         "source_job_id": job.source_job_id,
-        "required_skills": safe_json_loads(job.required_skills),
-        "preferred_skills": safe_json_loads(job.preferred_skills),
+        "required_skills": job.required_skills,
+        "preferred_skills": job.preferred_skills,
         "education_requirements": job.education_requirements,
         "posted_date": job.posted_date,
         "expires_at": job.expires_at,
