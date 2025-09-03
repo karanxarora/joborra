@@ -36,11 +36,95 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   const insertBulletList = () => {
-    execCommand('insertUnorderedList');
+    if (editorRef.current) {
+      editorRef.current.focus();
+      
+      // Check if we're already in a list
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let container: Node | null = range.commonAncestorContainer;
+        
+        // Walk up the DOM tree to find if we're in a list
+        while (container && container !== editorRef.current) {
+          if (container.nodeType === Node.ELEMENT_NODE) {
+            const element = container as Element;
+            if (element.tagName === 'UL' || element.tagName === 'OL') {
+              // Already in a list, just add a new item
+              const newLi = document.createElement('li');
+              newLi.innerHTML = '<br>';
+              range.insertNode(newLi);
+              range.setStart(newLi, 0);
+              range.setEnd(newLi, 0);
+              selection.removeAllRanges();
+              selection.addRange(range);
+              handleInput();
+              return;
+            }
+          }
+          container = container.parentNode;
+        }
+        
+        // Not in a list, create one
+        const ul = document.createElement('ul');
+        const li = document.createElement('li');
+        li.innerHTML = '<br>';
+        ul.appendChild(li);
+        range.deleteContents();
+        range.insertNode(ul);
+        range.setStart(li, 0);
+        range.setEnd(li, 0);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        handleInput();
+      }
+    }
   };
 
   const insertNumberedList = () => {
-    execCommand('insertOrderedList');
+    if (editorRef.current) {
+      editorRef.current.focus();
+      
+      // Check if we're already in a list
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let container: Node | null = range.commonAncestorContainer;
+        
+        // Walk up the DOM tree to find if we're in a list
+        while (container && container !== editorRef.current) {
+          if (container.nodeType === Node.ELEMENT_NODE) {
+            const element = container as Element;
+            if (element.tagName === 'UL' || element.tagName === 'OL') {
+              // Already in a list, just add a new item
+              const newLi = document.createElement('li');
+              newLi.innerHTML = '<br>';
+              range.insertNode(newLi);
+              range.setStart(newLi, 0);
+              range.setEnd(newLi, 0);
+              selection.removeAllRanges();
+              selection.addRange(range);
+              handleInput();
+              return;
+            }
+          }
+          container = container.parentNode;
+        }
+        
+        // Not in a list, create one
+        const ol = document.createElement('ol');
+        const li = document.createElement('li');
+        li.innerHTML = '<br>';
+        ol.appendChild(li);
+        range.deleteContents();
+        range.insertNode(ol);
+        range.setStart(li, 0);
+        range.setEnd(li, 0);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        handleInput();
+      }
+    }
   };
 
   const toggleBold = () => {
