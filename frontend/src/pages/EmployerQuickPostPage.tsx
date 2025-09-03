@@ -24,6 +24,7 @@ const EmployerQuickPostPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   // Role category options
   const roleCategoryOptions: SelectOption[] = [
@@ -61,6 +62,7 @@ const EmployerQuickPostPage: React.FC = () => {
 
   const onAIGenerate = async () => {
     setError(null);
+    setAiGenerating(true);
     try {
       const sysPrompt = `You are an expert HR copywriter. Write a concise, friendly, student‑inclusive job description.
 
@@ -103,6 +105,8 @@ Output sections (no labels needed):
     } catch (error) {
       console.error('AI generation failed:', error);
       setError('AI generation failed. Please try again or write the description manually.');
+    } finally {
+      setAiGenerating(false);
     }
   };
 
@@ -197,7 +201,30 @@ Output sections (no labels needed):
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">About the job</label>
               <div className="flex gap-2 mb-2">
-                <Button type="button" variant="outline" onClick={onAIGenerate}>Auto-generate</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  disabled={aiGenerating || !title.trim()}
+                  onClick={onAIGenerate}
+                  className="flex items-center gap-2"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-cyan-600 border-t-transparent"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Auto-generate
+                    </>
+                  )}
+                </Button>
+                {!title.trim() && (
+                  <span className="text-sm text-gray-500">Enter job title to enable AI generation</span>
+                )}
               </div>
               <textarea
                 ref={descRef}

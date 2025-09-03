@@ -48,6 +48,7 @@ const EmployerPostJobPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingDraft, setLoadingDraft] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [loadingJob, setLoadingJob] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState(0); // 0..4
@@ -543,8 +544,15 @@ const EmployerPostJobPage: React.FC = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <Button
                         type="button"
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                        disabled={aiGenerating || !form.title.trim()}
+                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 font-medium flex items-center gap-2"
                         onClick={async () => {
+                          if (!form.title.trim()) {
+                            toast('Please enter a job title first', 'error');
+                            return;
+                          }
+                          
+                          setAiGenerating(true);
                           try {
                             const draft = await apiService.generateJobDescription({ 
                               title: form.title, 
@@ -563,11 +571,28 @@ const EmployerPostJobPage: React.FC = () => {
                           } catch (error) {
                             console.error('AI generation failed:', error);
                             toast('AI generation failed. Please try again or write the description manually.', 'error');
+                          } finally {
+                            setAiGenerating(false);
                           }
                         }}
                       >
-                        ✨ AI Auto Generate
+                        {aiGenerating ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            AI Auto Generate
+                          </>
+                        )}
                       </Button>
+                      {!form.title.trim() && (
+                        <span className="text-sm text-gray-500">Enter job title to enable AI generation</span>
+                      )}
                     </div>
                     <RichTextEditor
                       value={form.description || ''}
