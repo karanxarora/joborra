@@ -393,9 +393,9 @@ const EmployerPostJobPage: React.FC = () => {
         // Create new job
         result = await apiService.createEmployerJob(jobData);
         toast('Job posted successfully!', 'success');
-        setSuccess('Job posted successfully. Redirecting to your profile…');
-        // Redirect employer to their profile after short delay
-        setTimeout(() => navigate('/profile'), 900);
+        setSuccess('Job posted successfully. Redirecting to dashboard…');
+        // Redirect employer to their dashboard after short delay
+        setTimeout(() => navigate('/employer/dashboard'), 900);
       }
 
       if (file) {

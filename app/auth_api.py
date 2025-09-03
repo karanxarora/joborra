@@ -816,7 +816,8 @@ def create_job_posting(
         expires_at=job_data.expires_at,
         company_id=company.id if company else None,
         posted_by_user_id=current_user.id,
-        is_joborra_job=True
+        is_joborra_job=True,
+        posted_date=datetime.now()
     )
     
     db.add(job)
@@ -1279,13 +1280,14 @@ def publish_job_draft(
         international_student_friendly=draft.international_student_friendly,
         source_website="joborra.com",
         source_url=f"https://joborra.com/jobs/{draft.title.lower().replace(' ', '-')}-{int(time.time())}",
-        required_skills=draft.required_skills,
-        preferred_skills=draft.preferred_skills,
+        required_skills=safe_json_loads(draft.required_skills),
+        preferred_skills=safe_json_loads(draft.preferred_skills),
         education_requirements=draft.education_requirements,
         expires_at=draft.expires_at,
         company_id=company.id if company else None,
         posted_by_user_id=current_user.id,
-        is_joborra_job=True
+        is_joborra_job=True,
+        posted_date=datetime.now()
     )
     
     db.add(job)
