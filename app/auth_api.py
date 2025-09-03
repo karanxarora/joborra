@@ -1339,44 +1339,8 @@ def publish_job_draft(
         
         logger.info(f"Successfully published job draft {draft_id} as job {job.id}")
         
-        # Return properly formatted response
-        return {
-        "id": job.id,
-        "title": job.title,
-        "description": job.description,
-        "location": job.location,
-        "state": job.state,
-        "city": job.city,
-        "salary_min": job.salary_min,
-        "salary_max": job.salary_max,
-        "salary_currency": job.salary_currency,
-        "salary": job.salary,
-        "employment_type": job.employment_type,
-        "job_type": job.job_type,
-        "role_category": job.role_category,
-        "experience_level": job.experience_level,
-        "remote_option": job.remote_option,
-        "visa_sponsorship": job.visa_sponsorship,
-        "visa_sponsorship_confidence": job.visa_sponsorship_confidence,
-        "international_student_friendly": job.international_student_friendly,
-        "visa_types": safe_json_loads(job.visa_types),
-        "source_website": job.source_website,
-        "source_url": job.source_url,
-        "source_job_id": job.source_job_id,
-        "required_skills": job.required_skills,
-        "preferred_skills": job.preferred_skills,
-        "education_requirements": job.education_requirements,
-        "posted_date": job.posted_date,
-        "expires_at": job.expires_at,
-        "job_document_url": job.job_document_url,
-        "posted_by_user_id": job.posted_by_user_id,
-        "is_joborra_job": job.is_joborra_job,
-        "scraped_at": job.scraped_at,
-        "updated_at": job.updated_at,
-        "is_active": job.is_active,
-        "is_duplicate": job.is_duplicate,
-        "company_id": job.company_id
-        }
+        # Return the job object directly (FastAPI will serialize it according to JobSchema)
+        return job
         
     except Exception as e:
         logger.error(f"Error publishing job draft {draft_id}: {str(e)}")
