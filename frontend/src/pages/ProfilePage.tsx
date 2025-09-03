@@ -201,7 +201,7 @@ const ProfilePage: React.FC = () => {
     if (ctxUser?.resume_url && !resumeViewUrl) {
       getResumeViewUrl();
     }
-  }, [ctxUser?.id]); // Only run when user ID changes (initial load)
+  }, [ctxUser?.id, ctxUser?.resume_url, resumeViewUrl, getResumeViewUrl]); // Include all dependencies
 
   const getResumeViewUrl = async () => {
     if (!ctxUser?.resume_url) {
