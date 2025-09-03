@@ -998,55 +998,46 @@ def create_job_draft(
         try:
             required_skills_json = json.dumps(draft_data.required_skills) if draft_data.required_skills else None
             preferred_skills_json = json.dumps(draft_data.preferred_skills) if draft_data.preferred_skills else None
+            visa_types_json = json.dumps(draft_data.visa_types) if draft_data.visa_types else None
             logger.info(f"Creating draft with skills: required={draft_data.required_skills}, preferred={draft_data.preferred_skills}")
         except Exception as e:
             logger.error(f"Error serializing skills: {e}")
             required_skills_json = None
             preferred_skills_json = None
+            visa_types_json = None
         
-        # Use raw SQL to insert the draft
-        from sqlalchemy import text
+        # Use ORM instead of raw SQL for better error handling
+        draft = JobDraft(
+            title=draft_data.title,
+            description=draft_data.description,
+            location=draft_data.location,
+            city=draft_data.city,
+            state=draft_data.state,
+            salary_min=draft_data.salary_min,
+            salary_max=draft_data.salary_max,
+            salary_currency=draft_data.salary_currency or "AUD",
+            salary=draft_data.salary,
+            employment_type=draft_data.employment_type,
+            job_type=draft_data.job_type,
+            role_category=draft_data.role_category,
+            experience_level=draft_data.experience_level,
+            remote_option=draft_data.remote_option or False,
+            visa_sponsorship=draft_data.visa_sponsorship or False,
+            visa_types=visa_types_json,
+            international_student_friendly=draft_data.international_student_friendly or False,
+            required_skills=required_skills_json,
+            preferred_skills=preferred_skills_json,
+            education_requirements=draft_data.education_requirements,
+            expires_at=draft_data.expires_at,
+            draft_name=draft_data.draft_name,
+            step=draft_data.step or 0,
+            created_by_user_id=current_user.id
+        )
         
-        result = db.execute(text("""
-            INSERT INTO job_drafts (title, description, location, city, state, salary_min, salary_max, 
-                                  salary_currency, salary, employment_type, job_type, role_category, 
-                                  experience_level, remote_option, visa_sponsorship, visa_types, 
-                                  international_student_friendly, required_skills, preferred_skills, 
-                                  education_requirements, expires_at, draft_name, step, created_by_user_id)
-            VALUES (:title, :description, :location, :city, :state, :salary_min, :salary_max, 
-                   :salary_currency, :salary, :employment_type, :job_type, :role_category, 
-                   :experience_level, :remote_option, :visa_sponsorship, :visa_types, 
-                   :international_student_friendly, :required_skills, :preferred_skills, 
-                   :education_requirements, :expires_at, :draft_name, :step, :created_by_user_id)
-        """), {
-            'title': draft_data.title,
-            'description': draft_data.description,
-            'location': draft_data.location,
-            'city': draft_data.city,
-            'state': draft_data.state,
-            'salary_min': draft_data.salary_min,
-            'salary_max': draft_data.salary_max,
-            'salary_currency': draft_data.salary_currency or "AUD",
-            'salary': draft_data.salary,
-            'employment_type': draft_data.employment_type,
-            'job_type': draft_data.job_type,
-            'role_category': draft_data.role_category,
-            'experience_level': draft_data.experience_level,
-            'remote_option': draft_data.remote_option or False,
-            'visa_sponsorship': draft_data.visa_sponsorship or False,
-            'visa_types': json.dumps(draft_data.visa_types) if draft_data.visa_types else None,
-            'international_student_friendly': draft_data.international_student_friendly or False,
-            'required_skills': required_skills_json,
-            'preferred_skills': preferred_skills_json,
-            'education_requirements': draft_data.education_requirements,
-            'expires_at': draft_data.expires_at,
-            'draft_name': draft_data.draft_name,
-            'step': draft_data.step or 0,
-            'created_by_user_id': current_user.id
-        })
-        
+        db.add(draft)
         db.commit()
-        draft_id = result.lastrowid
+        db.refresh(draft)
+        draft_id = draft.id
         
         logger.info(f"Employer {current_user.id} created job draft: {draft_data.title}")
         
@@ -1058,6 +1049,7 @@ def create_job_draft(
         }
     except Exception as e:
         logger.error(f"Error creating job draft: {str(e)}")
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating job draft: {str(e)}")
 
 @employer_router.get("/job-drafts")
