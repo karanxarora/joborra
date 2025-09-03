@@ -184,7 +184,14 @@ const EmployerPostJobPage: React.FC = () => {
         
         setIsEditing(true);
         setEditingJobId(jobId);
-        toast('Job data loaded successfully!', 'success');
+        
+        // If job has no visa types, advance to step 3 (visa types step)
+        if (!job.visa_types || !Array.isArray(job.visa_types) || job.visa_types.length === 0) {
+          setStep(3);
+          toast('Job data loaded! Please select at least one visa type.', 'info');
+        } else {
+          toast('Job data loaded successfully!', 'success');
+        }
       }
     } catch (error) {
       console.error('Failed to load job:', error);
@@ -344,9 +351,8 @@ const EmployerPostJobPage: React.FC = () => {
         return;
       }
       
-      // Only validate visa types if user has reached step 3 (where visa types are visible)
-      // Skip validation for job updates if visa_types is not set
-      if (step >= 3 && !isEditing && (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0)) {
+      // Validate visa types - all jobs must have at least one visa type selected
+      if (step >= 3 && (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0)) {
         setError('Please select at least one visa type.');
         setSubmitting(false);
         return;
@@ -458,6 +464,14 @@ const EmployerPostJobPage: React.FC = () => {
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
             <span className="text-blue-700">Loading draft...</span>
+          </div>
+        </div>
+      )}
+      {loadingJob && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-3"></div>
+            <span className="text-green-700">Loading job data...</span>
           </div>
         </div>
       )}
