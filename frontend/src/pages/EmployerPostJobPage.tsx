@@ -345,7 +345,8 @@ const EmployerPostJobPage: React.FC = () => {
       }
       
       // Only validate visa types if user has reached step 3 (where visa types are visible)
-      if (step >= 3 && (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0)) {
+      // Skip validation for job updates if visa_types is not set
+      if (step >= 3 && !isEditing && (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0)) {
         setError('Please select at least one visa type.');
         setSubmitting(false);
         return;

@@ -1721,7 +1721,11 @@ def update_job_posting(
         raise HTTPException(status_code=404, detail="Job not found")
     
     for field, value in job_data.dict(exclude_unset=True).items():
-        setattr(job, field, value)
+        if field in ['visa_types'] and value is not None:
+            # Convert visa_types to JSON string (Job model uses Text column)
+            setattr(job, field, json.dumps(value))
+        else:
+            setattr(job, field, value)
     
     db.commit()
     db.refresh(job)
