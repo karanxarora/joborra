@@ -493,7 +493,7 @@ const EmployerPostJobPage: React.FC = () => {
       )}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-          {isEditing ? 'Edit Job' : 'Post a Job'}
+          {isEditing ? 'Edit Job' : 'Post a Job in under 2 mins'}
         </h1>
         <Link to="/employer/company" className="text-sm text-primary-700 hover:underline">Update company info</Link>
       </div>
