@@ -1301,7 +1301,7 @@ def publish_job_draft(
             visa_types=draft.visa_types,
             international_student_friendly=draft.international_student_friendly,
             source_website="joborra.com",
-            source_url=f"https://joborra.com/jobs/{draft.title.lower().replace(' ', '-')}-{int(time.time())}",
+            source_url=f"https://joborra.com/jobs/{draft.title.lower().replace(' ', '-')}-{draft_id}-{int(time.time())}",
             required_skills=required_skills_parsed,
             preferred_skills=preferred_skills_parsed,
             education_requirements=draft.education_requirements,
