@@ -393,9 +393,9 @@ const EmployerPostJobPage: React.FC = () => {
         // Update existing job
         result = await apiService.updateEmployerJob(editingJobId, jobData);
         toast('Job updated successfully!', 'success');
-        setSuccess('Job updated successfully. Redirecting to job view…');
-        // Redirect to job view after short delay
-        setTimeout(() => navigate(`/employer/job/${editingJobId}`), 900);
+        setSuccess('Job updated successfully. Redirecting to dashboard…');
+        // Redirect to employer dashboard after short delay
+        setTimeout(() => navigate('/employer/dashboard'), 900);
       } else {
         // Create new job
         result = await apiService.createEmployerJob(jobData);
