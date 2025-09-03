@@ -40,6 +40,7 @@ const Select: React.FC<SelectProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setShowTooltip(false); // Hide tooltip when dropdown closes
       }
     };
 
@@ -49,11 +50,19 @@ const Select: React.FC<SelectProps> = ({
     };
   }, []);
 
+  // Hide tooltip when dropdown closes
+  useEffect(() => {
+    if (!isOpen) {
+      setShowTooltip(false);
+    }
+  }, [isOpen]);
+
   const selectedOption = options.find(option => option.value === value);
 
   const handleOptionClick = (option: SelectOption) => {
     onChange(option.value);
     setIsOpen(false);
+    setShowTooltip(false); // Hide tooltip when option is selected
   };
 
   const handleMouseEnter = (option: SelectOption) => {

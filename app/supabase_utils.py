@@ -30,7 +30,20 @@ def get_supabase_client() -> Optional[Client]:
         return None
     
     try:
-        return create_client(_get_supabase_url(), _get_supabase_service_key())
+        # Create client with minimal configuration to avoid proxy issues
+        from supabase.lib.client_options import ClientOptions
+        
+        options = ClientOptions(
+            schema='public',
+            auto_refresh_token=True,
+            persist_session=True
+        )
+        
+        return create_client(
+            supabase_url=_get_supabase_url(),
+            supabase_key=_get_supabase_service_key(),
+            options=options
+        )
     except Exception as e:
         logger.error(f"Failed to create Supabase client: {e}")
         return None

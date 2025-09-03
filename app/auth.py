@@ -2,6 +2,7 @@
 Authentication and Authorization System
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status, Request
@@ -21,7 +22,7 @@ from app.session_service import SessionService
 logger = logging.getLogger(__name__)
 
 # Configuration
-SECRET_KEY = "your-secret-key-change-in-production"  # Should be from environment
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")  # Use environment variable
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7

@@ -816,7 +816,8 @@ def create_job_posting(
         expires_at=job_data.expires_at,
         company_id=company.id if company else None,
         posted_by_user_id=current_user.id,
-        is_joborra_job=True
+        is_joborra_job=True,
+        posted_date=datetime.now()
     )
     
     db.add(job)
@@ -1285,7 +1286,8 @@ def publish_job_draft(
         expires_at=draft.expires_at,
         company_id=company.id if company else None,
         posted_by_user_id=current_user.id,
-        is_joborra_job=True
+        is_joborra_job=True,
+        posted_date=datetime.now()
     )
     
     db.add(job)
@@ -1488,10 +1490,11 @@ async def upload_user_resume(
         try:
             resume_url_value = await supabase_upload_resume(current_user.id, content, file.filename)
             if not resume_url_value:
-                raise HTTPException(status_code=500, detail="Failed to upload resume")
+                logger.error("Supabase upload returned None - client creation or upload failed")
+                raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
         except Exception as e:
             logger.error(f"Supabase upload error: {e}")
-            raise HTTPException(status_code=500, detail="Storage upload failed")
+            raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
     else:
         logger.error("Supabase not configured - missing environment variables")
         raise HTTPException(
@@ -1718,7 +1721,11 @@ def update_job_posting(
         raise HTTPException(status_code=404, detail="Job not found")
     
     for field, value in job_data.dict(exclude_unset=True).items():
-        setattr(job, field, value)
+        if field in ['visa_types'] and value is not None:
+            # Convert visa_types to JSON string (Job model uses Text column)
+            setattr(job, field, json.dumps(value))
+        else:
+            setattr(job, field, value)
     
     db.commit()
     db.refresh(job)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -196,14 +196,7 @@ const ProfilePage: React.FC = () => {
     loadDocs();
   }, [ctxUser]);
 
-  // Get resume view URL when component first loads
-  useEffect(() => {
-    if (ctxUser?.resume_url && !resumeViewUrl) {
-      getResumeViewUrl();
-    }
-  }, [ctxUser?.id]); // Only run when user ID changes (initial load)
-
-  const getResumeViewUrl = async () => {
+  const getResumeViewUrl = useCallback(async () => {
     if (!ctxUser?.resume_url) {
       setResumeViewUrl(null);
       setResumeViewError(null);
@@ -221,7 +214,14 @@ const ProfilePage: React.FC = () => {
       setResumeViewUrl(null);
       setResumeViewError(err.response?.data?.detail || 'Failed to load resume');
     }
-  };
+  }, [ctxUser?.resume_url, ctxUser?.id]);
+
+  // Get resume view URL when component first loads
+  useEffect(() => {
+    if (ctxUser?.resume_url && !resumeViewUrl) {
+      getResumeViewUrl();
+    }
+  }, [ctxUser?.id, ctxUser?.resume_url, resumeViewUrl, getResumeViewUrl]); // Include all dependencies
 
   const onUploadResume = async () => {
     if (!resumeFile) return;
@@ -244,9 +244,10 @@ const ProfilePage: React.FC = () => {
       await refreshUser();
       setResumeMessage('Resume uploaded successfully');
       setResumeFile(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('ProfilePage: Upload failed:', err);
-      setResumeMessage('Failed to upload resume. Please upload a PDF file.');
+      const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to upload resume. Please try again.';
+      setResumeMessage(errorMessage);
     } finally {
       setResumeUploading(false);
     }
@@ -273,8 +274,9 @@ const ProfilePage: React.FC = () => {
       setVisaMsg('VEVO document uploaded successfully');
       setVisaDocFile(null);
       setVisaConsentGiven(false);
-    } catch (err) {
-      setVisaMsg('Failed to upload VEVO document. Allowed: PDF, JPG, PNG, DOC, DOCX');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to upload VEVO document. Please try again.';
+      setVisaMsg(errorMessage);
     } finally {
       setVisaDocUploading(false);
     }

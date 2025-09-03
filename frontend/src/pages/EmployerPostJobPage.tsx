@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { EmployerJobCreate, JobDraftCreate } from '../types';
 import apiService from '../services/api';
@@ -11,10 +11,13 @@ import { useToast } from '../contexts/ToastContext';
 import { extractErrorMessage } from '../utils/errorUtils';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Clock, DollarSign, ShieldCheck, GraduationCap, Building2 } from 'lucide-react';
+import RichTextEditor from '../components/ui/RichTextEditor';
 
 const EmployerPostJobPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -78,8 +81,7 @@ const EmployerPostJobPage: React.FC = () => {
 
   // Address autocomplete - removed unused variables
 
-  // Textarea ref for description
-  const descRef = useRef<HTMLTextAreaElement | null>(null);
+
 
   // Visa types with descriptions (matching student sign-up options)
   const VISA_TYPES: Array<{ value: string; label: string; description: string }> = useMemo(() => ([
@@ -128,11 +130,6 @@ const EmployerPostJobPage: React.FC = () => {
         // Set the step to where the user left off
         setStep(draft.step || 0);
         
-        // Update description in rich text editor if present
-        if (draft.description && descRef.current) {
-          descRef.current.innerHTML = draft.description;
-        }
-        
         toast('Draft loaded successfully!', 'success');
       }
     } catch (error) {
@@ -148,6 +145,22 @@ const EmployerPostJobPage: React.FC = () => {
       setLoadingJob(true);
       const job = await apiService.getJobById(jobId);
       if (job) {
+        // Parse visa_types properly (handle both array and JSON string formats)
+        let parsedVisaTypes = [];
+        if (Array.isArray(job.visa_types)) {
+          parsedVisaTypes = job.visa_types;
+        } else {
+          const visaTypesValue = job.visa_types as any;
+          if (typeof visaTypesValue === 'string' && visaTypesValue.trim()) {
+            try {
+              parsedVisaTypes = JSON.parse(visaTypesValue.trim());
+            } catch (e) {
+              console.warn('Failed to parse visa_types in form data:', e);
+              parsedVisaTypes = [];
+            }
+          }
+        }
+
         // Populate form with job data
         setForm({
           title: job.title || '',
@@ -165,7 +178,7 @@ const EmployerPostJobPage: React.FC = () => {
           experience_level: job.experience_level || '',
           remote_option: job.remote_option || false,
           visa_sponsorship: job.visa_sponsorship || false,
-          visa_types: Array.isArray(job.visa_types) ? job.visa_types : [],
+          visa_types: parsedVisaTypes,
           international_student_friendly: job.international_student_friendly || false,
           required_skills: job.required_skills || [],
           preferred_skills: job.preferred_skills || [],
@@ -177,14 +190,16 @@ const EmployerPostJobPage: React.FC = () => {
         setSkillsInput(job.required_skills ? job.required_skills.join(', ') : '');
         setPreferredSkillsInput(job.preferred_skills ? job.preferred_skills.join(', ') : '');
         
-        // Update description in textarea if present
-        if (job.description && descRef.current) {
-          descRef.current.value = job.description;
-        }
-        
         setIsEditing(true);
         setEditingJobId(jobId);
-        toast('Job data loaded successfully!', 'success');
+        
+        // If job has no visa types, advance to step 3 (visa types step)
+        if (parsedVisaTypes.length === 0) {
+          setStep(3);
+          toast('Job data loaded! Please select at least one visa type.', 'info');
+        } else {
+          toast('Job data loaded successfully!', 'success');
+        }
       }
     } catch (error) {
       console.error('Failed to load job:', error);
@@ -344,7 +359,7 @@ const EmployerPostJobPage: React.FC = () => {
         return;
       }
       
-      // Only validate visa types if user has reached step 3 (where visa types are visible)
+      // Validate visa types - all jobs must have at least one visa type selected
       if (step >= 3 && (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0)) {
         setError('Please select at least one visa type.');
         setSubmitting(false);
@@ -386,16 +401,16 @@ const EmployerPostJobPage: React.FC = () => {
         // Update existing job
         result = await apiService.updateEmployerJob(editingJobId, jobData);
         toast('Job updated successfully!', 'success');
-        setSuccess('Job updated successfully. Redirecting to job view…');
-        // Redirect to job view after short delay
-        setTimeout(() => navigate(`/employer/job/${editingJobId}`), 900);
+        setSuccess('Job updated successfully. Redirecting to dashboard…');
+        // Redirect to employer dashboard after short delay
+        setTimeout(() => navigate('/employer/dashboard'), 900);
       } else {
         // Create new job
         result = await apiService.createEmployerJob(jobData);
         toast('Job posted successfully!', 'success');
-        setSuccess('Job posted successfully. Redirecting to your profile…');
-        // Redirect employer to their profile after short delay
-        setTimeout(() => navigate('/profile'), 900);
+        setSuccess('Job posted successfully. Redirecting to dashboard…');
+        // Redirect employer to their dashboard after short delay
+        setTimeout(() => navigate('/employer/dashboard'), 900);
       }
 
       if (file) {
@@ -460,9 +475,17 @@ const EmployerPostJobPage: React.FC = () => {
           </div>
         </div>
       )}
+      {loadingJob && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-3"></div>
+            <span className="text-green-700">Loading job data...</span>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
-          {isEditing ? 'Edit Job' : 'Post a Job'}
+          {isEditing ? 'Edit Job' : 'Post a Job in under 2 mins'}
         </h1>
         <Link to="/employer/company" className="text-sm text-primary-700 hover:underline">Update company info</Link>
       </div>
@@ -574,20 +597,11 @@ const EmployerPostJobPage: React.FC = () => {
                         ✨ AI Auto Generate
                       </Button>
                     </div>
-                    <textarea
-                      ref={descRef}
-                      className="w-full rounded-md border border-gray-300 p-2 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                    <RichTextEditor
                       value={form.description || ''}
-                      onChange={(e) => handleChange('description', e.target.value)}
+                      onChange={(value) => handleChange('description', value)}
                       placeholder="Enter job description..."
-                      style={{
-                        lineHeight: '1.6',
-                        fontSize: '14px',
-                        direction: 'ltr',
-                        textAlign: 'left',
-                        fontFamily: 'inherit'
-                      }}
-                      dir="ltr"
+                      className="w-full"
                     />
                   </div>
                   <div>

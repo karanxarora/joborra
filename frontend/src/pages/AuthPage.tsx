@@ -195,7 +195,7 @@ const AuthPage: React.FC = () => {
       //   }
       // }
       if (payload.role === 'employer') {
-        navigate('/employer/fast-post');
+        navigate('/employer/dashboard');
       } else {
         navigate('/profile');
       }
