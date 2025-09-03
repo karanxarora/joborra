@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { EmployerJobCreate, JobDraftCreate } from '../types';
 import apiService from '../services/api';
@@ -11,16 +11,13 @@ import { useToast } from '../contexts/ToastContext';
 import { extractErrorMessage } from '../utils/errorUtils';
 import { useAuth } from '../contexts/AuthContext';
 import { MapPin, Clock, DollarSign, ShieldCheck, GraduationCap, Building2 } from 'lucide-react';
+import RichTextEditor from '../components/ui/RichTextEditor';
 
 const EmployerPostJobPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Helper function to strip HTML tags for textarea display
-  const stripHtmlTags = (html: string): string => {
-    if (!html) return '';
-    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-  };
+
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -56,7 +53,6 @@ const EmployerPostJobPage: React.FC = () => {
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [loadingJob, setLoadingJob] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [descriptionDisplay, setDescriptionDisplay] = useState('');
   const [step, setStep] = useState(0); // 0..4
   const [isEditing, setIsEditing] = useState(false);
   const [editingJobId, setEditingJobId] = useState<number | null>(null);
@@ -85,13 +81,7 @@ const EmployerPostJobPage: React.FC = () => {
 
   // Address autocomplete - removed unused variables
 
-  // Textarea ref for description
-  const descRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Sync descriptionDisplay with form.description (strip HTML for textarea display)
-  useEffect(() => {
-    setDescriptionDisplay(stripHtmlTags(form.description || ''));
-  }, [form.description]);
 
   // Visa types with descriptions (matching student sign-up options)
   const VISA_TYPES: Array<{ value: string; label: string; description: string }> = useMemo(() => ([
@@ -607,23 +597,11 @@ const EmployerPostJobPage: React.FC = () => {
                         ✨ AI Auto Generate
                       </Button>
                     </div>
-                    <textarea
-                      ref={descRef}
-                      className="w-full rounded-md border border-gray-300 p-2 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
-                      value={descriptionDisplay}
-                      onChange={(e) => {
-                        setDescriptionDisplay(e.target.value);
-                        handleChange('description', e.target.value);
-                      }}
+                    <RichTextEditor
+                      value={form.description || ''}
+                      onChange={(value) => handleChange('description', value)}
                       placeholder="Enter job description..."
-                      style={{
-                        lineHeight: '1.6',
-                        fontSize: '14px',
-                        direction: 'ltr',
-                        textAlign: 'left',
-                        fontFamily: 'inherit'
-                      }}
-                      dir="ltr"
+                      className="w-full"
                     />
                   </div>
                   <div>
