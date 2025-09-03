@@ -148,6 +148,22 @@ const EmployerPostJobPage: React.FC = () => {
       setLoadingJob(true);
       const job = await apiService.getJobById(jobId);
       if (job) {
+        // Parse visa_types properly (handle both array and JSON string formats)
+        let parsedVisaTypes = [];
+        if (Array.isArray(job.visa_types)) {
+          parsedVisaTypes = job.visa_types;
+        } else {
+          const visaTypesValue = job.visa_types as any;
+          if (typeof visaTypesValue === 'string' && visaTypesValue.trim()) {
+            try {
+              parsedVisaTypes = JSON.parse(visaTypesValue.trim());
+            } catch (e) {
+              console.warn('Failed to parse visa_types in form data:', e);
+              parsedVisaTypes = [];
+            }
+          }
+        }
+
         // Populate form with job data
         setForm({
           title: job.title || '',
@@ -165,7 +181,7 @@ const EmployerPostJobPage: React.FC = () => {
           experience_level: job.experience_level || '',
           remote_option: job.remote_option || false,
           visa_sponsorship: job.visa_sponsorship || false,
-          visa_types: Array.isArray(job.visa_types) ? job.visa_types : [],
+          visa_types: parsedVisaTypes,
           international_student_friendly: job.international_student_friendly || false,
           required_skills: job.required_skills || [],
           preferred_skills: job.preferred_skills || [],
@@ -186,23 +202,6 @@ const EmployerPostJobPage: React.FC = () => {
         setEditingJobId(jobId);
         
         // If job has no visa types, advance to step 3 (visa types step)
-        // Parse visa_types to check if it's empty (job.visa_types comes as JSON string from backend)
-        let parsedVisaTypes = [];
-        if (Array.isArray(job.visa_types)) {
-          parsedVisaTypes = job.visa_types;
-        } else {
-          // Handle case where visa_types might be a JSON string (backend inconsistency)
-          const visaTypesValue = job.visa_types as any;
-          if (typeof visaTypesValue === 'string' && visaTypesValue.trim()) {
-            try {
-              parsedVisaTypes = JSON.parse(visaTypesValue.trim());
-            } catch (e) {
-              console.warn('Failed to parse visa_types:', e);
-              parsedVisaTypes = [];
-            }
-          }
-        }
-        
         if (parsedVisaTypes.length === 0) {
           setStep(3);
           toast('Job data loaded! Please select at least one visa type.', 'info');
