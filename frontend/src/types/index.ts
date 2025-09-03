@@ -54,6 +54,7 @@ export interface Job {
   salary_max?: number;
   salary?: string;
   salary_currency?: string;
+  is_active?: boolean;
   visa_sponsorship: boolean;
   visa_sponsorship_confidence: number;
   visa_types?: string[];

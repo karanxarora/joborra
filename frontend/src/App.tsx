@@ -5,6 +5,7 @@ import Header from './components/layout/Header';
 import { ToastProvider } from './contexts/ToastContext';
 import { FavoritesProvider } from './contexts/FavoritesContext';
 import Footer from './components/layout/Footer';
+import PilotBanner from './components/PilotBanner';
 import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
 // import DashboardPage from './pages/DashboardPage'; // disabled for now
@@ -84,6 +85,7 @@ const RoleProtectedRoute: React.FC<{ children: React.ReactNode; role: 'student' 
 const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <PilotBanner />
       <Header />
       <main className="flex-1">
         <Routes>

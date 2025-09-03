@@ -815,6 +815,7 @@ def create_job_posting(
         company_id=company.id if company else None,
         posted_by_user_id=current_user.id,
         is_joborra_job=True,
+        is_active=True,  # Explicitly set as active when creating
         posted_date=datetime.now()
     )
     
@@ -935,9 +936,10 @@ def get_employer_jobs(
     current_user: User = Depends(get_current_employer),
     db: Session = Depends(get_db)
 ):
-    """Get all jobs posted by current employer"""
+    """Get all active jobs posted by current employer"""
     jobs = db.query(Job).filter(
-        Job.posted_by_user_id == current_user.id
+        Job.posted_by_user_id == current_user.id,
+        Job.is_active == True
     ).all()
     
     # Return properly formatted response for each job
@@ -1307,6 +1309,7 @@ def publish_job_draft(
             company_id=company.id if company else None,
             posted_by_user_id=current_user.id,
             is_joborra_job=True,
+            is_active=True,  # Explicitly set as active when publishing
             posted_date=datetime.now()
         )
         
