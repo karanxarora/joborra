@@ -39,92 +39,21 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (editorRef.current) {
       editorRef.current.focus();
       
+      // Get current selection
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        let container: Node | null = range.commonAncestorContainer;
         
-        // Walk up the DOM tree to find if we're in a list
-        while (container && container !== editorRef.current) {
-          if (container.nodeType === Node.ELEMENT_NODE) {
-            const element = container as Element;
-            if (element.tagName === 'UL') {
-              // Already in a bullet list, just add a new item
-              const newLi = document.createElement('li');
-              newLi.innerHTML = '<br>';
-              range.insertNode(newLi);
-              range.setStart(newLi, 0);
-              range.setEnd(newLi, 0);
-              selection.removeAllRanges();
-              selection.addRange(range);
-              handleInput();
-              return;
-            } else if (element.tagName === 'OL') {
-              // Convert numbered list to bullet list
-              const newLi = document.createElement('li');
-              newLi.innerHTML = element.textContent || '<br>';
-              const ul = document.createElement('ul');
-              ul.appendChild(newLi);
-              element.parentNode?.replaceChild(ul, element);
-              range.setStart(newLi, 0);
-              range.setEnd(newLi, 0);
-              selection.removeAllRanges();
-              selection.addRange(range);
-              handleInput();
-              return;
-            }
-          }
-          container = container.parentNode;
-        }
+        // Create a simple bullet point
+        const bulletText = '• ';
+        range.insertNode(document.createTextNode(bulletText));
         
-        // Get the current line content by finding the paragraph or line
-        let currentLineContent = '';
-        let targetElement: Element | null = null;
-        
-        // Find the current paragraph or line element
-        let lineContainer: Node | null = range.commonAncestorContainer;
-        while (lineContainer && lineContainer !== editorRef.current) {
-          if (lineContainer.nodeType === Node.ELEMENT_NODE) {
-            const element = lineContainer as Element;
-            if (element.tagName === 'P' || element.tagName === 'DIV' || element.tagName === 'BR') {
-              targetElement = element;
-              currentLineContent = element.textContent || '';
-              break;
-            }
-          }
-          lineContainer = lineContainer.parentNode;
-        }
-        
-        // If no paragraph found, get content from the current position
-        if (!targetElement) {
-          // Try to get content from the current line by expanding the range
-          const startRange = range.cloneRange();
-          startRange.selectNodeContents(editorRef.current);
-          startRange.setEnd(range.startContainer, range.startOffset);
-          const beforeText = startRange.toString();
-          const lines = beforeText.split('\n');
-          currentLineContent = lines[lines.length - 1] || '';
-        }
-        
-        // Create bullet list with current content
-        const ul = document.createElement('ul');
-        const li = document.createElement('li');
-        li.textContent = currentLineContent.trim() || '• ';
-        ul.appendChild(li);
-        
-        // Replace current selection or line with the list
-        if (targetElement && targetElement.parentNode) {
-          targetElement.parentNode.replaceChild(ul, targetElement);
-        } else {
-          range.deleteContents();
-          range.insertNode(ul);
-        }
-        
-        // Position cursor at the end of the list item
-        range.setStart(li, li.textContent?.length || 0);
-        range.setEnd(li, li.textContent?.length || 0);
+        // Move cursor after the bullet
+        range.setStartAfter(range.endContainer);
+        range.setEndAfter(range.endContainer);
         selection.removeAllRanges();
         selection.addRange(range);
+        
         handleInput();
       }
     }
@@ -134,92 +63,21 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (editorRef.current) {
       editorRef.current.focus();
       
+      // Get current selection
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        let container: Node | null = range.commonAncestorContainer;
         
-        // Walk up the DOM tree to find if we're in a list
-        while (container && container !== editorRef.current) {
-          if (container.nodeType === Node.ELEMENT_NODE) {
-            const element = container as Element;
-            if (element.tagName === 'OL') {
-              // Already in a numbered list, just add a new item
-              const newLi = document.createElement('li');
-              newLi.innerHTML = '<br>';
-              range.insertNode(newLi);
-              range.setStart(newLi, 0);
-              range.setEnd(newLi, 0);
-              selection.removeAllRanges();
-              selection.addRange(range);
-              handleInput();
-              return;
-            } else if (element.tagName === 'UL') {
-              // Convert bullet list to numbered list
-              const newLi = document.createElement('li');
-              newLi.innerHTML = element.textContent || '<br>';
-              const ol = document.createElement('ol');
-              ol.appendChild(newLi);
-              element.parentNode?.replaceChild(ol, element);
-              range.setStart(newLi, 0);
-              range.setEnd(newLi, 0);
-              selection.removeAllRanges();
-              selection.addRange(range);
-              handleInput();
-              return;
-            }
-          }
-          container = container.parentNode;
-        }
+        // Create a simple numbered point
+        const numberedText = '1. ';
+        range.insertNode(document.createTextNode(numberedText));
         
-        // Get the current line content by finding the paragraph or line
-        let currentLineContent = '';
-        let targetElement: Element | null = null;
-        
-        // Find the current paragraph or line element
-        let lineContainer: Node | null = range.commonAncestorContainer;
-        while (lineContainer && lineContainer !== editorRef.current) {
-          if (lineContainer.nodeType === Node.ELEMENT_NODE) {
-            const element = lineContainer as Element;
-            if (element.tagName === 'P' || element.tagName === 'DIV' || element.tagName === 'BR') {
-              targetElement = element;
-              currentLineContent = element.textContent || '';
-              break;
-            }
-          }
-          lineContainer = lineContainer.parentNode;
-        }
-        
-        // If no paragraph found, get content from the current position
-        if (!targetElement) {
-          // Try to get content from the current line by expanding the range
-          const startRange = range.cloneRange();
-          startRange.selectNodeContents(editorRef.current);
-          startRange.setEnd(range.startContainer, range.startOffset);
-          const beforeText = startRange.toString();
-          const lines = beforeText.split('\n');
-          currentLineContent = lines[lines.length - 1] || '';
-        }
-        
-        // Create numbered list with current content
-        const ol = document.createElement('ol');
-        const li = document.createElement('li');
-        li.textContent = currentLineContent.trim() || '1. ';
-        ol.appendChild(li);
-        
-        // Replace current selection or line with the list
-        if (targetElement && targetElement.parentNode) {
-          targetElement.parentNode.replaceChild(ol, targetElement);
-        } else {
-          range.deleteContents();
-          range.insertNode(ol);
-        }
-        
-        // Position cursor at the end of the list item
-        range.setStart(li, li.textContent?.length || 0);
-        range.setEnd(li, li.textContent?.length || 0);
+        // Move cursor after the number
+        range.setStartAfter(range.endContainer);
+        range.setEndAfter(range.endContainer);
         selection.removeAllRanges();
         selection.addRange(range);
+        
         handleInput();
       }
     }
