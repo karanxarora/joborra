@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -196,7 +196,7 @@ const ProfilePage: React.FC = () => {
     loadDocs();
   }, [ctxUser]);
 
-  const getResumeViewUrl = async () => {
+  const getResumeViewUrl = useCallback(async () => {
     if (!ctxUser?.resume_url) {
       setResumeViewUrl(null);
       setResumeViewError(null);
@@ -214,7 +214,7 @@ const ProfilePage: React.FC = () => {
       setResumeViewUrl(null);
       setResumeViewError(err.response?.data?.detail || 'Failed to load resume');
     }
-  };
+  }, [ctxUser?.resume_url, ctxUser?.id]);
 
   // Get resume view URL when component first loads
   useEffect(() => {
