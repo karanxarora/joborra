@@ -196,13 +196,6 @@ const ProfilePage: React.FC = () => {
     loadDocs();
   }, [ctxUser]);
 
-  // Get resume view URL when component first loads
-  useEffect(() => {
-    if (ctxUser?.resume_url && !resumeViewUrl) {
-      getResumeViewUrl();
-    }
-  }, [ctxUser?.id, ctxUser?.resume_url, resumeViewUrl, getResumeViewUrl]); // Include all dependencies
-
   const getResumeViewUrl = async () => {
     if (!ctxUser?.resume_url) {
       setResumeViewUrl(null);
@@ -222,6 +215,13 @@ const ProfilePage: React.FC = () => {
       setResumeViewError(err.response?.data?.detail || 'Failed to load resume');
     }
   };
+
+  // Get resume view URL when component first loads
+  useEffect(() => {
+    if (ctxUser?.resume_url && !resumeViewUrl) {
+      getResumeViewUrl();
+    }
+  }, [ctxUser?.id, ctxUser?.resume_url, resumeViewUrl, getResumeViewUrl]); // Include all dependencies
 
   const onUploadResume = async () => {
     if (!resumeFile) return;
