@@ -39,7 +39,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (editorRef.current) {
       editorRef.current.focus();
       
-      // Check if we're already in a list
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
@@ -49,11 +48,24 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         while (container && container !== editorRef.current) {
           if (container.nodeType === Node.ELEMENT_NODE) {
             const element = container as Element;
-            if (element.tagName === 'UL' || element.tagName === 'OL') {
-              // Already in a list, just add a new item
+            if (element.tagName === 'UL') {
+              // Already in a bullet list, just add a new item
               const newLi = document.createElement('li');
               newLi.innerHTML = '<br>';
               range.insertNode(newLi);
+              range.setStart(newLi, 0);
+              range.setEnd(newLi, 0);
+              selection.removeAllRanges();
+              selection.addRange(range);
+              handleInput();
+              return;
+            } else if (element.tagName === 'OL') {
+              // Convert numbered list to bullet list
+              const newLi = document.createElement('li');
+              newLi.innerHTML = element.textContent || '<br>';
+              const ul = document.createElement('ul');
+              ul.appendChild(newLi);
+              element.parentNode?.replaceChild(ul, element);
               range.setStart(newLi, 0);
               range.setEnd(newLi, 0);
               selection.removeAllRanges();
@@ -65,15 +77,22 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           container = container.parentNode;
         }
         
-        // Not in a list, create one
+        // Get the current line content
+        const currentLineContent = range.toString() || '';
+        
+        // Create bullet list with current content
         const ul = document.createElement('ul');
         const li = document.createElement('li');
-        li.innerHTML = '<br>';
+        li.textContent = currentLineContent || '• ';
         ul.appendChild(li);
+        
+        // Replace current selection with the list
         range.deleteContents();
         range.insertNode(ul);
-        range.setStart(li, 0);
-        range.setEnd(li, 0);
+        
+        // Position cursor at the end of the list item
+        range.setStart(li, li.textContent?.length || 0);
+        range.setEnd(li, li.textContent?.length || 0);
         selection.removeAllRanges();
         selection.addRange(range);
         handleInput();
@@ -85,7 +104,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (editorRef.current) {
       editorRef.current.focus();
       
-      // Check if we're already in a list
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
@@ -95,11 +113,24 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         while (container && container !== editorRef.current) {
           if (container.nodeType === Node.ELEMENT_NODE) {
             const element = container as Element;
-            if (element.tagName === 'UL' || element.tagName === 'OL') {
-              // Already in a list, just add a new item
+            if (element.tagName === 'OL') {
+              // Already in a numbered list, just add a new item
               const newLi = document.createElement('li');
               newLi.innerHTML = '<br>';
               range.insertNode(newLi);
+              range.setStart(newLi, 0);
+              range.setEnd(newLi, 0);
+              selection.removeAllRanges();
+              selection.addRange(range);
+              handleInput();
+              return;
+            } else if (element.tagName === 'UL') {
+              // Convert bullet list to numbered list
+              const newLi = document.createElement('li');
+              newLi.innerHTML = element.textContent || '<br>';
+              const ol = document.createElement('ol');
+              ol.appendChild(newLi);
+              element.parentNode?.replaceChild(ol, element);
               range.setStart(newLi, 0);
               range.setEnd(newLi, 0);
               selection.removeAllRanges();
@@ -111,15 +142,22 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           container = container.parentNode;
         }
         
-        // Not in a list, create one
+        // Get the current line content
+        const currentLineContent = range.toString() || '';
+        
+        // Create numbered list with current content
         const ol = document.createElement('ol');
         const li = document.createElement('li');
-        li.innerHTML = '<br>';
+        li.textContent = currentLineContent || '1. ';
         ol.appendChild(li);
+        
+        // Replace current selection with the list
         range.deleteContents();
         range.insertNode(ol);
-        range.setStart(li, 0);
-        range.setEnd(li, 0);
+        
+        // Position cursor at the end of the list item
+        range.setStart(li, li.textContent?.length || 0);
+        range.setEnd(li, li.textContent?.length || 0);
         selection.removeAllRanges();
         selection.addRange(range);
         handleInput();
