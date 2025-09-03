@@ -77,18 +77,48 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           container = container.parentNode;
         }
         
-        // Get the current line content
-        const currentLineContent = range.toString() || '';
+        // Get the current line content by finding the paragraph or line
+        let currentLineContent = '';
+        let targetElement: Element | null = null;
+        
+        // Find the current paragraph or line element
+        let lineContainer: Node | null = range.commonAncestorContainer;
+        while (lineContainer && lineContainer !== editorRef.current) {
+          if (lineContainer.nodeType === Node.ELEMENT_NODE) {
+            const element = lineContainer as Element;
+            if (element.tagName === 'P' || element.tagName === 'DIV' || element.tagName === 'BR') {
+              targetElement = element;
+              currentLineContent = element.textContent || '';
+              break;
+            }
+          }
+          lineContainer = lineContainer.parentNode;
+        }
+        
+        // If no paragraph found, get content from the current position
+        if (!targetElement) {
+          // Try to get content from the current line by expanding the range
+          const startRange = range.cloneRange();
+          startRange.selectNodeContents(editorRef.current);
+          startRange.setEnd(range.startContainer, range.startOffset);
+          const beforeText = startRange.toString();
+          const lines = beforeText.split('\n');
+          currentLineContent = lines[lines.length - 1] || '';
+        }
         
         // Create bullet list with current content
         const ul = document.createElement('ul');
         const li = document.createElement('li');
-        li.textContent = currentLineContent || '• ';
+        li.textContent = currentLineContent.trim() || '• ';
         ul.appendChild(li);
         
-        // Replace current selection with the list
-        range.deleteContents();
-        range.insertNode(ul);
+        // Replace current selection or line with the list
+        if (targetElement && targetElement.parentNode) {
+          targetElement.parentNode.replaceChild(ul, targetElement);
+        } else {
+          range.deleteContents();
+          range.insertNode(ul);
+        }
         
         // Position cursor at the end of the list item
         range.setStart(li, li.textContent?.length || 0);
@@ -142,18 +172,48 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           container = container.parentNode;
         }
         
-        // Get the current line content
-        const currentLineContent = range.toString() || '';
+        // Get the current line content by finding the paragraph or line
+        let currentLineContent = '';
+        let targetElement: Element | null = null;
+        
+        // Find the current paragraph or line element
+        let lineContainer: Node | null = range.commonAncestorContainer;
+        while (lineContainer && lineContainer !== editorRef.current) {
+          if (lineContainer.nodeType === Node.ELEMENT_NODE) {
+            const element = lineContainer as Element;
+            if (element.tagName === 'P' || element.tagName === 'DIV' || element.tagName === 'BR') {
+              targetElement = element;
+              currentLineContent = element.textContent || '';
+              break;
+            }
+          }
+          lineContainer = lineContainer.parentNode;
+        }
+        
+        // If no paragraph found, get content from the current position
+        if (!targetElement) {
+          // Try to get content from the current line by expanding the range
+          const startRange = range.cloneRange();
+          startRange.selectNodeContents(editorRef.current);
+          startRange.setEnd(range.startContainer, range.startOffset);
+          const beforeText = startRange.toString();
+          const lines = beforeText.split('\n');
+          currentLineContent = lines[lines.length - 1] || '';
+        }
         
         // Create numbered list with current content
         const ol = document.createElement('ol');
         const li = document.createElement('li');
-        li.textContent = currentLineContent || '1. ';
+        li.textContent = currentLineContent.trim() || '1. ';
         ol.appendChild(li);
         
-        // Replace current selection with the list
-        range.deleteContents();
-        range.insertNode(ol);
+        // Replace current selection or line with the list
+        if (targetElement && targetElement.parentNode) {
+          targetElement.parentNode.replaceChild(ol, targetElement);
+        } else {
+          range.deleteContents();
+          range.insertNode(ol);
+        }
         
         // Position cursor at the end of the list item
         range.setStart(li, li.textContent?.length || 0);
