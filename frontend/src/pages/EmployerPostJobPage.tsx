@@ -15,6 +15,12 @@ import { MapPin, Clock, DollarSign, ShieldCheck, GraduationCap, Building2 } from
 const EmployerPostJobPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Helper function to strip HTML tags for textarea display
+  const stripHtmlTags = (html: string): string => {
+    if (!html) return '';
+    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  };
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -50,6 +56,7 @@ const EmployerPostJobPage: React.FC = () => {
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [loadingJob, setLoadingJob] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [descriptionDisplay, setDescriptionDisplay] = useState('');
   const [step, setStep] = useState(0); // 0..4
   const [isEditing, setIsEditing] = useState(false);
   const [editingJobId, setEditingJobId] = useState<number | null>(null);
@@ -80,6 +87,11 @@ const EmployerPostJobPage: React.FC = () => {
 
   // Textarea ref for description
   const descRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Sync descriptionDisplay with form.description (strip HTML for textarea display)
+  useEffect(() => {
+    setDescriptionDisplay(stripHtmlTags(form.description || ''));
+  }, [form.description]);
 
   // Visa types with descriptions (matching student sign-up options)
   const VISA_TYPES: Array<{ value: string; label: string; description: string }> = useMemo(() => ([
@@ -127,11 +139,6 @@ const EmployerPostJobPage: React.FC = () => {
         
         // Set the step to where the user left off
         setStep(draft.step || 0);
-        
-        // Update description in rich text editor if present
-        if (draft.description && descRef.current) {
-          descRef.current.innerHTML = draft.description;
-        }
         
         toast('Draft loaded successfully!', 'success');
       }
@@ -192,11 +199,6 @@ const EmployerPostJobPage: React.FC = () => {
         // Set skills inputs for display
         setSkillsInput(job.required_skills ? job.required_skills.join(', ') : '');
         setPreferredSkillsInput(job.preferred_skills ? job.preferred_skills.join(', ') : '');
-        
-        // Update description in textarea if present
-        if (job.description && descRef.current) {
-          descRef.current.value = job.description;
-        }
         
         setIsEditing(true);
         setEditingJobId(jobId);
@@ -608,8 +610,11 @@ const EmployerPostJobPage: React.FC = () => {
                     <textarea
                       ref={descRef}
                       className="w-full rounded-md border border-gray-300 p-2 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
-                      value={form.description || ''}
-                      onChange={(e) => handleChange('description', e.target.value)}
+                      value={descriptionDisplay}
+                      onChange={(e) => {
+                        setDescriptionDisplay(e.target.value);
+                        handleChange('description', e.target.value);
+                      }}
                       placeholder="Enter job description..."
                       style={{
                         lineHeight: '1.6',
