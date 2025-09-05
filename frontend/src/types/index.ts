@@ -34,6 +34,7 @@ export interface User {
   education?: string; // JSON string of education items
   experience?: string; // JSON string of experience items
   resume_url?: string;
+  email_job_matches?: boolean; // Email notification preference
   
   // Study details (moved from visa verification)
   course_name?: string;
