@@ -6,29 +6,56 @@ export interface User {
   full_name: string;
   contact_number?: string;
   role: 'student' | 'employer';
+  is_active?: boolean;
   is_verified?: boolean;
+  last_login?: string;
+  
   // OAuth fields
   oauth_provider?: string | null;
   oauth_sub?: string | null;
+  
+  // Student fields
   university?: string;
   degree?: string;
   graduation_year?: number;
   visa_status?: string;
   city_suburb?: string;
   date_of_birth?: string; // ISO datetime string
+  skills?: string; // JSON string of skills
+  experience_level?: string;
+  preferred_locations?: string;
+  salary_expectations_min?: number;
+  salary_expectations_max?: number;
+  work_authorization?: string;
+  linkedin_profile?: string;
+  github_profile?: string;
+  portfolio_url?: string;
+  bio?: string;
+  education?: string; // JSON string of education items
+  experience?: string; // JSON string of experience items
+  resume_url?: string;
+  
   // Study details (moved from visa verification)
   course_name?: string;
   institution_name?: string;
   course_start_date?: string; // ISO datetime string
   course_end_date?: string;   // ISO datetime string
 
+  // Employer fields
   company_name?: string;
   company_website?: string;
   company_size?: string;
   industry?: string;
+  company_abn?: string;
+  employer_role_title?: string;
   company_description?: string;
   company_logo_url?: string;
-  resume_url?: string;
+  company_location?: string;
+  hiring_manager_name?: string;
+  hiring_manager_title?: string;
+  company_benefits?: string;
+  company_culture?: string;
+  
   created_at: string;
   updated_at: string;
 }

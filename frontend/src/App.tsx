@@ -30,6 +30,7 @@ import EmployerVisaGuidePage from './pages/EmployerVisaGuidePage';
 import JobDraftsPage from './pages/JobDraftsPage';
 import EmployerJobViewPage from './pages/EmployerJobViewPage';
 import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
+import HowItWorksPage from './pages/HowItWorksPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -173,6 +174,7 @@ const AppContent: React.FC = () => {
             }
           />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/employer-visa-guide" element={<EmployerVisaGuidePage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
