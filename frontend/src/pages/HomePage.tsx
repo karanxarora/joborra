@@ -1,33 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Users, Briefcase, TrendingUp, CheckCircle, Star, Shield, GraduationCap, Brain, RefreshCw, MapPin, ArrowRight } from 'lucide-react';
+import { Search, Users, Briefcase, TrendingUp, CheckCircle, Star, Shield, GraduationCap, Brain, RefreshCw, ArrowRight } from 'lucide-react';
 
 import Card from '../components/ui/Card';
-import SearchBar from '../components/home/SearchBar';
 import DisabledLink from '../components/ui/DisabledLink';
-import { JobStats } from '../types';
-import apiService from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const HomePage: React.FC = () => {
-  const [stats, setStats] = useState<JobStats | null>(null);
   const { isAuthenticated, user } = useAuth();
-  // removed unused loading state
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await apiService.getJobStats();
-        setStats(response);
-      } catch (error) {
-        console.error('Failed to fetch job stats:', error);
-      } finally {
-        // no-op
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   const challenges = [
     {
@@ -57,14 +37,14 @@ const HomePage: React.FC = () => {
       icon: <Shield className="h-8 w-8" />,
       title: "Visa-Friendly Jobs",
       description: "Curated opportunities from accredited sponsors who can support your visa application.",
-      highlights: ["482 TSS Visa", "186 ENS Visa", "494 Regional Visa"],
+      highlights: ["Student Visa (subclass 500)", "Temporary Graduate (subclass 485)", "Employer Sponsored TSS (subclass 482)"],
       color: "text-blue-600 bg-blue-100"
     },
     {
       icon: <GraduationCap className="h-8 w-8" />,
       title: "Student-Friendly Positions",
       description: "Part-time and casual roles that comply with student visa work restrictions.",
-      highlights: ["20 hours/week limit", "Holiday work rights", "Course-related experience"],
+      highlights: ["48 hours per fortnight limit", "Holiday work rights", "Course-related experience"],
       color: "text-green-600 bg-green-100"
     },
     {
@@ -82,10 +62,10 @@ const HomePage: React.FC = () => {
       color: "text-orange-600 bg-orange-100"
     },
     {
-      icon: <MapPin className="h-8 w-8" />,
-      title: "Australia-wide Coverage",
-      description: "Jobs across all major Australian cities and regional areas with detailed location insights.",
-      highlights: ["Sydney, Melbourne, Brisbane", "Perth, Adelaide, Canberra", "Regional opportunities"],
+      icon: <Users className="h-8 w-8" />,
+      title: "Post a Job in Under 2 Minutes",
+      description: "Quick and easy job posting process for employers to find the perfect candidates.",
+      highlights: ["Simple form", "AI-generated job descriptions", "Instant publishing"],
       color: "text-red-600 bg-red-100"
     },
     {
@@ -105,41 +85,96 @@ const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             {/* Left: Headline + subcopy + search */}
             <div>
-              <h1 className="text-[34px] md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
-                <span className="block">Find Your Next</span>
-                <span className="block">Opportunity.</span>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+                <span className="block">Get Matched with</span>
+                <span className="block">Perfect Opportunities.</span>
                 <span className="block text-primary-700">Built for international</span>
                 <span className="block text-primary-700">students. Backed by</span>
                 <span className="block text-primary-700">real employers.</span>
               </h1>
               <p className="mt-5 text-slate-600 max-w-2xl">
-                Every job here is confirmed to be international student friendly and visa‑verified.
+                Complete your profile and we'll match you with visa-friendly opportunities 
+                that fit your skills and career goals.
               </p>
               <p className="mt-2 text-slate-600 max-w-2xl">
-                No cold calls. No guesswork. Just real opportunities, made for you.
+                No endless searching. No cold applications. Just personalized matches delivered to your inbox.
               </p>
               {/* Badges */}
-              <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-                  ✅ 100% Verified
+              <div className="mt-4 flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm">
+                <span className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                  ✅ 100% Visa Friendly
                 </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                  Visa‑Friendly
+                <span className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  🎯 AI‑Powered Matching
                 </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                  Student‑Approved
+                <span className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  📧 Email Matches
                 </span>
               </div>
-              {/* Search */}
-              <div className="mt-6 max-w-2xl">
-                <SearchBar onSearch={() => { /* route to /jobs later */ }} />
+              {/* CTAs for Profile Completion and Matching */}
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 max-w-2xl">
+                {!isAuthenticated ? (
+                  <>
+                    <Link to="/auth?tab=login" className="flex-1">
+                      <button className="w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl">
+                        <Brain className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                        <span className="text-center">Complete Profile & Get Matched</span>
+                      </button>
+                    </Link>
+                    <Link to="/auth?tab=login" className="flex-1">
+                      <button className="w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 hover:shadow-lg">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                        <span className="text-center">Find Perfect Candidates</span>
+                      </button>
+                    </Link>
+                  </>
+                ) : user?.role === 'student' ? (
+                  <>
+                    <Link to="/profile" className="flex-1">
+                      <button className="w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl">
+                        <Brain className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                        <span className="text-center">Complete Profile & Get Matched</span>
+                      </button>
+                    </Link>
+                    <span className="flex-1 inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-transparent border-2 border-gray-300 text-gray-400 cursor-not-allowed">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                      <span className="text-center">Find Perfect Candidates</span>
+                    </span>
+                  </>
+                ) : user?.role === 'employer' ? (
+                  <>
+                    <span className="flex-1 inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-transparent border-2 border-gray-300 text-gray-400 cursor-not-allowed">
+                      <Brain className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                      <span className="text-center">Complete Profile & Get Matched</span>
+                    </span>
+                    <Link to="/employer/post-job" className="flex-1">
+                      <button className="w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 hover:shadow-lg">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                        <span className="text-center">Find Perfect Candidates</span>
+                      </button>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/auth?tab=login" className="flex-1">
+                      <button className="w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl">
+                        <Brain className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                        <span className="text-center">Complete Profile & Get Matched</span>
+                      </button>
+                    </Link>
+                    <Link to="/auth?tab=login" className="flex-1">
+                      <button className="w-full inline-flex items-center justify-center px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-xl bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 hover:shadow-lg">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
+                        <span className="text-center">Find Perfect Candidates</span>
+                      </button>
+                    </Link>
+                  </>
+                )}
               </div>
-              {/* Popular chips */}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {['Developer Jobs','Visa Sponsorship','Remote Internships','Part‑Time Roles','Melbourne','Work Type','Remote Friendly','Salary'].map((chip) => (
-                  <button key={chip} className="px-3 py-1.5 rounded-full text-sm bg-slate-100 text-slate-700 hover:bg-slate-200">{chip}</button>
-                ))}
-              </div>
+              <p className="mt-4 text-sm text-slate-600 max-w-2xl">
+                We'll match you with the best opportunities and candidates behind the scenes. 
+                Complete your profile and we'll email you personalized matches.
+              </p>
             </div>
             {/* Right: Hero image */}
             <div className="hidden lg:block">
@@ -156,65 +191,29 @@ const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Section */}
-      {stats && (
-        <section className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-primary-600 mb-2">
-                  {stats.total_jobs?.toLocaleString() || '0'}
-                </div>
-                <div className="text-gray-600">Active Jobs</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600 mb-2">
-                  {stats.visa_friendly_jobs?.toLocaleString() || '0'}
-                </div>
-                <div className="text-gray-600">Visa-Friendly</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600 mb-2">
-                  {stats.student_friendly_jobs?.toLocaleString() || '0'}
-                </div>
-                <div className="text-gray-600">Student-Friendly</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-3xl font-bold text-purple-600 mb-2">
-                  500+
-                </div>
-                <div className="text-gray-600">Companies</div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Features Section */}
-      <div className="bg-slate-50 py-20">
+      <div className="bg-slate-50 py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-6">Why 10,000+ Students Choose Joborra</h2>
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4 sm:mb-6">Why You Should Choose Joborra</h2>
             <p className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
               We're not just another job board. We're your dedicated partner in navigating Australia's job market 
               with tools built specifically for international students and visa holders.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
             {features.map((feature, index) => (
-              <Card key={index} className="p-8 bg-white">
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-xl text-cyan-700 bg-cyan-100 mb-6`}>
+              <Card key={index} className="p-6 sm:p-8 bg-white">
+                <div className={`inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl text-cyan-700 bg-cyan-100 mb-4 sm:mb-6`}>
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">{feature.title}</h3>
-                <p className="text-slate-600 mb-6 leading-relaxed">{feature.description}</p>
-                <ul className="space-y-3">
+                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 mb-3">{feature.title}</h3>
+                <p className="text-sm sm:text-base text-slate-600 mb-4 sm:mb-6 leading-relaxed">{feature.description}</p>
+                <ul className="space-y-2 sm:space-y-3">
                   {feature.highlights.map((highlight, idx) => (
-                    <li key={idx} className="flex items-center text-slate-700">
-                      <CheckCircle className="h-5 w-5 text-cyan-600 mr-3 flex-shrink-0" />
+                    <li key={idx} className="flex items-center text-slate-700 text-sm sm:text-base">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-600 mr-2 sm:mr-3 flex-shrink-0" />
                       {highlight}
                     </li>
                   ))}
@@ -269,12 +268,12 @@ const HomePage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="bg-white rounded-xl p-6 text-center border border-slate-200">
                     <Briefcase className="h-8 w-8 text-cyan-600 mx-auto mb-3" />
-                    <div className="text-2xl font-bold text-slate-900">95%</div>
+                    <div className="text-2xl font-bold text-slate-900">High</div>
                     <div className="text-sm text-slate-600">Success Rate</div>
                   </div>
                   <div className="bg-white rounded-xl p-6 text-center border border-slate-200">
                     <Search className="h-8 w-8 text-cyan-600 mx-auto mb-3" />
-                    <div className="text-2xl font-bold text-slate-900">24/7</div>
+                    <div className="text-2xl font-bold text-slate-900">Daily</div>
                     <div className="text-sm text-slate-600">Job Updates</div>
                   </div>
                 </div>
