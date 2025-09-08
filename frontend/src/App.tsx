@@ -23,7 +23,6 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import EmployerApplicationsPage from './pages/EmployerApplicationsPage';
 import EmployerDashboardPage from './pages/EmployerDashboardPage';
-import SubmittedApplicationsPage from './pages/SubmittedApplicationsPage';
 import AccessDeniedPage from './pages/AccessDeniedPage';
 import SavedJobsPage from './pages/SavedJobsPage';
 import EmployerVisaGuidePage from './pages/EmployerVisaGuidePage';
@@ -86,8 +85,8 @@ const RoleProtectedRoute: React.FC<{ children: React.ReactNode; role: 'student' 
 const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <PilotBanner />
       <Header />
+      <PilotBanner />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -113,14 +112,6 @@ const AppContent: React.FC = () => {
             element={
               <RoleProtectedRoute role="employer">
                 <EmployerPostJobPage />
-              </RoleProtectedRoute>
-            }
-          />
-          <Route
-            path="/applications"
-            element={
-              <RoleProtectedRoute role="student">
-                <SubmittedApplicationsPage />
               </RoleProtectedRoute>
             }
           />

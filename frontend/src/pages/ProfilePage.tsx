@@ -421,9 +421,6 @@ const ProfilePage: React.FC = () => {
 
               {/* Quick Links */}
               <div className="mt-4 border-t border-slate-200 pt-4 space-y-2">
-                {ctxUser?.role === 'student' && (
-                  <Link to="/applications" className="block text-sm text-primary-700 hover:underline">Submitted Applications</Link>
-                )}
                 {ctxUser?.role === 'employer' && (
                   <Link to="/employer/post-job" className="block text-sm text-primary-700 hover:underline">Post a Job</Link>
                 )}

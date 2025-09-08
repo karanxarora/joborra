@@ -2465,11 +2465,6 @@ body {
   --tw-ring-color: rgb(253 230 138 / var(--tw-ring-opacity, 1));
 }
 
-.ring-cyan-200 {
-  --tw-ring-opacity: 1;
-  --tw-ring-color: rgb(165 243 252 / var(--tw-ring-opacity, 1));
-}
-
 .ring-emerald-200 {
   --tw-ring-opacity: 1;
   --tw-ring-color: rgb(167 243 208 / var(--tw-ring-opacity, 1));
