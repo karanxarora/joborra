@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 
 const PilotBanner: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const location = useLocation();
 
   useEffect(() => {
     // Check if banner was dismissed in this session
