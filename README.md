@@ -188,3 +188,5 @@ The system uses configurable keywords to detect visa-friendly jobs:
 
 
 <!-- Security scan triggered at 2025-09-09 05:49:57 -->
+
+<!-- Security scan triggered at 2025-09-09 05:56:17 -->
