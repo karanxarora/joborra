@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -9,7 +9,8 @@ import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
 
 const ProfilePage: React.FC = () => {
-  const { user: ctxUser, refreshUser } = useAuth();
+  const { user: ctxUser, refreshUser, isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [resumeMessage, setResumeMessage] = useState<string | null>(null);
@@ -60,6 +61,100 @@ const ProfilePage: React.FC = () => {
   const [activities, setActivities] = useState<string[]>([]);
   const [activityInput, setActivityInput] = useState('');
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate('/auth?tab=login');
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  // Load user data when component mounts or user changes
+  useEffect(() => {
+    setForm({
+      full_name: ctxUser?.full_name || '',
+      contact_number: ctxUser?.contact_number || '',
+      visa_status: ctxUser?.visa_status || '',
+      company_name: ctxUser?.company_name || '',
+      company_website: ctxUser?.company_website || '',
+      company_size: ctxUser?.company_size || '',
+      industry: ctxUser?.industry || '',
+      company_description: ctxUser?.company_description || '',
+    });
+  }, [ctxUser]);
+
+  // Load skills and activities from localStorage
+  useEffect(() => {
+    try {
+      const sk = localStorage.getItem('profile_skills');
+      if (sk) setSkills(JSON.parse(sk));
+      const act = localStorage.getItem('profile_activities');
+      if (act) setActivities(JSON.parse(act));
+    } catch (e) {
+      console.error('Failed to load skills/activities from localStorage:', e);
+    }
+  }, []);
+
+  // Get resume view URL
+  const getResumeViewUrl = useCallback(async () => {
+    if (!ctxUser?.resume_url) return;
+    try {
+      const response = await apiService.getResumeViewUrl();
+      setResumeViewUrl(response || null);
+    } catch (error) {
+      console.error('Failed to get resume view URL:', error);
+      setResumeViewError('Failed to load resume');
+    }
+  }, [ctxUser?.resume_url]);
+
+  // Load resume view URL when user has resume
+  useEffect(() => {
+    if (ctxUser?.resume_url) {
+      getResumeViewUrl();
+    }
+  }, [ctxUser?.resume_url, getResumeViewUrl]);
+
+  // Load visa documents
+  useEffect(() => {
+    const loadVisaDocs = async () => {
+      if (!ctxUser?.id) return;
+      setVisaDocsLoading(true);
+      try {
+        const docs = await apiService.getVisaDocuments();
+        setVisaDocs(docs);
+      } catch (error) {
+        console.error('Failed to load visa documents:', error);
+      } finally {
+        setVisaDocsLoading(false);
+      }
+    };
+    loadVisaDocs();
+  }, [ctxUser?.id]);
+
+  // Derive avatar initials from name/email
+  const initials = React.useMemo(() => {
+    const src = (ctxUser?.full_name || ctxUser?.email || '').trim();
+    if (!src) return '?';
+    const parts = src.split(/[\s._-]+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }, [ctxUser]);
+
+
+  // Show loading spinner while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
+
   // Helper function to sort education entries by end year (most recent first)
   const sortEducationByDate = (eduArray: any[]) => {
     return [...eduArray].sort((a, b) => {
@@ -89,139 +184,12 @@ const ProfilePage: React.FC = () => {
 
 
 
-  useEffect(() => {
-    setForm({
-      full_name: ctxUser?.full_name || '',
-      contact_number: ctxUser?.contact_number || '',
-      visa_status: ctxUser?.visa_status || '',
-      company_name: ctxUser?.company_name || '',
-      company_website: ctxUser?.company_website || '',
-      company_size: ctxUser?.company_size || '',
-      industry: ctxUser?.industry || '',
-      company_description: ctxUser?.company_description || '',
-    });
-    // Hydrate education/experience from backend JSON strings if present
-    try {
-      const rawEdu = (ctxUser as any)?.education;
-      if (rawEdu) {
-        const parsed = typeof rawEdu === 'string' ? JSON.parse(rawEdu) : rawEdu;
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].institution) {
-          setEducation(sortEducationByDate(parsed));
-        } else if (ctxUser?.university && ctxUser?.degree && ctxUser?.graduation_year) {
-          // Prefill education from signup data if no education exists
-          const degreeDuration = ctxUser.degree?.toLowerCase().includes('master') || ctxUser.degree?.toLowerCase().includes('phd') ? 2 : 3;
-          const prefilledEducation = [{
-            institution: ctxUser.university,
-            degree: ctxUser.degree,
-            field: ctxUser.degree, // Use degree as field of study
-            start_year: (ctxUser.graduation_year - degreeDuration).toString(),
-            end_year: ctxUser.graduation_year.toString()
-          }];
-          setEducation(prefilledEducation);
-        }
-      } else if (ctxUser?.university && ctxUser?.degree && ctxUser?.graduation_year) {
-        // Prefill education from signup data if no education data exists
-        const degreeDuration = ctxUser.degree?.toLowerCase().includes('master') || ctxUser.degree?.toLowerCase().includes('phd') ? 2 : 3;
-        const prefilledEducation = [{
-          institution: ctxUser.university,
-          degree: ctxUser.degree,
-          field: ctxUser.degree, // Use degree as field of study
-          start_year: (ctxUser.graduation_year - degreeDuration).toString(),
-          end_year: ctxUser.graduation_year.toString()
-        }];
-        setEducation(prefilledEducation);
-      }
-    } catch {}
-    try {
-      const rawExp = (ctxUser as any)?.experience;
-      if (rawExp) {
-        const parsed = typeof rawExp === 'string' ? JSON.parse(rawExp) : rawExp;
-        if (Array.isArray(parsed) && parsed.length > 0) setExperience(sortExperienceByDate(parsed));
-      }
-    } catch {}
-    // Try hydrate skills & activities from localStorage (UI-only persistence for now)
-    try {
-      const sk = localStorage.getItem('profile_skills');
-      if (sk) setSkills(JSON.parse(sk));
-      const act = localStorage.getItem('profile_activities');
-      if (act) setActivities(JSON.parse(act));
-    } catch {}
-  }, [ctxUser]);
 
 
 
 
 
-  // Derive avatar initials from name/email
-  const initials = React.useMemo(() => {
-    const src = (ctxUser?.full_name || ctxUser?.email || '').trim();
-    if (!src) return '?';
-    const parts = src.split(/[\s._-]+/).filter(Boolean);
-    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
-  }, [ctxUser]);
 
-  // Load visa status for students
-  useEffect(() => {
-    const loadVisa = async () => {
-      if (ctxUser?.role !== 'student') return;
-      setLoadingVisa(true);
-      setVisaMsg(null);
-      try {
-        const info = await apiService.getVisaStatus();
-        setVisaInfo(info);
-      } catch (e) {
-        setVisaMsg('Failed to load visa status');
-      } finally {
-        setLoadingVisa(false);
-      }
-    };
-    loadVisa();
-  }, [ctxUser]);
-
-  // Load visa documents (e.g., VEVO) for current user
-  useEffect(() => {
-    const loadDocs = async () => {
-      if (ctxUser?.role !== 'student') return;
-      setVisaDocsLoading(true);
-      try {
-        const docs = await apiService.getVisaDocuments();
-        setVisaDocs(docs);
-      } catch {
-        setVisaDocs(null);
-      } finally {
-        setVisaDocsLoading(false);
-      }
-    };
-    loadDocs();
-  }, [ctxUser]);
-
-  const getResumeViewUrl = useCallback(async () => {
-    if (!ctxUser?.resume_url) {
-      setResumeViewUrl(null);
-      setResumeViewError(null);
-      return;
-    }
-    
-    try {
-      console.log('Getting resume view URL for user:', ctxUser.id);
-      const url = await apiService.getResumeViewUrl();
-      console.log('Got resume view URL:', url);
-      setResumeViewUrl(url);
-      setResumeViewError(null);
-    } catch (err: any) {
-      console.error('Failed to get resume view URL:', err);
-      setResumeViewUrl(null);
-      setResumeViewError(err.response?.data?.detail || 'Failed to load resume');
-    }
-  }, [ctxUser?.resume_url, ctxUser?.id]);
-
-  // Get resume view URL when component first loads
-  useEffect(() => {
-    if (ctxUser?.resume_url && !resumeViewUrl) {
-      getResumeViewUrl();
-    }
-  }, [ctxUser?.id, ctxUser?.resume_url, resumeViewUrl, getResumeViewUrl]); // Include all dependencies
 
   const onUploadResume = async () => {
     if (!resumeFile) return;

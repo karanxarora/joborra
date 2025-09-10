@@ -30,7 +30,13 @@ const Footer: React.FC = () => {
                 )}
               </li>
               <li><DisabledLink>Saved Jobs</DisabledLink></li>
-              <li><Link to="/profile" className="text-slate-600 hover:text-cyan-600">Profile</Link></li>
+              <li>
+                {isAuthenticated ? (
+                  <Link to="/profile" className="text-slate-600 hover:text-cyan-600">Profile</Link>
+                ) : (
+                  <Link to="/auth?tab=login" className="text-slate-600 hover:text-cyan-600">Profile</Link>
+                )}
+              </li>
             </ul>
           </div>
           <div>
