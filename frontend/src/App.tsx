@@ -6,6 +6,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { FavoritesProvider } from './contexts/FavoritesContext';
 import Footer from './components/layout/Footer';
 import PilotBanner from './components/PilotBanner';
+import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
 // import DashboardPage from './pages/DashboardPage'; // disabled for now
@@ -30,6 +31,7 @@ import JobDraftsPage from './pages/JobDraftsPage';
 import EmployerJobViewPage from './pages/EmployerJobViewPage';
 import EmployerCompanyInfoPage from './pages/EmployerCompanyInfoPage';
 import HowItWorksPage from './pages/HowItWorksPage';
+import VisaDetailsPage from './pages/VisaDetailsPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -167,6 +169,7 @@ const AppContent: React.FC = () => {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/employer-visa-guide" element={<EmployerVisaGuidePage />} />
+          <Route path="/visa-details" element={<VisaDetailsPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -209,8 +212,14 @@ function App() {
     };
   }, []);
 
+  // Scroll to top on page refresh
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <Router>
+      <ScrollToTop />
       <AuthProvider>
         <ToastProvider>
           <FavoritesProvider>

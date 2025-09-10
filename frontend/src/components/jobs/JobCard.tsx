@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, ShieldCheck, GraduationCap, DollarSign, Clock, Building2, Bookmark } from 'lucide-react';
+import { MapPin, ShieldCheck, GraduationCap, DollarSign, Clock, Building2, Bookmark, Home } from 'lucide-react';
 import Card from '../ui/Card';
 import { Job } from '../../types';
 
@@ -56,7 +56,15 @@ const JobCard: React.FC<JobCardProps> = ({ job, selected, onClick, isSaved, onTo
 
           {/* Location and meta */}
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-gray-600">
-            <span className="inline-flex items-center"><MapPin className="h-3.5 w-3.5 mr-1" />{job.location}</span>
+            {job.remote_option ? (
+              <span className="inline-flex items-center">
+                <Home className="h-3.5 w-3.5 mr-1" />
+                Remote
+                {job.location && ` • ${job.location}`}
+              </span>
+            ) : (
+              <span className="inline-flex items-center"><MapPin className="h-3.5 w-3.5 mr-1" />{job.location}</span>
+            )}
             {job.employment_type && <span className="inline-flex items-center"><Clock className="h-3.5 w-3.5 mr-1" />{job.employment_type}</span>}
           </div>
 

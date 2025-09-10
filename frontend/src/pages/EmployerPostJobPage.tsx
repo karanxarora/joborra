@@ -10,7 +10,7 @@ import LocationInput, { LocationData } from '../components/ui/LocationInput';
 import { useToast } from '../contexts/ToastContext';
 import { extractErrorMessage } from '../utils/errorUtils';
 import { useAuth } from '../contexts/AuthContext';
-import { MapPin, Clock, DollarSign, ShieldCheck, GraduationCap, Building2 } from 'lucide-react';
+import { MapPin, Clock, DollarSign, ShieldCheck, GraduationCap, Building2, Info, Home } from 'lucide-react';
 import RichTextEditor from '../components/ui/RichTextEditor';
 
 const EmployerPostJobPage: React.FC = () => {
@@ -54,6 +54,7 @@ const EmployerPostJobPage: React.FC = () => {
   const [step, setStep] = useState(0); // 0..4
   const [isEditing, setIsEditing] = useState(false);
   const [editingJobId, setEditingJobId] = useState<number | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Role category options
   const roleCategoryOptions: SelectOption[] = [
@@ -69,31 +70,91 @@ const EmployerPostJobPage: React.FC = () => {
     }
   ];
 
-  // Employment basis options
-  const employmentBasisOptions: SelectOption[] = [
-    { value: 'CASUAL', label: 'Casual' },
-    { value: 'PART_TIME', label: 'Part-time' },
-    { value: 'FULL_TIME', label: 'Full-time' },
-    { value: 'FIXED_TERM', label: 'Fixed-term' }
-  ];
+  // Employment basis options - dynamic based on role category
+  const employmentBasisOptions: SelectOption[] = useMemo(() => {
+    const baseOptions = [
+      { value: 'CASUAL', label: 'Casual' },
+      { value: 'PART_TIME', label: 'Part-time' },
+      { value: 'FULL_TIME', label: 'Full-time' },
+      { value: 'FIXED_TERM', label: 'Fixed-term' }
+    ];
+    
+    // Add internship options for Study-aligned roles
+    if (form.role_category === 'STUDY_ALIGNED_PROFESSIONAL') {
+      return [
+        ...baseOptions,
+        { value: 'PAID_INTERNSHIP', label: 'Paid Internship' },
+        { value: 'UNPAID_INTERNSHIP', label: 'Unpaid Internship' }
+      ];
+    }
+    
+    return baseOptions;
+  }, [form.role_category]);
 
   // Address autocomplete - removed unused variables
 
 
 
-  // Visa types with descriptions (matching student sign-up options)
-  const VISA_TYPES: Array<{ value: string; label: string; description: string }> = useMemo(() => ([
-    { value: '', label: 'Select visa type (optional)', description: '' },
-    { value: 'Student Visa (subclass 500)', label: 'Student Visa (subclass 500)', description: 'International student visa for studying in Australia.' },
-    { value: 'Temporary Graduate (subclass 485)', label: 'Temporary Graduate (subclass 485)', description: 'Post-study work visa for recent graduates.' },
-    { value: 'Skilled Independent (subclass 189)', label: 'Skilled Independent (subclass 189)', description: 'Permanent visa for skilled workers without sponsorship.' },
-    { value: 'Skilled Nominated (subclass 190)', label: 'Skilled Nominated (subclass 190)', description: 'Permanent visa for skilled workers nominated by a state.' },
-    { value: 'Skilled Work Regional (subclass 491)', label: 'Skilled Work Regional (subclass 491)', description: 'Regional skilled work visa.' },
-    { value: 'Employer Sponsored TSS (subclass 482)', label: 'Employer Sponsored TSS (subclass 482)', description: 'Temporary Skill Shortage visa (employer-sponsored).' },
-    { value: 'Employer Nomination (subclass 186)', label: 'Employer Nomination (subclass 186)', description: 'Employer Nomination Scheme (permanent).' },
-    { value: 'Working Holiday (subclass 417/462)', label: 'Working Holiday (subclass 417/462)', description: 'Working holiday visa for young people.' },
-    { value: 'Other/Not Sure', label: 'Other/Not Sure', description: 'Other visa type or not sure of visa status.' },
+  // Visa types with descriptions and work restrictions for tooltips
+  const VISA_TYPES: Array<{ value: string; label: string; description: string; workRestrictions: string }> = useMemo(() => ([
+    { value: '', label: 'Select visa type (optional)', description: '', workRestrictions: '' },
+    { value: 'Student Visa (subclass 500)', label: 'Student Visa (subclass 500)', description: 'International student visa for studying in Australia.', workRestrictions: 'Up to 48 hours per fortnight during study periods, unlimited during scheduled breaks' },
+    { value: 'Temporary Graduate (subclass 485)', label: 'Temporary Graduate (subclass 485)', description: 'Post-study work visa for recent graduates.', workRestrictions: 'Unlimited work rights for up to 2-4 years depending on qualification level' },
+    { value: 'Skilled Independent (subclass 189)', label: 'Skilled Independent (subclass 189)', description: 'Permanent visa for skilled workers without sponsorship.', workRestrictions: 'Unlimited work rights, can work in any field' },
+    { value: 'Skilled Nominated (subclass 190)', label: 'Skilled Nominated (subclass 190)', description: 'Permanent visa for skilled workers nominated by a state.', workRestrictions: 'Unlimited work rights, must live in nominating state for 2 years' },
+    { value: 'Skilled Work Regional (subclass 491)', label: 'Skilled Work Regional (subclass 491)', description: 'Regional skilled work visa.', workRestrictions: 'Unlimited work rights, must live and work in regional area' },
+    { value: 'Employer Sponsored TSS (subclass 482)', label: 'Employer Sponsored TSS (subclass 482)', description: 'Temporary Skill Shortage visa (employer-sponsored).', workRestrictions: 'Can only work for sponsoring employer in nominated occupation' },
+    { value: 'Employer Nomination (subclass 186)', label: 'Employer Nomination (subclass 186)', description: 'Employer Nomination Scheme (permanent).', workRestrictions: 'Unlimited work rights, can work in any field after 3 years' },
+    { value: 'Working Holiday (subclass 417/462)', label: 'Working Holiday (subclass 417/462)', description: 'Working holiday visa for young people.', workRestrictions: 'Can work for same employer for maximum 6 months, study up to 4 months' },
+    { value: 'Other/Not Sure', label: 'Other/Not Sure', description: 'Other visa type or not sure of visa status.', workRestrictions: 'Varies by visa type' },
   ]), []);
+
+  // Autosave functionality
+  useEffect(() => {
+    const saveToLocalStorage = () => {
+      const formData = {
+        ...form,
+        step,
+        lastSaved: new Date().toISOString()
+      };
+      localStorage.setItem('joborra_job_form_autosave', JSON.stringify(formData));
+      setLastSaved(new Date());
+    };
+
+    // Save to localStorage whenever form changes (with debounce)
+    const timeoutId = setTimeout(saveToLocalStorage, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [form, step]);
+
+  // Load autosaved data on component mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('joborra_job_form_autosave');
+    if (savedData && !isEditing) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.lastSaved) {
+          setLastSaved(new Date(parsed.lastSaved));
+        }
+        // Only load if we're not editing an existing job
+        if (parsed.title && !isEditing) {
+          setForm(prev => ({ ...prev, ...parsed }));
+          if (parsed.step !== undefined) {
+            setStep(parsed.step);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading autosaved data:', error);
+      }
+    }
+  }, [isEditing]);
+
+  // Clear autosave when job is successfully posted
+  useEffect(() => {
+    if (success) {
+      localStorage.removeItem('joborra_job_form_autosave');
+      setLastSaved(null);
+    }
+  }, [success]);
 
   const loadDraftData = useCallback(async (draftId: number) => {
     try {
@@ -278,6 +339,34 @@ const EmployerPostJobPage: React.FC = () => {
         toast('Draft saved successfully!', 'success');
       }
       
+      // Clear form and autosave after successful save
+      setForm({
+        title: '',
+        description: '',
+        location: '',
+        city: '',
+        state: '',
+        salary_min: undefined,
+        salary_max: undefined,
+        salary_currency: 'AUD',
+        salary: '',
+        employment_type: '',
+        job_type: '',
+        role_category: '',
+        experience_level: '',
+        remote_option: false,
+        visa_sponsorship: false,
+        visa_types: [],
+        international_student_friendly: false,
+        education_requirements: '',
+        expires_at: undefined
+      });
+      setStep(0);
+      setIsEditing(false);
+      setEditingJobId(null);
+      localStorage.removeItem('joborra_job_form_autosave');
+      setLastSaved(null);
+      
       // Navigate to drafts page after a short delay
       setTimeout(() => {
         navigate('/employer/drafts');
@@ -406,10 +495,20 @@ const EmployerPostJobPage: React.FC = () => {
   const canProceedFromStep = (s: number): string | null => {
     if (s === 0) {
       if (!form.title || form.title.trim().length < 5) return 'Title must be at least 5 characters.';
+      if (!form.role_category) return 'Role category is required.';
+      if (!form.employment_type) return 'Employment basis is required.';
+      if (!form.experience_level) return 'Experience level is required.';
+      if (!form.location && !form.remote_option) return 'Please provide a location or select Remote.';
       return null;
     }
     if (s === 1) {
       if (!form.description || form.description.trim().length < 20) return 'Description must be at least 20 characters.';
+      return null;
+    }
+    if (s === 3) {
+      if (!form.visa_types || !Array.isArray(form.visa_types) || form.visa_types.length === 0) {
+        return 'Please select at least one visa type.';
+      }
       return null;
     }
     return null;
@@ -445,6 +544,15 @@ const EmployerPostJobPage: React.FC = () => {
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
             <span className="text-blue-700">Loading draft...</span>
+          </div>
+        </div>
+      )}
+
+      {lastSaved && !loadingDraft && !success && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center text-sm text-green-700">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            <span>Auto-saved {lastSaved.toLocaleTimeString()}</span>
           </div>
         </div>
       )}
@@ -520,17 +628,34 @@ const EmployerPostJobPage: React.FC = () => {
                       placeholder="e.g., entry/mid/senior"
                       value={form.experience_level || ''}
                       onChange={(e) => handleChange('experience_level', e.target.value)}
+                      required
                     />
-                    <LocationInput
-                      label="Location"
-                      value={form.location || ''}
-                      onChange={(value) => handleChange('location', value)}
-                      onLocationSelect={handleLocationSelect}
-                      placeholder="e.g., Sydney, NSW"
-                    />
+                    <div className="space-y-3">
+                      <LocationInput
+                        label="Location"
+                        value={form.location || ''}
+                        onChange={(value) => handleChange('location', value)}
+                        onLocationSelect={handleLocationSelect}
+                        placeholder="e.g., Sydney, NSW"
+                        required
+                      />
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="remote_option"
+                          checked={form.remote_option || false}
+                          onChange={(e) => handleChange('remote_option', e.target.checked)}
+                          className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                        />
+                        <label htmlFor="remote_option" className="text-sm font-medium text-gray-700 flex items-center">
+                          <Home className="h-4 w-4 mr-1" />
+                          Remote/Hybrid work available
+                        </label>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <Input label="City" value={form.city || ''} onChange={(e) => handleChange('city', e.target.value)} />
-                      <Input label="State" value={form.state || ''} onChange={(e) => handleChange('state', e.target.value)} />
+                      <Input label="City" value={form.city || ''} onChange={(e) => handleChange('city', e.target.value)} required />
+                      <Input label="State" value={form.state || ''} onChange={(e) => handleChange('state', e.target.value)} required />
                     </div>
                   </div>
                 </>
@@ -644,15 +769,24 @@ const EmployerPostJobPage: React.FC = () => {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Visa Types <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Visa Types
+                        </label>
+                        <Link 
+                          to="/visa-details" 
+                          className="text-sm text-primary-600 hover:text-primary-700 flex items-center"
+                        >
+                          <Info className="h-4 w-4 mr-1" />
+                          Visa Details
+                        </Link>
+                      </div>
                       <div className="space-y-2">
                         {VISA_TYPES.filter(v => v.value !== '').map(v => (
-                          <label key={v.value} className="flex items-center space-x-2">
+                          <div key={v.value} className="flex items-start space-x-2 group">
                             <input
                               type="checkbox"
-                              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500 mt-1"
                               checked={form.visa_types?.includes(v.value) || false}
                               onChange={(e) => {
                                 if (e.target.checked) {
@@ -662,8 +796,19 @@ const EmployerPostJobPage: React.FC = () => {
                                 }
                               }}
                             />
-                            <span className="text-sm text-gray-700">{v.label}</span>
-                          </label>
+                            <div className="flex-1">
+                              <label className="text-sm text-gray-700 cursor-pointer">
+                                {v.label}
+                              </label>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute z-10 bg-gray-900 text-white text-xs rounded-lg py-2 px-3 mt-1 max-w-xs shadow-lg">
+                                <div className="font-medium mb-1">{v.description}</div>
+                                <div className="text-gray-300">
+                                  <strong>Work restrictions:</strong> {v.workRestrictions}
+                                </div>
+                                <div className="absolute -top-1 left-4 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                              </div>
+                            </div>
+                          </div>
                         ))}
                       </div>
                       {form.visa_types && Array.isArray(form.visa_types) && form.visa_types.length > 0 && (
@@ -705,7 +850,16 @@ const EmployerPostJobPage: React.FC = () => {
                         <h3 className="text-[22px] md:text-2xl font-semibold text-slate-900">{form.title || 'Job Title'}</h3>
                         <div className="text-slate-600 font-medium text-sm md:text-[15px]">{user?.company_name || 'Your Company'}</div>
                         <div className="mt-1 text-sm text-slate-600 flex items-center">
-                          <MapPin className="h-4 w-4 mr-1" /> {form.location || form.city || form.state || 'Location'}
+                          <MapPin className="h-4 w-4 mr-1" /> 
+                          {form.remote_option ? (
+                            <span className="flex items-center">
+                              <Home className="h-4 w-4 mr-1" />
+                              Remote
+                              {form.location && ` • ${form.location}`}
+                            </span>
+                          ) : (
+                            form.location || form.city || form.state || 'Location'
+                          )}
                         </div>
                       </div>
                       <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
@@ -827,14 +981,6 @@ const EmployerPostJobPage: React.FC = () => {
         )}
       </div>
 
-      {/* VISA Disclaimer */}
-      <div className="mt-6">
-        <Card className="p-6 bg-slate-50 border-slate-200">
-          <div className="text-sm text-slate-700 whitespace-pre-wrap">
-            Joborra verifies VISA statuses and conditions based on the information provided by the user. Therefore, Joborra is not liable for any visa verification errors that arise from lack of truthful information from the user or the unprecedented update in the integrated VISA verifiying service. Joborra does not verify employment eligibility on behalf of employers.
-          </div>
-        </Card>
-      </div>
 
       {success && (
         <div className="mt-6">
