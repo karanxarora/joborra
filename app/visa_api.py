@@ -218,32 +218,36 @@ async def upload_visa_document(
             detail="File size exceeds 10MB limit"
         )
     
-    # Validate MIME type for additional security
-    import magic
+    # Validate MIME type for additional security (optional)
     try:
+        import magic
         mime_type = magic.from_buffer(content, mime=True)
         if mime_type not in allowed_mime_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid file content. Expected document or image file."
-            )
+            logger.warning(f"Invalid MIME type detected: {mime_type}")
+            # Don't fail for MIME type mismatch, just log it
     except ImportError:
         # python-magic not available, skip MIME validation
-        logger.warning("python-magic not available, skipping MIME type validation")
+        logger.info("python-magic not available, skipping MIME type validation")
     except Exception as e:
         logger.warning(f"MIME type validation failed: {e}")
         # Continue without MIME validation if it fails
 
-    # Use local storage only
+    # Use Supabase storage
     if supabase_configured():
         try:
+            logger.info(f"Starting VEVO document upload for user {current_user.id}, file: {file.filename}")
             doc_url_value = await supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
             if not doc_url_value:
-                raise HTTPException(status_code=500, detail="Failed to upload to local storage")
+                logger.error("Supabase upload returned None")
+                raise HTTPException(status_code=500, detail="Failed to upload document to storage")
+            logger.info(f"Document uploaded successfully, URL: {doc_url_value}")
         except Exception as e:
-            logger.error(f"Local storage upload error: {e}")
+            logger.error(f"Supabase storage upload error: {e}")
+            import traceback
+            logger.error(f"Upload error traceback: {traceback.format_exc()}")
             raise HTTPException(status_code=500, detail="Storage upload failed")
     else:
+        logger.error("Supabase not configured")
         raise HTTPException(status_code=500, detail="Storage not configured")
     
     # Store VEVO document URL in users table (like resume upload)

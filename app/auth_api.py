@@ -1512,15 +1512,16 @@ async def upload_user_resume(
     if len(content) > max_size:
         raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
     
-    # Validate MIME type for additional security
+    # Validate MIME type for additional security (optional)
     try:
         import magic
         mime_type = magic.from_buffer(content, mime=True)
         if mime_type not in allowed_mime_types:
-            raise HTTPException(status_code=400, detail="Invalid file content. Expected PDF file.")
+            logger.warning(f"Invalid MIME type detected: {mime_type}")
+            # Don't fail for MIME type mismatch, just log it
     except ImportError:
         # python-magic not available, skip MIME validation
-        logger.warning("python-magic not available, skipping MIME type validation")
+        logger.info("python-magic not available, skipping MIME type validation")
     except Exception as e:
         logger.warning(f"MIME type validation failed: {e}")
         # Continue without MIME validation if it fails
