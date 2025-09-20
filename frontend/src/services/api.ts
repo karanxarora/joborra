@@ -291,7 +291,7 @@ class ApiService {
   async uploadVisaDocument(file: File): Promise<any> {
     const form = new FormData();
     form.append('file', file);
-    const response = await this.api.post(`/auth/visa/documents/upload?document_type=vevo`,
+    const response = await this.api.post(`/auth/visa/documents/upload`,
       form,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
