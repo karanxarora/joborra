@@ -215,7 +215,8 @@ async def upload_visa_document(
     # Use Supabase storage with master bucket (exactly like resume upload)
     if supabase_configured():
         try:
-            vevo_url_value = await supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
+            # Use the same upload function as resume since it works reliably
+            vevo_url_value = await supabase_upload_resume(current_user.id, content, file.filename)
             if not vevo_url_value:
                 logger.error("Supabase upload returned None - client creation or upload failed")
                 raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
