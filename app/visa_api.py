@@ -171,13 +171,34 @@ async def upload_visa_document(
             detail="Only VEVO documents are allowed for upload"
         )
     
-    # Validate file type
+    # Validate file type and filename
     allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
+    allowed_mime_types = [
+        'application/pdf',
+        'image/jpeg', 'image/jpg', 'image/png',
+        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ]
+    
+    # Check filename
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename is required"
+        )
+    
+    # Check file extension
     file_extension = Path(file.filename).suffix.lower()
     if file_extension not in allowed_extensions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+    
+    # Check for malicious filenames
+    if any(char in file.filename for char in ['..', '/', '\\', '<', '>', ':', '"', '|', '?', '*']):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename characters"
         )
     
     # Read once
@@ -196,6 +217,22 @@ async def upload_visa_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File size exceeds 10MB limit"
         )
+    
+    # Validate MIME type for additional security
+    import magic
+    try:
+        mime_type = magic.from_buffer(content, mime=True)
+        if mime_type not in allowed_mime_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid file content. Expected document or image file."
+            )
+    except ImportError:
+        # python-magic not available, skip MIME validation
+        logger.warning("python-magic not available, skipping MIME type validation")
+    except Exception as e:
+        logger.warning(f"MIME type validation failed: {e}")
+        # Continue without MIME validation if it fails
 
     # Use local storage only
     if supabase_configured():
@@ -211,23 +248,38 @@ async def upload_visa_document(
     
     # Store VEVO document URL in users table (like resume upload)
     try:
+        logger.info(f"Starting VEVO document URL update for user {current_user.id}")
+        
         # Add vevo_document_url column if it doesn't exist (SQLite-friendly)
         try:
             db.execute(text("ALTER TABLE users ADD COLUMN vevo_document_url VARCHAR(500)"))
             db.commit()
-        except Exception:
+            logger.info("Added vevo_document_url column to users table")
+        except Exception as e:
             # Column might already exist, ignore error
+            logger.info(f"Column vevo_document_url already exists or error: {e}")
             pass
         
         # Update user profile with VEVO document URL (store resolved URL)
         resolved_url = resolve_storage_url(doc_url_value)
-        current_user.vevo_document_url = resolved_url
+        logger.info(f"Resolved URL: {resolved_url}")
+        
+        # Use direct SQL update to avoid SQLAlchemy attribute issues
+        db.execute(
+            text("UPDATE users SET vevo_document_url = :url WHERE id = :user_id"),
+            {"url": resolved_url, "user_id": current_user.id}
+        )
         db.commit()
+        
+        # Refresh the user object
         db.refresh(current_user)
         logger.info(f"Successfully updated VEVO document URL for user {current_user.id}")
         
     except Exception as e:
-        logger.warning(f"Could not update user VEVO document URL: {e}")
+        logger.error(f"Could not update user VEVO document URL: {e}")
+        logger.error(f"Error type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         # Continue with upload response even if user update fails
     
     return DocumentUploadResponse(
