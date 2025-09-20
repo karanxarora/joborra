@@ -211,23 +211,38 @@ async def upload_visa_document(
     
     # Store VEVO document URL in users table (like resume upload)
     try:
+        logger.info(f"Starting VEVO document URL update for user {current_user.id}")
+        
         # Add vevo_document_url column if it doesn't exist (SQLite-friendly)
         try:
             db.execute(text("ALTER TABLE users ADD COLUMN vevo_document_url VARCHAR(500)"))
             db.commit()
-        except Exception:
+            logger.info("Added vevo_document_url column to users table")
+        except Exception as e:
             # Column might already exist, ignore error
+            logger.info(f"Column vevo_document_url already exists or error: {e}")
             pass
         
         # Update user profile with VEVO document URL (store resolved URL)
         resolved_url = resolve_storage_url(doc_url_value)
-        current_user.vevo_document_url = resolved_url
+        logger.info(f"Resolved URL: {resolved_url}")
+        
+        # Use direct SQL update to avoid SQLAlchemy attribute issues
+        db.execute(
+            text("UPDATE users SET vevo_document_url = :url WHERE id = :user_id"),
+            {"url": resolved_url, "user_id": current_user.id}
+        )
         db.commit()
+        
+        # Refresh the user object
         db.refresh(current_user)
         logger.info(f"Successfully updated VEVO document URL for user {current_user.id}")
         
     except Exception as e:
-        logger.warning(f"Could not update user VEVO document URL: {e}")
+        logger.error(f"Could not update user VEVO document URL: {e}")
+        logger.error(f"Error type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         # Continue with upload response even if user update fails
     
     return DocumentUploadResponse(
