@@ -265,19 +265,13 @@ async def upload_visa_document(
             logger.info(f"Column vevo_document_url already exists or error: {e}")
             pass
         
-        # Update user profile with VEVO document URL (store resolved URL)
-        resolved_url = resolve_storage_url(doc_url_value)
-        logger.info(f"Resolved URL: {resolved_url}")
-        
-        # Validate that resolved_url is a string
-        if not isinstance(resolved_url, str):
-            logger.error(f"Resolved URL is not a string: {type(resolved_url)} - {resolved_url}")
-            raise HTTPException(status_code=500, detail="Invalid URL format")
+        # Update user profile with VEVO document URL (store raw path like resume upload)
+        logger.info(f"Storing raw path: {doc_url_value}")
         
         # Use direct SQL update to avoid SQLAlchemy attribute issues
         result = db.execute(
             text("UPDATE users SET vevo_document_url = :url WHERE id = :user_id"),
-            {"url": resolved_url, "user_id": current_user.id}
+            {"url": doc_url_value, "user_id": current_user.id}
         )
         db.commit()
         
