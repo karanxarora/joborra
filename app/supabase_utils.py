@@ -206,14 +206,22 @@ def resolve_storage_url(storage_path: Optional[str]) -> Optional[str]:
                 storage_private = os.getenv('SUPABASE_STORAGE_PRIVATE', 'false').lower() == 'true'
                 if storage_private:
                     # Use signed URL for private storage (more secure)
-                    ttl = int(os.getenv('SUPABASE_SIGNED_URL_TTL', '3600'))  # Default 1 hour
                     try:
+                        ttl = int(os.getenv('SUPABASE_SIGNED_URL_TTL', '3600'))  # Default 1 hour
                         signed_url = client.storage.from_("master").create_signed_url(file_path, ttl)
-                        return signed_url
+                        if signed_url:
+                            return signed_url
+                        else:
+                            logger.warning("Signed URL creation returned None, falling back to public URL")
                     except Exception as e:
-                        logger.warning(f"Failed to create signed URL, falling back to public URL: {e}")
+                        logger.warning(f"Failed to create signed URL: {e}, falling back to public URL")
                 
                 # Fallback to public URL (for public storage or if signed URL fails)
-                return client.storage.from_("master").get_public_url(file_path)
+                try:
+                    public_url = client.storage.from_("master").get_public_url(file_path)
+                    return public_url
+                except Exception as e:
+                    logger.error(f"Failed to get public URL: {e}")
+                    return storage_path  # Return original path as last resort
     
     return storage_path
