@@ -166,10 +166,21 @@ async def upload_visa_document(user_id: int, document_type: str, content: bytes,
         unique_filename = f"visa-documents/{document_type}_{user_id}_{uuid.uuid4()}.{file_ext}"
         
         # Upload to master bucket with visa-documents/ prefix
+        # Determine content type based on file extension
+        content_type = "application/pdf"  # default
+        if file_ext in ['jpg', 'jpeg']:
+            content_type = "image/jpeg"
+        elif file_ext == 'png':
+            content_type = "image/png"
+        elif file_ext == 'doc':
+            content_type = "application/msword"
+        elif file_ext == 'docx':
+            content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        
         result = client.storage.from_("master").upload(
             unique_filename,
             content,
-            file_options={"content-type": "application/pdf"}
+            file_options={"content-type": content_type}
         )
         
         # Handle the result properly
