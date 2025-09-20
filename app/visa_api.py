@@ -19,6 +19,7 @@ from .visa_schemas import (
 from .visa_service import VisaVerificationService
 from .supabase_utils import (
     upload_visa_document as supabase_upload_visa_document,
+    upload_resume as supabase_upload_resume,
     supabase_configured,
     resolve_storage_url,
     get_supabase_client,
@@ -157,67 +158,45 @@ async def refresh_visa_status(
         "message": "Visa status refreshed successfully" if success else "Refresh not needed (checked recently)"
     }
 
-@router.post("/documents/upload", response_model=DocumentUploadResponse)
+@router.post("/documents/upload")
 async def upload_visa_document(
     document_type: str,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_student),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Upload visa-related documents"""
+    """Upload VEVO document and store URL on the user profile (exactly like resume upload)"""
     # Validate document type - Only allow VEVO documents
     if document_type != 'vevo':
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only VEVO documents are allowed for upload"
-        )
+        raise HTTPException(status_code=400, detail="Only VEVO documents are allowed for upload")
     
-    # Validate file type and filename
-    allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
-    allowed_mime_types = [
-        'application/pdf',
-        'image/jpeg', 'image/jpg', 'image/png',
-        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ]
+    # Validate file type and filename (same as resume upload)
+    allowed_extensions = ['.pdf']
+    allowed_mime_types = ['application/pdf']
     
     # Check filename
     if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Filename is required"
-        )
+        raise HTTPException(status_code=400, detail="Filename is required")
     
     # Check file extension
-    file_extension = Path(file.filename).suffix.lower()
-    if file_extension not in allowed_extensions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
-        )
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Only PDF VEVO documents are allowed")
     
     # Check for malicious filenames
     if any(char in file.filename for char in ['..', '/', '\\', '<', '>', ':', '"', '|', '?', '*']):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid filename characters"
-        )
-    
-    # Read once
+        raise HTTPException(status_code=400, detail="Invalid filename characters")
+
+    # Read content once
     try:
         content = await file.read()
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to read file: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
     
     # Validate file size (10MB limit)
     max_size = 10 * 1024 * 1024  # 10MB in bytes
     if len(content) > max_size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File size exceeds 10MB limit"
-        )
+        raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
     
     # Validate MIME type for additional security (optional)
     try:
@@ -233,73 +212,50 @@ async def upload_visa_document(
         logger.warning(f"MIME type validation failed: {e}")
         # Continue without MIME validation if it fails
 
-    # Use Supabase storage
+    # Use Supabase storage with master bucket (exactly like resume upload)
     if supabase_configured():
         try:
-            logger.info(f"Starting VEVO document upload for user {current_user.id}, file: {file.filename}")
-            doc_url_value = await supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
-            if not doc_url_value:
-                logger.error("Supabase upload returned None")
-                raise HTTPException(status_code=500, detail="Failed to upload document to storage")
-            logger.info(f"Document uploaded successfully, URL: {doc_url_value}")
+            vevo_url_value = await supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
+            if not vevo_url_value:
+                logger.error("Supabase upload returned None - client creation or upload failed")
+                raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
         except Exception as e:
-            logger.error(f"Supabase storage upload error: {e}")
-            import traceback
-            logger.error(f"Upload error traceback: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail="Storage upload failed")
+            logger.error(f"Supabase upload error: {e}")
+            raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
     else:
-        logger.error("Supabase not configured")
-        raise HTTPException(status_code=500, detail="Storage not configured")
-    
-    # Store VEVO document URL in users table (like resume upload)
+        logger.error("Supabase not configured - missing environment variables")
+        raise HTTPException(
+            status_code=503, 
+            detail="File upload service is currently unavailable. Please contact support or try again later."
+        )
+
+    # Update user profile (exactly like resume upload)
     try:
-        logger.info(f"Starting VEVO document URL update for user {current_user.id}")
-        
-        # Add vevo_document_url column if it doesn't exist (SQLite-friendly)
+        current_user.vevo_document_url = vevo_url_value
+        db.commit()
+        db.refresh(current_user)
+    except Exception as e:
+        # Attempt to add column if it doesn't exist (SQLite-friendly)
         try:
             db.execute(text("ALTER TABLE users ADD COLUMN vevo_document_url VARCHAR(500)"))
             db.commit()
-            logger.info("Added vevo_document_url column to users table")
-        except Exception as e:
-            # Column might already exist, ignore error
-            logger.info(f"Column vevo_document_url already exists or error: {e}")
-            pass
-        
-        # Update user profile with VEVO document URL (store raw path like resume upload)
-        logger.info(f"Storing raw path: {doc_url_value}")
-        
-        # Use direct SQL update to avoid SQLAlchemy attribute issues
-        result = db.execute(
-            text("UPDATE users SET vevo_document_url = :url WHERE id = :user_id"),
-            {"url": doc_url_value, "user_id": current_user.id}
-        )
-        db.commit()
-        
-        # Check if the update actually affected any rows
-        if result.rowcount == 0:
-            logger.warning(f"No rows updated for user {current_user.id}")
-        
-        # Refresh the user object
-        db.refresh(current_user)
-        logger.info(f"Successfully updated VEVO document URL for user {current_user.id}")
-        
-    except HTTPException:
-        # Re-raise HTTP exceptions
-        raise
-    except Exception as e:
-        logger.error(f"Could not update user VEVO document URL: {e}")
-        logger.error(f"Error type: {type(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        # Continue with upload response even if user update fails
+            current_user.vevo_document_url = vevo_url_value
+            db.commit()
+            db.refresh(current_user)
+        except Exception:
+            raise HTTPException(status_code=500, detail=f"Database error updating VEVO document URL: {str(e)}")
+
+    # For response, resolve to public/signed URL
+    resolved_url = resolve_storage_url(current_user.vevo_document_url)
+    logger.info(f"User {current_user.id} uploaded VEVO document: {resolved_url}")
+    logger.info(f"Stored URL: {current_user.vevo_document_url}")
+    logger.info(f"Resolved URL: {resolved_url}")
     
-    return DocumentUploadResponse(
-        document_url=resolve_storage_url(doc_url_value),
-        document_type=document_type,
-        upload_date=datetime.utcnow(),
-        file_size=len(content),
-        file_name=file.filename
-    )
+    return {
+        "vevo_document_url": resolved_url,
+        "file_name": file.filename,
+        "file_size": len(content)
+    }
 
 @router.get("/health")
 async def visa_health_check():
