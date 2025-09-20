@@ -160,15 +160,12 @@ async def refresh_visa_status(
 
 @router.post("/documents/upload")
 async def upload_visa_document(
-    document_type: str,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Upload VEVO document and store URL on the user profile (exactly like resume upload)"""
-    # Validate document type - Only allow VEVO documents
-    if document_type != 'vevo':
-        raise HTTPException(status_code=400, detail="Only VEVO documents are allowed for upload")
+    # VEVO documents only - no need for document_type parameter
     
     # Validate file type and filename (same as resume upload)
     allowed_extensions = ['.pdf']
