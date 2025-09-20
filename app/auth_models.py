@@ -71,6 +71,8 @@ class User(Base):
     experience = Column(Text, nullable=True)  # JSON array of experience items
     # Resume storage
     resume_url = Column(String(500), nullable=True)
+    # VEVO document storage
+    vevo_document_url = Column(String(500), nullable=True)
     
     # Employer-specific fields
     company_name = Column(String(255), nullable=True)

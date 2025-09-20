@@ -222,23 +222,22 @@ const ProfilePage: React.FC = () => {
   };
 
   const onUploadVisaDoc = async () => {
-    if (!visaDocFile || !visaConsentGiven) return;
+    if (!visaDocFile || !visaConsentGiven) {
+      setVisaMsg('Please select a file and provide consent to upload.');
+      return;
+    }
     setVisaDocUploading(true);
     setVisaMsg(null);
     try {
       const resp = await apiService.uploadVisaDocument(visaDocFile);
-      // Immediately expose the new VEVO link without waiting for another fetch
-      setVisaDocs((prev:any)=>({
-        ...(prev || {}),
-        vevo: { resolved_url: resp?.document_url || null, url: resp?.document_url || null }
-      }));
-      // Also refresh the full docs list in background to be consistent
+      // Refresh user data to get the updated VEVO document URL (like resume upload)
       try {
-        const docs = await apiService.getVisaDocuments();
-        setVisaDocs(docs);
-      } catch {}
-      const info = await apiService.getVisaStatus();
-      setVisaInfo(info);
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Failed to refresh user data after upload:', refreshError);
+        // Continue with success message even if refresh fails
+      }
+      
       setVisaMsg('VEVO document uploaded successfully');
       setVisaDocFile(null);
       setVisaConsentGiven(false);
@@ -369,7 +368,7 @@ const ProfilePage: React.FC = () => {
                 </div>
               )} */}
               {ctxUser?.role === 'student' && (
-                <div className="mt-4 grid grid-cols-2 gap-3 text-center">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-center">
                   <div className="rounded-md border border-slate-200 p-3">
                     <div className="text-sm text-slate-600">Visa</div>
                     <div className="text-sm font-semibold text-slate-900">{visaInfo?.verification_status || 'Pending Verification'}</div>
@@ -377,6 +376,10 @@ const ProfilePage: React.FC = () => {
                   <div className="rounded-md border border-slate-200 p-3">
                     <div className="text-sm text-slate-600">Resume</div>
                     <div className="text-sm font-semibold text-slate-900">{ctxUser?.resume_url ? 'Uploaded' : 'Missing'}</div>
+                  </div>
+                  <div className="rounded-md border border-slate-200 p-3">
+                    <div className="text-sm text-slate-600">VEVO Document</div>
+                    <div className="text-sm font-semibold text-slate-900">{ctxUser?.vevo_document_url ? 'Uploaded' : 'Missing'}</div>
                   </div>
                 </div>
               )}
@@ -961,9 +964,17 @@ const ProfilePage: React.FC = () => {
                             </div>
                           ))}
                         </div>
-                        <div className="flex justify-between text-xs text-slate-500 mt-1">
-                          <span>Under Review</span>
-                          <span>Verified</span>
+                        <div className="flex text-xs text-slate-500 mt-1">
+                          {steps.map((label, i) => (
+                            <div key={`label-${label}`} className="flex-1 flex items-center">
+                              <div className="text-center w-2">
+                                <span>{label === 'pending' ? 'Under Review' : 'Verified'}</span>
+                              </div>
+                              {i < steps.length-1 && (
+                                <div className="flex-1 mx-2"></div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                         {visaInfo?.verification_message && (
                           <div className="text-sm text-slate-600 mt-2">{visaInfo.verification_message}</div>
@@ -990,15 +1001,47 @@ const ProfilePage: React.FC = () => {
               <h3 className="text-lg font-semibold text-slate-900 mb-3">VEVO Document Upload</h3>
               <p className="text-sm text-slate-600 mb-3">Upload your VEVO (Visa Entitlement Verification Online) document to verify your visa status.</p>
               
+              {/* Document Upload Status */}
+              {ctxUser?.vevo_document_url && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">Document Uploaded</p>
+                      <p className="text-xs text-green-600">Your VEVO document has been successfully uploaded and is ready for verification.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-700 mb-2">VEVO Document</label>
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*,.doc,.docx"
-                  onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-slate-900"
-                />
-                <p className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG, DOC, DOCX. Max size 10MB.</p>
+                {visaDocFile ? (
+                  <div className="flex items-center gap-2 p-2 bg-slate-50 rounded">
+                    <span className="text-sm text-slate-700 flex-1 truncate">{visaDocFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setVisaDocFile(null)}
+                      className="text-red-600 hover:text-red-700 text-sm font-medium"
+                      aria-label="Remove selected file"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*,.doc,.docx"
+                    onChange={(e) => setVisaDocFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-slate-900"
+                    aria-describedby="file-help"
+                  />
+                )}
+                <p id="file-help" className="text-xs text-slate-500 mt-1">Allowed: PDF, JPG, PNG, DOC, DOCX. Max size 10MB.</p>
               </div>
 
               <div className="mb-4">
@@ -1009,6 +1052,7 @@ const ProfilePage: React.FC = () => {
                     checked={visaConsentGiven}
                     onChange={(e) => setVisaConsentGiven(e.target.checked)}
                     className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    required
                   />
                   <label htmlFor="visa-consent" className="ml-2 text-sm text-slate-700">
                     I consent to uploading my VEVO document for visa verification purposes. I understand that this document will be used to verify my visa status and may be stored securely by Joborra.
@@ -1016,15 +1060,12 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   {(() => {
-                    const v = visaInfo as any;
-                    const vevoUrl = (visaDocs?.vevo?.resolved_url)
-                      || (v?.vevo_document_url || null);
-                    return visaDocsLoading ? (
-                      <span className="text-sm text-slate-500">Loading documents…</span>
-                    ) : vevoUrl ? (
+                    // Check for VEVO document from user profile (like resume)
+                    const vevoUrl = ctxUser?.vevo_document_url || null;
+                    return vevoUrl ? (
                       <a
                         href={vevoUrl}
                         target="_blank"
@@ -1043,6 +1084,7 @@ const ProfilePage: React.FC = () => {
                   onClick={onUploadVisaDoc} 
                   loading={visaDocUploading} 
                   disabled={!visaDocFile || !visaConsentGiven}
+                  className="w-full sm:w-auto"
                 >
                   Upload VEVO Document
                 </Button>

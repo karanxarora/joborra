@@ -97,6 +97,7 @@ class UserResponse(BaseModel):
     education: Optional[str]
     experience: Optional[str]
     resume_url: Optional[str]
+    vevo_document_url: Optional[str]
     # Study details (moved from visa verification)
     course_name: Optional[str]
     institution_name: Optional[str]
