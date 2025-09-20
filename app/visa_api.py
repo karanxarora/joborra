@@ -268,17 +268,29 @@ async def upload_visa_document(
         resolved_url = resolve_storage_url(doc_url_value)
         logger.info(f"Resolved URL: {resolved_url}")
         
+        # Validate that resolved_url is a string
+        if not isinstance(resolved_url, str):
+            logger.error(f"Resolved URL is not a string: {type(resolved_url)} - {resolved_url}")
+            raise HTTPException(status_code=500, detail="Invalid URL format")
+        
         # Use direct SQL update to avoid SQLAlchemy attribute issues
-        db.execute(
+        result = db.execute(
             text("UPDATE users SET vevo_document_url = :url WHERE id = :user_id"),
             {"url": resolved_url, "user_id": current_user.id}
         )
         db.commit()
         
+        # Check if the update actually affected any rows
+        if result.rowcount == 0:
+            logger.warning(f"No rows updated for user {current_user.id}")
+        
         # Refresh the user object
         db.refresh(current_user)
         logger.info(f"Successfully updated VEVO document URL for user {current_user.id}")
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Could not update user VEVO document URL: {e}")
         logger.error(f"Error type: {type(e)}")
