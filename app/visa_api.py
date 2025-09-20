@@ -301,6 +301,24 @@ async def upload_visa_document(
         file_name=file.filename
     )
 
+@router.get("/health")
+async def visa_health_check():
+    """Health check endpoint to test production environment"""
+    try:
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "environment": "production" if "joborra.com" in str(__file__) else "development",
+            "supabase_configured": supabase_configured(),
+            "imports_working": True
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
 @router.get("/documents")
 async def list_visa_documents(
     current_user: User = Depends(get_current_student),
