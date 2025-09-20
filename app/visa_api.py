@@ -171,13 +171,34 @@ async def upload_visa_document(
             detail="Only VEVO documents are allowed for upload"
         )
     
-    # Validate file type
+    # Validate file type and filename
     allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
+    allowed_mime_types = [
+        'application/pdf',
+        'image/jpeg', 'image/jpg', 'image/png',
+        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ]
+    
+    # Check filename
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename is required"
+        )
+    
+    # Check file extension
     file_extension = Path(file.filename).suffix.lower()
     if file_extension not in allowed_extensions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+    
+    # Check for malicious filenames
+    if any(char in file.filename for char in ['..', '/', '\\', '<', '>', ':', '"', '|', '?', '*']):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename characters"
         )
     
     # Read once
@@ -196,6 +217,22 @@ async def upload_visa_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File size exceeds 10MB limit"
         )
+    
+    # Validate MIME type for additional security
+    import magic
+    try:
+        mime_type = magic.from_buffer(content, mime=True)
+        if mime_type not in allowed_mime_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid file content. Expected document or image file."
+            )
+    except ImportError:
+        # python-magic not available, skip MIME validation
+        logger.warning("python-magic not available, skipping MIME type validation")
+    except Exception as e:
+        logger.warning(f"MIME type validation failed: {e}")
+        # Continue without MIME validation if it fails
 
     # Use local storage only
     if supabase_configured():

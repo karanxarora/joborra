@@ -1484,17 +1484,46 @@ async def upload_user_resume(
     db: Session = Depends(get_db)
 ):
     """Upload a resume (PDF only) and store URL on the user profile"""
-    # Validate file type
+    # Validate file type and filename
     allowed_extensions = ['.pdf']
+    allowed_mime_types = ['application/pdf']
+    
+    # Check filename
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+    
+    # Check file extension
     ext = Path(file.filename).suffix.lower()
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail="Only PDF resumes are allowed")
+    
+    # Check for malicious filenames
+    if any(char in file.filename for char in ['..', '/', '\\', '<', '>', ':', '"', '|', '?', '*']):
+        raise HTTPException(status_code=400, detail="Invalid filename characters")
 
     # Read content once
     try:
         content = await file.read()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+    
+    # Validate file size (10MB limit)
+    max_size = 10 * 1024 * 1024  # 10MB in bytes
+    if len(content) > max_size:
+        raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+    
+    # Validate MIME type for additional security
+    try:
+        import magic
+        mime_type = magic.from_buffer(content, mime=True)
+        if mime_type not in allowed_mime_types:
+            raise HTTPException(status_code=400, detail="Invalid file content. Expected PDF file.")
+    except ImportError:
+        # python-magic not available, skip MIME validation
+        logger.warning("python-magic not available, skipping MIME type validation")
+    except Exception as e:
+        logger.warning(f"MIME type validation failed: {e}")
+        # Continue without MIME validation if it fails
 
     # Use Supabase storage with master bucket
     if supabase_configured():
