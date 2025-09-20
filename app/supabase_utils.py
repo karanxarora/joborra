@@ -208,9 +208,17 @@ def resolve_storage_url(storage_path: Optional[str]) -> Optional[str]:
                     # Use signed URL for private storage (more secure)
                     try:
                         ttl = int(os.getenv('SUPABASE_SIGNED_URL_TTL', '3600'))  # Default 1 hour
-                        signed_url = client.storage.from_("master").create_signed_url(file_path, ttl)
-                        if signed_url:
-                            return signed_url
+                        signed_url_result = client.storage.from_("master").create_signed_url(file_path, ttl)
+                        if signed_url_result:
+                            # Extract the actual URL from the result (could be dict or string)
+                            if isinstance(signed_url_result, dict):
+                                # Try different possible keys for the URL
+                                signed_url = signed_url_result.get('signedURL') or signed_url_result.get('signedUrl') or signed_url_result.get('url')
+                                if signed_url:
+                                    return signed_url
+                            elif isinstance(signed_url_result, str):
+                                return signed_url_result
+                            logger.warning("Could not extract URL from signed URL result")
                         else:
                             logger.warning("Signed URL creation returned None, falling back to public URL")
                     except Exception as e:
