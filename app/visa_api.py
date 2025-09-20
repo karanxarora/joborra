@@ -167,12 +167,17 @@ async def upload_visa_document(
     """Upload VEVO document and store URL on the user profile (exactly like resume upload)"""
     # VEVO documents only - no need for document_type parameter
     
+    # Debug logging
+    logger.info(f"VEVO upload endpoint reached for user {current_user.id}")
+    logger.info(f"File received: {file.filename}, content_type: {file.content_type}")
+    
     # Validate file type and filename (same as resume upload)
     allowed_extensions = ['.pdf']
     allowed_mime_types = ['application/pdf']
     
     # Check filename
     if not file.filename:
+        logger.error("No filename provided")
         raise HTTPException(status_code=400, detail="Filename is required")
     
     # Check file extension
