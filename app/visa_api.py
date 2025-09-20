@@ -21,6 +21,7 @@ from .supabase_utils import (
     upload_visa_document as supabase_upload_visa_document,
     supabase_configured,
     resolve_storage_url,
+    get_supabase_client,
 )
 import logging
 import os
