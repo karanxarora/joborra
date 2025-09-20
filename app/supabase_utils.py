@@ -227,7 +227,10 @@ def resolve_storage_url(storage_path: Optional[str]) -> Optional[str]:
                 # Fallback to public URL (for public storage or if signed URL fails)
                 try:
                     public_url = client.storage.from_("master").get_public_url(file_path)
-                    return public_url
+                    if isinstance(public_url, dict):
+                        # Handle case where get_public_url also returns a dict
+                        public_url = public_url.get('publicURL') or public_url.get('publicUrl') or public_url.get('url')
+                    return public_url or storage_path
                 except Exception as e:
                     logger.error(f"Failed to get public URL: {e}")
                     return storage_path  # Return original path as last resort
