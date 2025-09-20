@@ -3,6 +3,7 @@ Visa verification API endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List, Optional
 from datetime import datetime
 
@@ -187,11 +188,19 @@ async def upload_visa_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to read file: {str(e)}"
         )
+    
+    # Validate file size (10MB limit)
+    max_size = 10 * 1024 * 1024  # 10MB in bytes
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File size exceeds 10MB limit"
+        )
 
     # Use local storage only
     if supabase_configured():
         try:
-            doc_url_value = supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
+            doc_url_value = await supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
             if not doc_url_value:
                 raise HTTPException(status_code=500, detail="Failed to upload to local storage")
         except Exception as e:
@@ -200,17 +209,26 @@ async def upload_visa_document(
     else:
         raise HTTPException(status_code=500, detail="Storage not configured")
     
-    # Update verification record with document URL (if exists)
+    # Store VEVO document URL in users table (like resume upload)
     try:
-        service = VisaVerificationService(db)
-        verification = service.get_user_visa_status(current_user.id)
+        # Add vevo_document_url column if it doesn't exist (SQLite-friendly)
+        try:
+            db.execute(text("ALTER TABLE users ADD COLUMN vevo_document_url VARCHAR(500)"))
+            db.commit()
+        except Exception:
+            # Column might already exist, ignore error
+            pass
         
-        if verification:
-            update_data = {f"{document_type}_document_url": doc_url_value}
-            service.update_visa_verification(verification.id, update_data)
+        # Update user profile with VEVO document URL (store resolved URL)
+        resolved_url = resolve_storage_url(doc_url_value)
+        current_user.vevo_document_url = resolved_url
+        db.commit()
+        db.refresh(current_user)
+        logger.info(f"Successfully updated VEVO document URL for user {current_user.id}")
+        
     except Exception as e:
-        logger.warning(f"Could not update verification record: {e}")
-        # Continue with upload response even if verification update fails
+        logger.warning(f"Could not update user VEVO document URL: {e}")
+        # Continue with upload response even if user update fails
     
     return DocumentUploadResponse(
         document_url=resolve_storage_url(doc_url_value),

@@ -476,6 +476,8 @@ def get_current_user_profile(current_user: User = Depends(get_current_user)):
             current_user.resume_url = resolve_storage_url(getattr(current_user, "resume_url", None))
         if hasattr(current_user, "company_logo_url"):
             current_user.company_logo_url = resolve_storage_url(getattr(current_user, "company_logo_url", None))
+        if hasattr(current_user, "vevo_document_url"):
+            current_user.vevo_document_url = resolve_storage_url(getattr(current_user, "vevo_document_url", None))
     except Exception:
         logger.exception("Failed to resolve user media URLs in /auth/me")
     return current_user
