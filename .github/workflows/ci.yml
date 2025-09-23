@@ -158,7 +158,8 @@ jobs:
             # Ensure env files exist (backend .env)
             echo "Creating backend environment file..."
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
-              echo "${{ secrets.BACKEND_ENV }}" > .env
+              # Use printf to avoid shell interpretation issues
+              printf '%s\n' "${{ secrets.BACKEND_ENV }}" > .env
             else
               echo "Creating default .env file..."
               echo "DATABASE_URL=sqlite:///./joborra.db" > .env
