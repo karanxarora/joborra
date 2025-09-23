@@ -72,14 +72,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch full history to ensure we have latest code
 
       - name: Prepare artifact (filter out dev caches)
         run: |
           rm -rf .git
-          # Add timestamp to ensure fresh deployment
-          echo "Deployment timestamp: $(date)" > deployment_info.txt
       - name: Upload project to server (key or password)
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -101,7 +97,6 @@ jobs:
           script: |
             set -euo pipefail
             export APP_DIR=${{ secrets.REMOTE_APP_DIR }}
-            
             # Install Docker & Compose if missing
             if ! command -v docker >/dev/null 2>&1; then
               curl -fsSL https://get.docker.com | sh
@@ -113,114 +108,20 @@ jobs:
               curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m) -o ${DOCKER_CONFIG}/cli-plugins/docker-compose
               chmod +x ${DOCKER_CONFIG}/cli-plugins/docker-compose
             fi
-            
-            # COMPLETELY REMOVE OLD APPLICATION DIRECTORY
-            echo "Removing old application directory..."
-            rm -rf "$APP_DIR" || true
-            
-            # Create fresh app directory
-            echo "Creating fresh application directory..."
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
-            
-            # COMPLETE CLEANUP - Remove everything except database
-            echo "=== COMPLETE SERVER CLEANUP (Preserving Database) ==="
-            
-            # Stop and remove ALL containers (not just joborra ones)
-            echo "Stopping all containers..."
-            docker stop $(docker ps -aq) 2>/dev/null || true
-            docker rm $(docker ps -aq) 2>/dev/null || true
-            
-            # Remove ALL images (this forces complete rebuild)
-            echo "Removing all Docker images..."
-            docker rmi $(docker images -aq) 2>/dev/null || true
-            
-            # Clean up all Docker resources
-            echo "Cleaning up Docker system..."
-            docker system prune -a -f --volumes || true
-            
-            # Remove all networks (except default ones)
-            echo "Cleaning up networks..."
-            docker network prune -f || true
-            
-            # IMPORTANT: Preserve database volume
-            echo "Preserving database volume: joborra_sqlite_data"
-            # The database volume will be preserved automatically
-            
-            # Verify database volume still exists
-            echo "Verifying database volume preservation..."
-            if docker volume ls | grep -q "joborra_sqlite_data"; then
-              echo "✅ Database volume preserved successfully"
-            else
-              echo "⚠️  Database volume not found - this might be a fresh deployment"
-            fi
-            
             # Ensure env files exist (backend .env)
-            echo "Creating backend environment file..."
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
-              # Use printf to avoid shell interpretation issues
-              printf '%s\n' "${{ secrets.BACKEND_ENV }}" > .env
-            else
-              echo "Creating default .env file..."
-              echo "DATABASE_URL=sqlite:///./joborra.db" > .env
-              echo "SECRET_KEY=your_super_secure_production_secret_key_here" >> .env
-              echo "DEBUG=false" >> .env
-              echo "CORS_ORIGINS=https://joborra.com,https://www.joborra.com" >> .env
+              echo "${{ secrets.BACKEND_ENV }}" > .env
             fi
-            echo "Backend environment file created:"
-            cat .env
-            
-            # Frontend env - ensure frontend directory exists first
-            echo "Creating frontend environment file..."
-            mkdir -p frontend
+            # Frontend env
             if [ -n "${{ secrets.FRONTEND_ENV }}" ]; then
               echo "${{ secrets.FRONTEND_ENV }}" > frontend/.env.production
-            else
+            elif [ ! -f frontend/.env.production ]; then
               echo "REACT_APP_API_URL=/api" > frontend/.env.production
             fi
-            echo "Frontend environment file created:"
-            cat frontend/.env.production
-            
-            # Show deployment info for verification
-            echo "=== DEPLOYMENT VERIFICATION ==="
-            echo "Deployment info:"
-            cat deployment_info.txt 2>/dev/null || echo "No deployment info found"
-            echo "Current directory: $(pwd)"
-            echo "Files in directory:"
-            ls -la
-            
-            # Verify no old containers are running
-            echo "Verifying no old containers are running..."
-            if [ $(docker ps -q | wc -l) -eq 0 ]; then
-              echo "✅ No old containers running"
-            else
-              echo "⚠️  Old containers still running:"
-              docker ps
-            fi
-            
-            # Verify no old images exist
-            echo "Verifying no old images exist..."
-            if [ $(docker images -q | wc -l) -eq 0 ]; then
-              echo "✅ No old images found - complete cleanup successful"
-            else
-              echo "⚠️  Old images still exist:"
-              docker images
-            fi
-            
-            # Build with no cache to ensure latest code
-            echo "Building Docker images with latest code..."
-            docker compose -f docker-compose.yml build --no-cache --pull
-            
-            # Start services
-            echo "Starting services..."
+            # Build and start services
+            docker compose -f docker-compose.yml build --no-cache
             docker compose -f docker-compose.yml up -d
-            
-            # Verify deployment
-            echo "Verifying deployment..."
-            sleep 10
-            docker compose ps
-            
             # Cleanup old images
             docker image prune -f || true
-            
-            echo "Deployment completed successfully!"
