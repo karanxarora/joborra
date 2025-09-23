@@ -32,7 +32,7 @@ def ensure_schema_compatibility():
             logger.info(f"Schema compat: SQLite users columns found={len(columns)}")
             logger.info(f"Schema compat: users.education present? {'education' in columns}, users.experience present? {'experience' in columns}")
             
-            # Common columns (resume + company_logo + contact_number)
+            # Common columns (resume + company_logo + contact_number + vevo_document)
             if 'resume_url' not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN resume_url VARCHAR(500)"))
                 logger.info("Added missing column users.resume_url for compatibility")
@@ -42,6 +42,9 @@ def ensure_schema_compatibility():
             if 'company_logo_url' not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN company_logo_url VARCHAR(500)"))
                 logger.info("Added missing column users.company_logo_url for compatibility")
+            if 'vevo_document_url' not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN vevo_document_url VARCHAR(500)"))
+                logger.info("Added missing column users.vevo_document_url for compatibility")
             # OAuth columns for Google Sign-In
             if 'oauth_provider' not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN oauth_provider VARCHAR(50)"))
