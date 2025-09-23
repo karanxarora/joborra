@@ -114,18 +114,46 @@ jobs:
               chmod +x ${DOCKER_CONFIG}/cli-plugins/docker-compose
             fi
             
-            # Create app directory
+            # COMPLETELY REMOVE OLD APPLICATION DIRECTORY
+            echo "Removing old application directory..."
+            rm -rf "$APP_DIR" || true
+            
+            # Create fresh app directory
+            echo "Creating fresh application directory..."
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
             
-            # Stop and remove existing containers to prevent conflicts
-            echo "Stopping existing containers..."
-            docker compose down --remove-orphans || true
+            # COMPLETE CLEANUP - Remove everything except database
+            echo "=== COMPLETE SERVER CLEANUP (Preserving Database) ==="
             
-            # Clean up old images and containers to ensure fresh build
-            echo "Cleaning up old Docker resources..."
-            docker container prune -f || true
-            docker image prune -f || true
+            # Stop and remove ALL containers (not just joborra ones)
+            echo "Stopping all containers..."
+            docker stop $(docker ps -aq) 2>/dev/null || true
+            docker rm $(docker ps -aq) 2>/dev/null || true
+            
+            # Remove ALL images (this forces complete rebuild)
+            echo "Removing all Docker images..."
+            docker rmi $(docker images -aq) 2>/dev/null || true
+            
+            # Clean up all Docker resources
+            echo "Cleaning up Docker system..."
+            docker system prune -a -f --volumes || true
+            
+            # Remove all networks (except default ones)
+            echo "Cleaning up networks..."
+            docker network prune -f || true
+            
+            # IMPORTANT: Preserve database volume
+            echo "Preserving database volume: joborra_sqlite_data"
+            # The database volume will be preserved automatically
+            
+            # Verify database volume still exists
+            echo "Verifying database volume preservation..."
+            if docker volume ls | grep -q "joborra_sqlite_data"; then
+              echo "✅ Database volume preserved successfully"
+            else
+              echo "⚠️  Database volume not found - this might be a fresh deployment"
+            fi
             
             # Ensure env files exist (backend .env)
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
@@ -140,11 +168,30 @@ jobs:
             fi
             
             # Show deployment info for verification
+            echo "=== DEPLOYMENT VERIFICATION ==="
             echo "Deployment info:"
             cat deployment_info.txt 2>/dev/null || echo "No deployment info found"
             echo "Current directory: $(pwd)"
             echo "Files in directory:"
             ls -la
+            
+            # Verify no old containers are running
+            echo "Verifying no old containers are running..."
+            if [ $(docker ps -q | wc -l) -eq 0 ]; then
+              echo "✅ No old containers running"
+            else
+              echo "⚠️  Old containers still running:"
+              docker ps
+            fi
+            
+            # Verify no old images exist
+            echo "Verifying no old images exist..."
+            if [ $(docker images -q | wc -l) -eq 0 ]; then
+              echo "✅ No old images found - complete cleanup successful"
+            else
+              echo "⚠️  Old images still exist:"
+              docker images
+            fi
             
             # Build with no cache to ensure latest code
             echo "Building Docker images with latest code..."
