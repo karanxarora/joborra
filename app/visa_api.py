@@ -161,15 +161,22 @@ async def refresh_visa_status(
 @router.post("/documents/upload")
 async def upload_visa_document(
     file: UploadFile = File(...),
+    document_type: str = "vevo",  # Default to "vevo" for VEVO documents
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Upload VEVO document and store URL on the user profile (exactly like resume upload)"""
-    # VEVO documents only - no need for document_type parameter
+    # Accept document_type parameter for compatibility with frontend
     
     # Debug logging
     logger.info(f"VEVO upload endpoint reached for user {current_user.id}")
     logger.info(f"File received: {file.filename}, content_type: {file.content_type}")
+    logger.info(f"Document type: {document_type}")
+    
+    # Validate document_type parameter
+    allowed_document_types = ["vevo", "passport", "visa_grant", "coe"]
+    if document_type not in allowed_document_types:
+        raise HTTPException(status_code=400, detail=f"Invalid document type. Allowed: {', '.join(allowed_document_types)}")
     
     # Validate file type and filename (same as resume upload)
     allowed_extensions = ['.pdf']
@@ -214,11 +221,11 @@ async def upload_visa_document(
         logger.warning(f"MIME type validation failed: {e}")
         # Continue without MIME validation if it fails
 
-    # Use Supabase storage with master bucket (exactly like resume upload)
+    # Use Supabase storage with master bucket (proper visa document upload)
     if supabase_configured():
         try:
-            # Use the same upload function as resume since it works reliably
-            vevo_url_value = await supabase_upload_resume(current_user.id, content, file.filename)
+            # Use the proper visa document upload function
+            vevo_url_value = await supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
             if not vevo_url_value:
                 logger.error("Supabase upload returned None - client creation or upload failed")
                 raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
@@ -255,7 +262,8 @@ async def upload_visa_document(
     logger.info(f"Resolved URL: {resolved_url}")
     
     return {
-        "vevo_document_url": resolved_url,
+        "document_url": resolved_url,
+        "vevo_document_url": resolved_url,  # Keep both for compatibility
         "file_name": file.filename,
         "file_size": len(content)
     }
