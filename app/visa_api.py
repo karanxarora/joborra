@@ -1,7 +1,7 @@
 """
 Visa verification API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
@@ -161,7 +161,7 @@ async def refresh_visa_status(
 @router.post("/documents/upload")
 async def upload_visa_document(
     file: UploadFile = File(...),
-    document_type: str = "vevo",  # Default to "vevo" for VEVO documents
+    document_type: str = Query("vevo", description="Type of document to upload"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
