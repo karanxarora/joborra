@@ -156,16 +156,36 @@ jobs:
             fi
             
             # Ensure env files exist (backend .env)
+            echo "Creating backend environment file..."
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
               echo "${{ secrets.BACKEND_ENV }}" > .env
+            else
+              echo "Creating default .env file..."
+              cat > .env << 'EOF'
+# Database Configuration (SQLite)
+DATABASE_URL=sqlite:///./joborra.db
+
+# Security
+SECRET_KEY=your_super_secure_production_secret_key_here
+DEBUG=false
+
+# CORS Origins
+CORS_ORIGINS=https://joborra.com,https://www.joborra.com
+EOF
             fi
+            echo "Backend environment file created:"
+            cat .env
             
-            # Frontend env
+            # Frontend env - ensure frontend directory exists first
+            echo "Creating frontend environment file..."
+            mkdir -p frontend
             if [ -n "${{ secrets.FRONTEND_ENV }}" ]; then
               echo "${{ secrets.FRONTEND_ENV }}" > frontend/.env.production
-            elif [ ! -f frontend/.env.production ]; then
+            else
               echo "REACT_APP_API_URL=/api" > frontend/.env.production
             fi
+            echo "Frontend environment file created:"
+            cat frontend/.env.production
             
             # Show deployment info for verification
             echo "=== DEPLOYMENT VERIFICATION ==="
