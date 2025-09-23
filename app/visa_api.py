@@ -224,13 +224,18 @@ async def upload_visa_document(
     # Use Supabase storage with master bucket (proper visa document upload)
     if supabase_configured():
         try:
+            logger.info(f"Starting VEVO upload for user {current_user.id}, document_type: {document_type}")
             # Use the proper visa document upload function
             vevo_url_value = await supabase_upload_visa_document(current_user.id, document_type, content, file.filename)
+            logger.info(f"Supabase upload result: {vevo_url_value}")
+            
             if not vevo_url_value:
                 logger.error("Supabase upload returned None - client creation or upload failed")
                 raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
         except Exception as e:
             logger.error(f"Supabase upload error: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             raise HTTPException(status_code=500, detail="File upload service is temporarily unavailable. Please try again later.")
     else:
         logger.error("Supabase not configured - missing environment variables")
@@ -241,18 +246,24 @@ async def upload_visa_document(
 
     # Update user profile (exactly like resume upload)
     try:
+        logger.info(f"Updating user {current_user.id} with VEVO document URL: {vevo_url_value}")
         current_user.vevo_document_url = vevo_url_value
         db.commit()
         db.refresh(current_user)
+        logger.info(f"Successfully updated user profile with VEVO document URL")
     except Exception as e:
+        logger.error(f"Database error updating VEVO document URL: {e}")
         # Attempt to add column if it doesn't exist (SQLite-friendly)
         try:
+            logger.info("Attempting to add vevo_document_url column to users table")
             db.execute(text("ALTER TABLE users ADD COLUMN vevo_document_url VARCHAR(500)"))
             db.commit()
             current_user.vevo_document_url = vevo_url_value
             db.commit()
             db.refresh(current_user)
-        except Exception:
+            logger.info("Successfully added column and updated user profile")
+        except Exception as col_error:
+            logger.error(f"Failed to add column and update user profile: {col_error}")
             raise HTTPException(status_code=500, detail=f"Database error updating VEVO document URL: {str(e)}")
 
     # For response, resolve to public/signed URL
