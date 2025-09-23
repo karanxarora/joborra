@@ -277,7 +277,9 @@ async def visa_health_check():
             "timestamp": datetime.utcnow().isoformat(),
             "environment": "production" if "joborra.com" in str(__file__) else "development",
             "supabase_configured": supabase_configured(),
-            "imports_working": True
+            "imports_working": True,
+            "version": "v1.1-with-query-fix",  # Version marker to verify deployment
+            "document_type_fix": "applied"  # Marker to confirm our fix is deployed
         }
     except Exception as e:
         return {
