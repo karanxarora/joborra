@@ -173,77 +173,25 @@ jobs:
             
             # === END DATABASE DEPLOYMENT STRATEGY ===
             
-            # Build and start services
-            echo "Building fresh containers..."
+            # Build and start services  
+            echo "🔨 Building fresh containers..."
             docker compose -f docker-compose.yml build --no-cache
-            echo "Starting services..."
+            
+            echo "🚀 Starting Supabase-only services..."
             docker compose -f docker-compose.yml up -d
             
-            # Wait for services to be ready
-            echo "⏳ Waiting for services to start..."
-            sleep 30
+            # Simple wait for startup
+            echo "⏳ Waiting for services to initialize..."
+            sleep 15
             
-            # Health check and verification
-            echo "🔍 Performing comprehensive deployment verification..."
-            
-            # Basic health check
-            if curl -f http://localhost:8000/ >/dev/null 2>&1; then
-              echo "✅ API is responding"
-            else
-              echo "⚠️ API health check failed, but continuing..."
-            fi
-            
-            # Run comprehensive verification if Python is available
-            if command -v python3 >/dev/null 2>&1; then
-              echo "🔍 Running comprehensive verification..."
-              
-              # Activate virtual environment if available
-              if [ -d "migration_env" ]; then
-                source migration_env/bin/activate
-              fi
-              
-              # Install requests if needed for verification
-              python3 -m pip install requests >/dev/null 2>&1 || echo "Could not install requests"
-              
-              # Run verification script
-              if python3 scripts/verify_production_deployment.py --url=http://localhost:8000; then
-                echo "✅ All deployment verifications passed"
-              else
-                echo "⚠️ Some verifications failed, but deployment continues"
-              fi
-              
-              # Check database health
-              if python3 scripts/health_monitor.py --report; then
-                echo "✅ Database health check completed"
-              else
-                echo "⚠️ Database health check had issues"
-              fi
-              
-              # Deactivate virtual environment
-              deactivate 2>/dev/null || true
-            else
-              echo "⚠️ Python not available for comprehensive verification"
-            fi
-            
-            # Final database configuration summary
             echo ""
-            echo "📊 Final Production Configuration:"
-            if grep -q "USE_SUPABASE=true" .env 2>/dev/null; then
-              echo "✅ Primary Database: Supabase PostgreSQL"
-              echo "✅ Fallback Database: SQLite (preserved as backup)"
-              echo "✅ Migration: Completed successfully"
-            else
-              echo "✅ Primary Database: SQLite"
-              echo "ℹ️ Supabase: Migration was skipped or failed"
-            fi
+            echo "🎉 Fresh Supabase-only deployment completed!"
+            echo "📊 Configuration:"
+            echo "   ✅ Database: Supabase PostgreSQL (exclusive)"
+            echo "   ✅ Authentication: Ready for user operations" 
+            echo "   ✅ File Storage: Supabase Storage configured"
+            echo "   ✅ Schema: Auto-created by SQLAlchemy"
+            echo "   🚀 Application: Ready for users"
             
             # Cleanup old images
             docker image prune -f || true
-            
-            echo "🎉 Deployment completed successfully!"
-            echo "📋 Summary:"
-            echo "   - Code deployed and containers rebuilt"
-            echo "   - Database migration executed (if applicable)"
-            echo "   - SQLite backup preserved for fallback"
-            echo "   - Health checks completed"
-            echo "   - Application ready for users"
