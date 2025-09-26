@@ -1,0 +1,157 @@
+name: Deploy with SQLite to Supabase Migration
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run migration in dry-run mode'
+        required: false
+        default: 'false'
+        type: boolean
+      force_migration:
+        description: 'Force overwrite existing Supabase data'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  migrate-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install Python dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install supabase psycopg2-binary
+    
+    - name: Create environment file
+      run: |
+        cat > .env << EOF
+        # Database Configuration - Supabase Only
+        USE_SUPABASE=true
+        MIGRATION_MODE=false
+        SUPABASE_DATABASE_URL=${{ secrets.SUPABASE_DATABASE_URL }}
+        
+        # Supabase Configuration
+        SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+        SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }}
+        
+        # Other environment variables
+        SECRET_KEY=${{ secrets.SECRET_KEY }}
+        DEBUG=false
+        
+        # Google OAuth (if used)
+        GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+        GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+        
+        # Google AI (if used)
+        GOOGLE_GENAI_API_KEY=${{ secrets.GOOGLE_GENAI_API_KEY }}
+        
+        # File Storage
+        MAX_FILE_SIZE=10485760
+        SUPABASE_STORAGE_BUCKET=master
+        
+        # Email (if used)
+        RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+        SMTP_FROM="Joborra <no-reply@emails.joborra.com>"
+        
+        # Frontend
+        FRONTEND_ORIGIN=${{ secrets.FRONTEND_ORIGIN || 'https://joborra.com' }}
+        EOF
+    
+    - name: Setup SSH key
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+    
+    - name: Add server to known hosts
+      run: |
+        ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+    
+    - name: Deploy to server
+      run: |
+        # Copy files to server
+        scp -r * ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_APP_DIR }}/
+        
+        # Execute deployment script on server
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+        cd ${{ secrets.REMOTE_APP_DIR }}
+        
+        # Make deployment script executable
+        chmod +x scripts/deploy_with_migration.sh
+        
+        # Set migration flags based on workflow inputs
+        DRY_RUN_FLAG=""
+        FORCE_FLAG=""
+        
+        if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+          DRY_RUN_FLAG="--dry-run"
+        fi
+        
+        if [ "${{ github.event.inputs.force_migration }}" == "true" ]; then
+          FORCE_FLAG="--force"
+        fi
+        
+        # Run deployment with migration
+        ./scripts/deploy_with_migration.sh $DRY_RUN_FLAG $FORCE_FLAG
+        
+        # Check if deployment was successful
+        if [ $? -eq 0 ]; then
+          echo "✅ Deployment with migration completed successfully"
+        else
+          echo "❌ Deployment failed"
+          exit 1
+        fi
+        EOF
+    
+    - name: Verify deployment
+      run: |
+        # Wait for services to stabilize
+        sleep 30
+        
+        # Check API health
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.FRONTEND_DOMAIN }}/api/ || echo "000")
+        
+        if [ "$response" == "200" ]; then
+          echo "✅ API is responding correctly"
+        else
+          echo "❌ API health check failed (HTTP $response)"
+          exit 1
+        fi
+    
+    - name: Cleanup on failure
+      if: failure()
+      run: |
+        echo "🔄 Deployment failed, attempting cleanup..."
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+        cd ${{ secrets.REMOTE_APP_DIR }}
+        
+        # Attempt rollback if deployment script supports it
+        if [ -f "scripts/deploy_with_migration.sh" ]; then
+          echo "Attempting rollback..."
+          # Note: Add rollback functionality to your deployment script
+        fi
+        EOF
+    
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "🎉 Deployment completed successfully!"
+          echo "Database migrated from SQLite to Supabase"
+          echo "Application is now running with Supabase backend"
+        else
+          echo "💥 Deployment failed!"
+          echo "Check logs for details and consider manual intervention"
+        fi

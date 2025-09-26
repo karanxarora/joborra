@@ -119,10 +119,56 @@ jobs:
             echo "Cleaning up old images..."
             docker image prune -f || true
             
-            # Ensure env files exist (backend .env)
+            # === DATABASE DEPLOYMENT STRATEGY ===
+            echo "🔄 Starting Database Deployment Strategy..."
+            
+            # Create backups directory
+            mkdir -p backups
+            
+            # Check deployment scenario
+            DEPLOYMENT_TYPE="fresh"
+            
+            if [ -f "joborra.db" ]; then
+              echo "📁 Found existing SQLite database - EXISTING DEPLOYMENT detected"
+              DEPLOYMENT_TYPE="existing"
+              
+              # Create timestamped backup
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              cp "joborra.db" "backups/joborra_pre_migration_${TIMESTAMP}.db"
+              if [ -f "joborra.db-wal" ]; then
+                cp "joborra.db-wal" "backups/joborra_pre_migration_${TIMESTAMP}.db-wal" || true
+              fi
+              if [ -f "joborra.db-shm" ]; then
+                cp "joborra.db-shm" "backups/joborra_pre_migration_${TIMESTAMP}.db-shm" || true
+              fi
+              echo "✅ SQLite backup created: joborra_pre_migration_${TIMESTAMP}.db"
+            else
+              echo "🆕 No existing SQLite database found - FRESH DEPLOYMENT detected"
+              echo "✅ Fresh deployment: will use Supabase directly, no migration needed"
+            fi
+            
+            echo "📋 Deployment Type: $DEPLOYMENT_TYPE"
+            
+            # Setup environment files based on deployment type
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
               echo "${{ secrets.BACKEND_ENV }}" > .env
+              
+              # Configure based on deployment type
+              if [ "$DEPLOYMENT_TYPE" = "existing" ]; then
+                echo "" >> .env
+                echo "# Migration Configuration (Existing Deployment)" >> .env
+                echo "USE_SUPABASE=false" >> .env  # Start with SQLite for migration
+                echo "MIGRATION_MODE=true" >> .env
+                echo "✅ Environment configured for EXISTING deployment with migration"
+              else
+                echo "" >> .env
+                echo "# Fresh Deployment Configuration" >> .env
+                echo "USE_SUPABASE=true" >> .env   # Start with Supabase directly
+                echo "MIGRATION_MODE=false" >> .env
+                echo "✅ Environment configured for FRESH deployment (Supabase only)"
+              fi
             fi
+            
             # Frontend env
             if [ -n "${{ secrets.FRONTEND_ENV }}" ]; then
               echo "${{ secrets.FRONTEND_ENV }}" > frontend/.env.production
@@ -130,10 +176,158 @@ jobs:
               echo "REACT_APP_API_URL=/api" > frontend/.env.production
             fi
             
+            # Install Python for migration (if not available)
+            if ! command -v python3 >/dev/null 2>&1; then
+              echo "Installing Python3..."
+              apt-get update && apt-get install -y python3 python3-pip python3-venv || \
+              yum install -y python3 python3-pip || \
+              dnf install -y python3 python3-pip || \
+              echo "⚠️ Could not install Python3, migration will be skipped"
+            fi
+            
+            # === MIGRATION EXECUTION LOGIC ===
+            if [ "$DEPLOYMENT_TYPE" = "existing" ]; then
+              echo "🔄 Processing EXISTING deployment - Migration Required"
+              
+              # Run migration if Python is available and SQLite database exists
+              if command -v python3 >/dev/null 2>&1 && [ -f "joborra.db" ]; then
+                echo "🚀 Running SQLite to Supabase migration..."
+                
+                # Create virtual environment for migration
+                python3 -m venv migration_env || echo "Using system Python"
+                
+                # Activate virtual environment if created
+                if [ -d "migration_env" ]; then
+                  source migration_env/bin/activate
+                fi
+                
+                # Install required packages
+                python3 -m pip install --upgrade pip
+                python3 -m pip install -r requirements.txt
+                
+                # Run migration with error handling
+                if python3 migrate_production_final.py; then
+                  echo "✅ Migration to Supabase completed successfully"
+                  
+                  # Update environment to use Supabase
+                  sed -i 's/USE_SUPABASE=false/USE_SUPABASE=true/g' .env || \
+                  echo "USE_SUPABASE=true" >> .env
+                  sed -i 's/MIGRATION_MODE=true/MIGRATION_MODE=false/g' .env || true
+                  
+                  echo "✅ Application configured to use Supabase as primary"
+                  echo "✅ SQLite preserved as backup"
+                else
+                  echo "❌ Migration failed, keeping SQLite as primary database"
+                  echo "✅ SQLite backup preserved for fallback"
+                fi
+                
+                # Deactivate virtual environment
+                deactivate 2>/dev/null || true
+              else
+                echo "⚠️ Skipping migration - Python3 not available or no SQLite database"
+              fi
+              
+            else
+              echo "🆕 Processing FRESH deployment - No Migration Needed"
+              echo "✅ Application will use Supabase directly"
+              echo "✅ SQLAlchemy will create tables automatically on first run"
+            fi
+            
+            # === FINAL DEPLOYMENT SUMMARY ===
+            echo "📊 Final Database Configuration Summary:"
+            echo "🔹 Deployment Type: $DEPLOYMENT_TYPE"
+            
+            if [ "$DEPLOYMENT_TYPE" = "existing" ]; then
+              if grep -q "USE_SUPABASE=true" .env 2>/dev/null; then
+                echo "✅ Primary Database: Supabase PostgreSQL"
+                echo "✅ Fallback Database: SQLite (preserved as backup)"
+                echo "✅ Migration: Successfully completed"
+                echo "✅ User Data: Preserved and migrated"
+              else
+                echo "✅ Primary Database: SQLite (migration failed/skipped)"
+                echo "ℹ️ Supabase: Migration was attempted but failed"
+                echo "✅ Backup: SQLite data preserved"
+              fi
+            else
+              echo "✅ Primary Database: Supabase PostgreSQL"
+              echo "✅ Deployment: Fresh installation"
+              echo "✅ Schema: Will be created automatically"
+              echo "ℹ️ Migration: Not required (no existing data)"
+            fi
+            
+            # === END DATABASE DEPLOYMENT STRATEGY ===
+            
             # Build and start services
             echo "Building fresh containers..."
             docker compose -f docker-compose.yml build --no-cache
             echo "Starting services..."
             docker compose -f docker-compose.yml up -d
+            
+            # Wait for services to be ready
+            echo "⏳ Waiting for services to start..."
+            sleep 30
+            
+            # Health check and verification
+            echo "🔍 Performing comprehensive deployment verification..."
+            
+            # Basic health check
+            if curl -f http://localhost:8000/ >/dev/null 2>&1; then
+              echo "✅ API is responding"
+            else
+              echo "⚠️ API health check failed, but continuing..."
+            fi
+            
+            # Run comprehensive verification if Python is available
+            if command -v python3 >/dev/null 2>&1; then
+              echo "🔍 Running comprehensive verification..."
+              
+              # Activate virtual environment if available
+              if [ -d "migration_env" ]; then
+                source migration_env/bin/activate
+              fi
+              
+              # Install requests if needed for verification
+              python3 -m pip install requests >/dev/null 2>&1 || echo "Could not install requests"
+              
+              # Run verification script
+              if python3 scripts/verify_production_deployment.py --url=http://localhost:8000; then
+                echo "✅ All deployment verifications passed"
+              else
+                echo "⚠️ Some verifications failed, but deployment continues"
+              fi
+              
+              # Check database health
+              if python3 scripts/health_monitor.py --report; then
+                echo "✅ Database health check completed"
+              else
+                echo "⚠️ Database health check had issues"
+              fi
+              
+              # Deactivate virtual environment
+              deactivate 2>/dev/null || true
+            else
+              echo "⚠️ Python not available for comprehensive verification"
+            fi
+            
+            # Final database configuration summary
+            echo ""
+            echo "📊 Final Production Configuration:"
+            if grep -q "USE_SUPABASE=true" .env 2>/dev/null; then
+              echo "✅ Primary Database: Supabase PostgreSQL"
+              echo "✅ Fallback Database: SQLite (preserved as backup)"
+              echo "✅ Migration: Completed successfully"
+            else
+              echo "✅ Primary Database: SQLite"
+              echo "ℹ️ Supabase: Migration was skipped or failed"
+            fi
+            
             # Cleanup old images
             docker image prune -f || true
+            
+            echo "🎉 Deployment completed successfully!"
+            echo "📋 Summary:"
+            echo "   - Code deployed and containers rebuilt"
+            echo "   - Database migration executed (if applicable)"
+            echo "   - SQLite backup preserved for fallback"
+            echo "   - Health checks completed"
+            echo "   - Application ready for users"

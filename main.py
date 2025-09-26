@@ -13,6 +13,7 @@ import os
 
 # Import all models to ensure they're registered with SQLAlchemy
 from app.models import JobDraft  # noqa: F401
+from app.database import DATABASE_TYPE
 
 # Configure logging EARLY so helpers can use logger
 logging.basicConfig(level=logging.INFO)
@@ -20,9 +21,15 @@ logger = logging.getLogger(__name__)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
+logger.info(f"Database initialized using {DATABASE_TYPE.upper()}")
 
 # SQLite schema compatibility: ensure new columns exist when models are updated without migrations
 def ensure_schema_compatibility():
+    # Only run schema compatibility for SQLite
+    if DATABASE_TYPE != "sqlite":
+        logger.info("Skipping schema compatibility checks (not using SQLite)")
+        return
+        
     # Simplified schema compatibility for SQLite only
     try:
         with engine.begin() as conn:
