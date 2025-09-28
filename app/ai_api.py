@@ -14,7 +14,7 @@ class GenerateJobDescriptionRequest(BaseModel):
     title: Optional[str] = None
     skills: Optional[list[str]] = None
     prompt: Optional[str] = None
-    model: Optional[str] = Field(default="gemini-1.5-flash")
+    model: Optional[str] = Field(default="gemini-2.5-flash")
     context: Optional[Dict[str, Any]] = None
 
 
@@ -136,7 +136,7 @@ async def generate_job_description(payload: GenerateJobDescriptionRequest) -> Ge
 
     try:
         genai.configure(api_key=api_key)
-        model_name = payload.model or "gemini-1.5-flash"
+        model_name = payload.model or "gemini-2.5-flash"
         model = genai.GenerativeModel(model_name)
         prompt = payload.prompt or _build_prompt_from_context(payload)
 
@@ -178,7 +178,7 @@ async def get_skill_recommendations(payload: SkillRecommendationsRequest) -> Ski
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         
         # Build context-aware prompt
         context_text = f" in {payload.context}" if payload.context else ""
