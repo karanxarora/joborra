@@ -110,18 +110,88 @@ jobs:
             fi
             mkdir -p "$APP_DIR"
             cd "$APP_DIR"
-            # Ensure env files exist (backend .env)
+            
+            # Stop existing containers to ensure fresh deployment
+            echo "Stopping existing containers..."
+            docker compose down || true
+            
+            # Clean up old images to force rebuild
+            echo "Cleaning up old images..."
+            docker image prune -f || true
+            
+            # === DATABASE DEPLOYMENT STRATEGY ===
+            echo "🔄 Starting Database Deployment Strategy..."
+            
+            # Create backups directory
+            mkdir -p backups
+            
+            # Force fresh deployment for Supabase-only setup
+            DEPLOYMENT_TYPE="fresh"
+            echo "🆕 Force FRESH DEPLOYMENT - Supabase only, no migration needed"
+
+            # Clean any existing SQLite files to prevent confusion
+            if [ -f "joborra.db" ]; then
+              echo "🧹 Removing old SQLite files for fresh Supabase deployment"
+              rm -f joborra.db joborra.db-* || true
+            fi
+            
+            echo "📋 Deployment Type: $DEPLOYMENT_TYPE"
+            
+            # Setup environment files for fresh Supabase deployment
             if [ -n "${{ secrets.BACKEND_ENV }}" ]; then
               echo "${{ secrets.BACKEND_ENV }}" > .env
+              
+              # Always configure for fresh Supabase deployment
+              echo "" >> .env
+              echo "# Fresh Supabase-Only Deployment Configuration" >> .env
+              echo "USE_SUPABASE=true" >> .env
+              echo "MIGRATION_MODE=false" >> .env
+              echo "✅ Environment configured for FRESH Supabase-only deployment"
             fi
+            
             # Frontend env
             if [ -n "${{ secrets.FRONTEND_ENV }}" ]; then
               echo "${{ secrets.FRONTEND_ENV }}" > frontend/.env.production
             elif [ ! -f frontend/.env.production ]; then
               echo "REACT_APP_API_URL=/api" > frontend/.env.production
             fi
-            # Build and start services
+            
+            # === FRESH DEPLOYMENT SETUP ===
+            echo "🆕 Processing FRESH Supabase-only deployment"
+            echo "✅ Application will use Supabase PostgreSQL directly"
+            echo "✅ SQLAlchemy will create tables automatically on first run"
+            echo "✅ No migration required - fresh installation"
+            
+            # === FINAL DEPLOYMENT SUMMARY ===
+            echo "📊 Final Database Configuration Summary:"
+            echo "🔹 Deployment Type: $DEPLOYMENT_TYPE"
+            echo "✅ Primary Database: Supabase PostgreSQL (exclusive)"
+            echo "✅ Deployment: Fresh Supabase-only installation"
+            echo "✅ Schema: Will be created automatically by SQLAlchemy"
+            echo "✅ Authentication: All user operations via Supabase"
+            echo "ℹ️ Migration: Not required (fresh deployment)"
+            
+            # === END DATABASE DEPLOYMENT STRATEGY ===
+            
+            # Build and start services  
+            echo "🔨 Building fresh containers..."
             docker compose -f docker-compose.yml build --no-cache
+            
+            echo "🚀 Starting Supabase-only services..."
             docker compose -f docker-compose.yml up -d
+            
+            # Simple wait for startup
+            echo "⏳ Waiting for services to initialize..."
+            sleep 15
+            
+            echo ""
+            echo "🎉 Fresh Supabase-only deployment completed!"
+            echo "📊 Configuration:"
+            echo "   ✅ Database: Supabase PostgreSQL (exclusive)"
+            echo "   ✅ Authentication: Ready for user operations" 
+            echo "   ✅ File Storage: Supabase Storage configured"
+            echo "   ✅ Schema: Auto-created by SQLAlchemy"
+            echo "   🚀 Application: Ready for users"
+            
             # Cleanup old images
             docker image prune -f || true

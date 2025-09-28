@@ -110,7 +110,7 @@ class User(Base):
     def verify_password(self, password: str) -> bool:
         """Verify password against hash"""
         return pwd_context.verify(password, self.hashed_password)
-    
+
     @staticmethod
     def hash_password(password: str) -> str:
         """Hash password"""
