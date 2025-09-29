@@ -5,8 +5,10 @@ import Button from '../components/ui/Button';
 import apiService from '../services/api';
 import { extractErrorMessage } from '../utils/errorUtils';
 import { User } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const EmployerCompanyInfoPage: React.FC = () => {
+  const { user } = useAuth();
   const [form, setForm] = useState<Partial<User>>({
     company_name: '',
     company_website: '',
@@ -20,17 +22,16 @@ const EmployerCompanyInfoPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const u = apiService.getCurrentUserFromStorage();
-    if (u) {
+    if (user) {
       setForm({
-        company_name: u.company_name || '',
-        company_website: u.company_website || '',
-        company_size: u.company_size || '',
-        industry: u.industry || '',
-        company_description: u.company_description || '',
+        company_name: user.company_name || '',
+        company_website: user.company_website || '',
+        company_size: user.company_size || '',
+        industry: user.industry || '',
+        company_description: user.company_description || '',
       });
     }
-  }, []);
+  }, [user]);
 
   const handleChange = (key: keyof User, value: any) => {
     setForm((prev) => ({ ...prev, [key]: value }));

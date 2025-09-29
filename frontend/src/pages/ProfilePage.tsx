@@ -80,6 +80,42 @@ const ProfilePage: React.FC = () => {
       industry: ctxUser?.industry || '',
       company_description: ctxUser?.company_description || '',
     });
+
+    // Parse and load education data from user profile
+    if (ctxUser?.education) {
+      try {
+        const parsedEducation = JSON.parse(ctxUser.education);
+        if (Array.isArray(parsedEducation) && parsedEducation.length > 0) {
+          setEducation(parsedEducation);
+        }
+      } catch (error) {
+        console.error('Error parsing education data:', error);
+      }
+    }
+
+    // Parse and load experience data from user profile
+    if (ctxUser?.experience) {
+      try {
+        const parsedExperience = JSON.parse(ctxUser.experience);
+        if (Array.isArray(parsedExperience) && parsedExperience.length > 0) {
+          setExperience(parsedExperience);
+        }
+      } catch (error) {
+        console.error('Error parsing experience data:', error);
+      }
+    }
+
+    // Parse and load skills data from user profile
+    if (ctxUser?.skills) {
+      try {
+        const parsedSkills = JSON.parse(ctxUser.skills);
+        if (Array.isArray(parsedSkills)) {
+          setSkills(parsedSkills);
+        }
+      } catch (error) {
+        console.error('Error parsing skills data:', error);
+      }
+    }
   }, [ctxUser]);
 
   // Load skills and activities from localStorage
@@ -279,9 +315,10 @@ const ProfilePage: React.FC = () => {
         company_size: form.company_size || undefined,
         industry: form.industry || undefined,
         company_description: form.company_description || undefined,
-        // Persist education/experience as JSON strings (backend stores TEXT)
+        // Persist education/experience/skills as JSON strings (backend stores TEXT)
         education: ctxUser?.role === 'student' ? JSON.stringify(education || []) : undefined,
         experience: JSON.stringify(experience || []),
+        skills: JSON.stringify(skills || []),
       };
       const updated = await apiService.updateProfile(payload);
       // Logo upload if provided
