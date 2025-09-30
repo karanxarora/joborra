@@ -134,39 +134,7 @@ jobs:
             # Create QA environment directory if it doesn't exist
             mkdir -p qa-environment
             
-            # Stop existing QA containers (safely, only QA containers)
-            echo "🛑 Stopping existing QA containers..."
-            cd qa-environment
-            # Only stop containers with 'qa' in the name to avoid affecting production
-            docker ps -a --filter "name=qa" -q | xargs -r docker stop || true
-            docker ps -a --filter "name=qa" -q | xargs -r docker rm || true
-            docker-compose -f docker-compose.qa.yml down || true
-            cd ..
-            
-            # Clean up only QA-specific images to force rebuild
-            echo "🧹 Cleaning up QA-specific images..."
-            docker images --filter "reference=*qa*" -q | xargs -r docker rmi -f || true
-            docker images --filter "dangling=true" -q | xargs -r docker rmi -f || true
-            
-            # === QA DATABASE DEPLOYMENT STRATEGY ===
-            echo "🔄 Starting QA Database Deployment Strategy..."
-            
-            # Create backups directory
-            mkdir -p backups
-            
-            # Force fresh deployment for QA Supabase setup
-            DEPLOYMENT_TYPE="fresh_qa"
-            echo "🆕 Force FRESH QA DEPLOYMENT - Supabase only, no migration needed"
-
-            # Clean any existing SQLite files to prevent confusion
-            if [ -f "qa-environment/joborra_qa.db" ]; then
-              echo "🧹 Removing old QA SQLite files for fresh Supabase deployment"
-              rm -f qa-environment/joborra_qa.db qa-environment/joborra_qa.db-* || true
-            fi
-            
-            echo "📋 QA Deployment Type: $DEPLOYMENT_TYPE"
-            
-            # Setup QA environment files
+            # Setup QA environment files FIRST
             echo "📝 Creating QA environment configuration..."
             
             # Always create .env.qa file with UAT Supabase configuration
@@ -200,6 +168,38 @@ jobs:
               echo "❌ ERROR: .env.qa file was not created!"
               exit 1
             fi
+            
+            # Stop existing QA containers (safely, only QA containers)
+            echo "🛑 Stopping existing QA containers..."
+            cd qa-environment
+            # Only stop containers with 'qa' in the name to avoid affecting production
+            docker ps -a --filter "name=qa" -q | xargs -r docker stop || true
+            docker ps -a --filter "name=qa" -q | xargs -r docker rm || true
+            docker-compose -f docker-compose.qa.yml down || true
+            cd ..
+            
+            # Clean up only QA-specific images to force rebuild
+            echo "🧹 Cleaning up QA-specific images..."
+            docker images --filter "reference=*qa*" -q | xargs -r docker rmi -f || true
+            docker images --filter "dangling=true" -q | xargs -r docker rmi -f || true
+            
+            # === QA DATABASE DEPLOYMENT STRATEGY ===
+            echo "🔄 Starting QA Database Deployment Strategy..."
+            
+            # Create backups directory
+            mkdir -p backups
+            
+            # Force fresh deployment for QA Supabase setup
+            DEPLOYMENT_TYPE="fresh_qa"
+            echo "🆕 Force FRESH QA DEPLOYMENT - Supabase only, no migration needed"
+
+            # Clean any existing SQLite files to prevent confusion
+            if [ -f "qa-environment/joborra_qa.db" ]; then
+              echo "🧹 Removing old QA SQLite files for fresh Supabase deployment"
+              rm -f qa-environment/joborra_qa.db qa-environment/joborra_qa.db-* || true
+            fi
+            
+            echo "📋 QA Deployment Type: $DEPLOYMENT_TYPE"
             
             # QA Frontend env
             if [ -n "${{ secrets.QA_FRONTEND_ENV }}" ]; then
