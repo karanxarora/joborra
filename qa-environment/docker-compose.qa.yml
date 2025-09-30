@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # QA API Service
   qa-api:

@@ -114,7 +114,7 @@ jobs:
               systemctl enable docker || true
               systemctl start docker || true
             fi
-            if ! docker compose version >/dev/null 2>&1; then
+            if ! docker-compose version >/dev/null 2>&1; then
               DOCKER_CONFIG=${HOME}/.docker mkdir -p ${DOCKER_CONFIG}/cli-plugins
               curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m) -o ${DOCKER_CONFIG}/cli-plugins/docker-compose
               chmod +x ${DOCKER_CONFIG}/cli-plugins/docker-compose
@@ -132,7 +132,7 @@ jobs:
             # Stop existing QA containers
             echo "🛑 Stopping existing QA containers..."
             cd qa-environment
-            docker compose -f docker-compose.qa.yml down || true
+            docker-compose -f docker-compose.qa.yml down || true
             cd ..
             
             # Clean up old images to force rebuild
@@ -214,8 +214,6 @@ jobs:
             # Create QA docker-compose file if it doesn't exist
             if [ ! -f "qa-environment/docker-compose.qa.yml" ]; then
               cat > qa-environment/docker-compose.qa.yml << 'EOF'
-            version: '3.8'
-
             services:
               qa-api:
                 build:
@@ -338,10 +336,10 @@ jobs:
             # Build and start QA services  
             echo "🔨 Building fresh QA containers..."
             cd qa-environment
-            docker compose -f docker-compose.qa.yml build --no-cache
+            docker-compose -f docker-compose.qa.yml build --no-cache
             
             echo "🚀 Starting QA Supabase-only services..."
-            docker compose -f docker-compose.qa.yml up -d
+            docker-compose -f docker-compose.qa.yml up -d
             
             # Simple wait for startup
             echo "⏳ Waiting for QA services to initialize..."
