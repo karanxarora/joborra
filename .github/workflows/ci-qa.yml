@@ -115,10 +115,14 @@ jobs:
               systemctl start docker || true
             fi
             if ! docker-compose version >/dev/null 2>&1; then
+              echo "📦 Installing docker-compose..."
               DOCKER_CONFIG=${HOME}/.docker
               mkdir -p ${DOCKER_CONFIG}/cli-plugins
               curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m) -o ${DOCKER_CONFIG}/cli-plugins/docker-compose
               chmod +x ${DOCKER_CONFIG}/cli-plugins/docker-compose
+              # Add to PATH
+              export PATH="${DOCKER_CONFIG}/cli-plugins:$PATH"
+              echo "✅ docker-compose installed successfully"
             fi
             
             mkdir -p "$APP_DIR"
@@ -130,15 +134,19 @@ jobs:
             # Create QA environment directory if it doesn't exist
             mkdir -p qa-environment
             
-            # Stop existing QA containers
+            # Stop existing QA containers (safely, only QA containers)
             echo "🛑 Stopping existing QA containers..."
             cd qa-environment
+            # Only stop containers with 'qa' in the name to avoid affecting production
+            docker ps -a --filter "name=qa" -q | xargs -r docker stop || true
+            docker ps -a --filter "name=qa" -q | xargs -r docker rm || true
             docker-compose -f docker-compose.qa.yml down || true
             cd ..
             
-            # Clean up old images to force rebuild
-            echo "🧹 Cleaning up old images..."
-            docker image prune -f || true
+            # Clean up only QA-specific images to force rebuild
+            echo "🧹 Cleaning up QA-specific images..."
+            docker images --filter "reference=*qa*" -q | xargs -r docker rmi -f || true
+            docker images --filter "dangling=true" -q | xargs -r docker rmi -f || true
             
             # === QA DATABASE DEPLOYMENT STRATEGY ===
             echo "🔄 Starting QA Database Deployment Strategy..."
@@ -356,5 +364,6 @@ jobs:
             echo "   🚀 QA Application: Ready for testing"
             echo "   🌐 QA URL: https://qa.joborra.com"
             
-            # Cleanup old images
-            docker image prune -f || true
+            # Cleanup only QA-specific dangling images
+            echo "🧹 Cleaning up QA dangling images..."
+            docker images --filter "dangling=true" -q | xargs -r docker rmi -f || true
