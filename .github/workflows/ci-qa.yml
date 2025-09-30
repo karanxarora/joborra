@@ -170,27 +170,25 @@ jobs:
             echo "📝 Creating QA environment configuration..."
             
             # Always create .env.qa file with UAT Supabase configuration
-            cat > qa-environment/.env.qa << 'EOF'
-# QA Environment Configuration (UAT Project)
-NODE_ENV=qa
-DEBUG=true
-USE_SUPABASE=true
-SUPABASE_URL=https://srnsfxmvgypscewsrrbs.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTg3MzAsImV4cCI6MjA3NDgzNDczMH0.t3od6YyP-cUpQ19_pbh89DdlQ74rroFP1egK5iuBDKw
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTI1ODczMCwiZXhwIjoyMDc0ODM0NzMwfQ.-6B6SHaAfEQIGwHNwXTNKnXVreibPk23nSOxYjiI_A4
-SUPABASE_DATABASE_URL=postgresql://postgres.srnsfxmvgypscewsrrbs:[YOUR-PASSWORD]@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres
-CORS_ORIGINS=https://qa.joborra.com,https://www.qa.joborra.com
-FRONTEND_ORIGIN=https://qa.joborra.com
-API_PORT=8001
-SECRET_KEY=your_qa_secret_key_here
-GOOGLE_CLIENT_ID=your_qa_google_client_id
-GOOGLE_CLIENT_SECRET=your_qa_google_client_secret
-GOOGLE_GENAI_API_KEY=AIzaSyBR86EkZypycTZ6bRtj0z9WVSCX0QTqgCc
-ADZUNA_APP_ID=your_qa_adzuna_app_id
-ADZUNA_APP_KEY=your_qa_adzuna_app_key
-SUPABASE_STORAGE_BUCKET=master
-MAX_FILE_SIZE=10485760
-EOF
+            echo "# QA Environment Configuration (UAT Project)" > qa-environment/.env.qa
+            echo "NODE_ENV=qa" >> qa-environment/.env.qa
+            echo "DEBUG=true" >> qa-environment/.env.qa
+            echo "USE_SUPABASE=true" >> qa-environment/.env.qa
+            echo "SUPABASE_URL=https://srnsfxmvgypscewsrrbs.supabase.co" >> qa-environment/.env.qa
+            echo "SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTg3MzAsImV4cCI6MjA3NDgzNDczMH0.t3od6YyP-cUpQ19_pbh89DdlQ74rroFP1egK5iuBDKw" >> qa-environment/.env.qa
+            echo "SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTI1ODczMCwiZXhwIjoyMDc0ODM0NzMwfQ.-6B6SHaAfEQIGwHNwXTNKnXVreibPk23nSOxYjiI_A4" >> qa-environment/.env.qa
+            echo "SUPABASE_DATABASE_URL=postgresql://postgres.srnsfxmvgypscewsrrbs:[YOUR-PASSWORD]@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres" >> qa-environment/.env.qa
+            echo "CORS_ORIGINS=https://qa.joborra.com,https://www.qa.joborra.com" >> qa-environment/.env.qa
+            echo "FRONTEND_ORIGIN=https://qa.joborra.com" >> qa-environment/.env.qa
+            echo "API_PORT=8001" >> qa-environment/.env.qa
+            echo "SECRET_KEY=your_qa_secret_key_here" >> qa-environment/.env.qa
+            echo "GOOGLE_CLIENT_ID=your_qa_google_client_id" >> qa-environment/.env.qa
+            echo "GOOGLE_CLIENT_SECRET=your_qa_google_client_secret" >> qa-environment/.env.qa
+            echo "GOOGLE_GENAI_API_KEY=AIzaSyBR86EkZypycTZ6bRtj0z9WVSCX0QTqgCc" >> qa-environment/.env.qa
+            echo "ADZUNA_APP_ID=your_qa_adzuna_app_id" >> qa-environment/.env.qa
+            echo "ADZUNA_APP_KEY=your_qa_adzuna_app_key" >> qa-environment/.env.qa
+            echo "SUPABASE_STORAGE_BUCKET=master" >> qa-environment/.env.qa
+            echo "MAX_FILE_SIZE=10485760" >> qa-environment/.env.qa
             
             echo "✅ QA Environment configured for FRESH Supabase-only deployment"
             
