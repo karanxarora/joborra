@@ -115,7 +115,8 @@ jobs:
               systemctl start docker || true
             fi
             if ! docker-compose version >/dev/null 2>&1; then
-              DOCKER_CONFIG=${HOME}/.docker mkdir -p ${DOCKER_CONFIG}/cli-plugins
+              DOCKER_CONFIG=${HOME}/.docker
+              mkdir -p ${DOCKER_CONFIG}/cli-plugins
               curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m) -o ${DOCKER_CONFIG}/cli-plugins/docker-compose
               chmod +x ${DOCKER_CONFIG}/cli-plugins/docker-compose
             fi
