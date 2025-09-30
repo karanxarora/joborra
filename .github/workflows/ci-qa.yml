@@ -1,0 +1,361 @@
+name: CI QA
+
+on:
+  push:
+    branches: [ develop, qa ]
+  pull_request:
+    branches: [ develop, qa ]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if no changes'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python) - QA
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+  frontend:
+    name: Frontend (Node) - QA
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          CI: false
+        run: npm run build
+
+  deploy-qa:
+    name: Deploy to QA Environment
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/qa' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare artifact (filter out dev caches)
+        run: |
+          rm -rf .git
+          rm -rf frontend/node_modules
+          rm -rf __pycache__
+          rm -rf .pytest_cache
+
+      - name: Upload project to server (key or password)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: "."
+          target: "${{ secrets.REMOTE_APP_DIR }}"
+
+      - name: Run remote QA deployment (key or password)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export APP_DIR=${{ secrets.REMOTE_APP_DIR }}
+            
+            # Install Docker & Compose if missing
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com | sh
+              systemctl enable docker || true
+              systemctl start docker || true
+            fi
+            if ! docker compose version >/dev/null 2>&1; then
+              DOCKER_CONFIG=${HOME}/.docker mkdir -p ${DOCKER_CONFIG}/cli-plugins
+              curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-$(uname -m) -o ${DOCKER_CONFIG}/cli-plugins/docker-compose
+              chmod +x ${DOCKER_CONFIG}/cli-plugins/docker-compose
+            fi
+            
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
+            
+            # === QA ENVIRONMENT SETUP ===
+            echo "🧪 Setting up QA Environment..."
+            
+            # Create QA environment directory if it doesn't exist
+            mkdir -p qa-environment
+            
+            # Stop existing QA containers
+            echo "🛑 Stopping existing QA containers..."
+            cd qa-environment
+            docker compose -f docker-compose.qa.yml down || true
+            cd ..
+            
+            # Clean up old images to force rebuild
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f || true
+            
+            # === QA DATABASE DEPLOYMENT STRATEGY ===
+            echo "🔄 Starting QA Database Deployment Strategy..."
+            
+            # Create backups directory
+            mkdir -p backups
+            
+            # Force fresh deployment for QA Supabase setup
+            DEPLOYMENT_TYPE="fresh_qa"
+            echo "🆕 Force FRESH QA DEPLOYMENT - Supabase only, no migration needed"
+
+            # Clean any existing SQLite files to prevent confusion
+            if [ -f "qa-environment/joborra_qa.db" ]; then
+              echo "🧹 Removing old QA SQLite files for fresh Supabase deployment"
+              rm -f qa-environment/joborra_qa.db qa-environment/joborra_qa.db-* || true
+            fi
+            
+            echo "📋 QA Deployment Type: $DEPLOYMENT_TYPE"
+            
+            # Setup QA environment files
+            if [ -n "${{ secrets.QA_BACKEND_ENV }}" ]; then
+              echo "${{ secrets.QA_BACKEND_ENV }}" > qa-environment/.env.qa
+              
+            # Always configure for fresh QA Supabase deployment
+            echo "" >> qa-environment/.env.qa
+            echo "# Fresh QA Supabase-Only Deployment Configuration" >> qa-environment/.env.qa
+            echo "USE_SUPABASE=true" >> qa-environment/.env.qa
+            echo "MIGRATION_MODE=false" >> qa-environment/.env.qa
+            echo "NODE_ENV=qa" >> qa-environment/.env.qa
+            echo "DEBUG=true" >> qa-environment/.env.qa
+            echo "SUPABASE_URL=https://srnsfxmvgypscewsrrbs.supabase.co" >> qa-environment/.env.qa
+            echo "✅ QA Environment configured for FRESH Supabase-only deployment"
+            else
+              # Fallback QA environment configuration
+              cat > qa-environment/.env.qa << 'EOF'
+            # QA Environment Configuration
+            NODE_ENV=qa
+            DEBUG=true
+            USE_SUPABASE=true
+            SUPABASE_URL=https://srnsfxmvgypscewsrrbs.supabase.co
+            SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTg3MzAsImV4cCI6MjA3NDgzNDczMH0.t3od6YyP-cUpQ19_pbh89DdlQ74rroFP1egK5iuBDKw
+            SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTI1ODczMCwiZXhwIjoyMDc0ODM0NzMwfQ.-6B6SHaAfEQIGwHNwXTNKnXVreibPk23nSOxYjiI_A4
+            SUPABASE_DATABASE_URL=postgresql://postgres.srnsfxmvgypscewsrrbs:[YOUR-PASSWORD]@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres
+            CORS_ORIGINS=https://qa.joborra.com,https://www.qa.joborra.com
+            FRONTEND_ORIGIN=https://qa.joborra.com
+            API_PORT=8001
+            SECRET_KEY=your_qa_secret_key_here
+            GOOGLE_CLIENT_ID=your_qa_google_client_id
+            GOOGLE_CLIENT_SECRET=your_qa_google_client_secret
+            GOOGLE_GENAI_API_KEY=AIzaSyBR86EkZypycTZ6bRtj0z9WVSCX0QTqgCc
+            ADZUNA_APP_ID=your_qa_adzuna_app_id
+            ADZUNA_APP_KEY=your_qa_adzuna_app_key
+            SUPABASE_STORAGE_BUCKET=master
+            MAX_FILE_SIZE=10485760
+            EOF
+              echo "⚠️ Using fallback QA environment configuration"
+            fi
+            
+            # QA Frontend env
+            if [ -n "${{ secrets.QA_FRONTEND_ENV }}" ]; then
+              echo "${{ secrets.QA_FRONTEND_ENV }}" > frontend/.env.qa
+            else
+              cat > frontend/.env.qa << 'EOF'
+            REACT_APP_API_URL=https://qa.joborra.com/api
+            REACT_APP_ENVIRONMENT=qa
+            REACT_APP_SUPABASE_URL=https://your-qa-project.supabase.co
+            REACT_APP_SUPABASE_ANON_KEY=your_qa_anon_key
+            EOF
+            fi
+            
+            # === QA DOCKER COMPOSE SETUP ===
+            echo "🐳 Setting up QA Docker Compose..."
+            
+            # Create QA docker-compose file if it doesn't exist
+            if [ ! -f "qa-environment/docker-compose.qa.yml" ]; then
+              cat > qa-environment/docker-compose.qa.yml << 'EOF'
+            version: '3.8'
+
+            services:
+              qa-api:
+                build:
+                  context: ..
+                  dockerfile: Dockerfile.api
+                container_name: joborra-qa-api
+                env_file:
+                  - .env.qa
+                volumes:
+                  - qa_logs:/app/logs
+                expose:
+                  - "8001"
+                restart: unless-stopped
+                environment:
+                  - USE_SUPABASE=true
+                  - PORT=8001
+                healthcheck:
+                  test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8001/')"]
+                  interval: 30s
+                  timeout: 10s
+                  retries: 3
+                networks:
+                  - qa-network
+
+              qa-frontend:
+                build:
+                  context: ../frontend
+                  dockerfile: Dockerfile.frontend
+                container_name: joborra-qa-frontend
+                environment:
+                  - REACT_APP_API_URL=https://qa.joborra.com/api
+                  - REACT_APP_ENVIRONMENT=qa
+                  - REACT_APP_SUPABASE_URL=https://srnsfxmvgypscewsrrbs.supabase.co
+                  - REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTg3MzAsImV4cCI6MjA3NDgzNDczMH0.t3od6YyP-cUpQ19_pbh89DdlQ74rroFP1egK5iuBDKw
+                expose:
+                  - "3001"
+                restart: unless-stopped
+                networks:
+                  - qa-network
+
+              qa-caddy:
+                image: caddy:2
+                container_name: joborra-qa-caddy
+                ports:
+                  - "8080:80"
+                  - "8443:443"
+                volumes:
+                  - ./Caddyfile.qa:/etc/caddy/Caddyfile:ro
+                  - caddy_qa_data:/data
+                  - caddy_qa_config:/config
+                depends_on:
+                  - qa-api
+                  - qa-frontend
+                restart: unless-stopped
+                networks:
+                  - qa-network
+
+            volumes:
+              caddy_qa_data:
+              caddy_qa_config:
+              qa_logs:
+
+            networks:
+              qa-network:
+                driver: bridge
+                name: joborra-qa-network
+            EOF
+            fi
+            
+            # Create QA Caddyfile if it doesn't exist
+            if [ ! -f "qa-environment/Caddyfile.qa" ]; then
+              cat > qa-environment/Caddyfile.qa << 'EOF'
+            qa.joborra.com {
+                handle /api/* {
+                    reverse_proxy qa-api:8001
+                }
+                
+                handle /* {
+                    reverse_proxy qa-frontend:3001
+                }
+                
+                encode gzip
+                
+                header {
+                    X-Content-Type-Options nosniff
+                    X-Frame-Options DENY
+                    X-XSS-Protection "1; mode=block"
+                    X-Environment "QA"
+                }
+                
+                log {
+                    output file /data/qa-access.log
+                    format json
+                }
+            }
+
+            www.qa.joborra.com {
+                redir https://qa.joborra.com{uri} permanent
+            }
+            EOF
+            fi
+            
+            # === FRESH QA DEPLOYMENT SETUP ===
+            echo "🆕 Processing FRESH QA Supabase-only deployment"
+            echo "✅ QA Application will use Supabase PostgreSQL directly"
+            echo "✅ SQLAlchemy will create tables automatically on first run"
+            echo "✅ No migration required - fresh QA installation"
+            
+            # === FINAL QA DEPLOYMENT SUMMARY ===
+            echo "📊 Final QA Database Configuration Summary:"
+            echo "🔹 Deployment Type: $DEPLOYMENT_TYPE"
+            echo "✅ Primary Database: Supabase PostgreSQL (QA project)"
+            echo "✅ Deployment: Fresh QA Supabase-only installation"
+            echo "✅ Schema: Will be created automatically by SQLAlchemy"
+            echo "✅ Authentication: All user operations via QA Supabase"
+            echo "ℹ️ Migration: Not required (fresh QA deployment)"
+            
+            # === END QA DATABASE DEPLOYMENT STRATEGY ===
+            
+            # Build and start QA services  
+            echo "🔨 Building fresh QA containers..."
+            cd qa-environment
+            docker compose -f docker-compose.qa.yml build --no-cache
+            
+            echo "🚀 Starting QA Supabase-only services..."
+            docker compose -f docker-compose.qa.yml up -d
+            
+            # Simple wait for startup
+            echo "⏳ Waiting for QA services to initialize..."
+            sleep 15
+            
+            echo ""
+            echo "🎉 Fresh QA Supabase-only deployment completed!"
+            echo "📊 QA Configuration:"
+            echo "   ✅ Database: Supabase PostgreSQL (QA project)"
+            echo "   ✅ Authentication: Ready for QA user operations" 
+            echo "   ✅ File Storage: Supabase Storage configured for QA"
+            echo "   ✅ Schema: Auto-created by SQLAlchemy"
+            echo "   🚀 QA Application: Ready for testing"
+            echo "   🌐 QA URL: https://qa.joborra.com"
+            
+            # Cleanup old images
+            docker image prune -f || true

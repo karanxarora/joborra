@@ -1,0 +1,33 @@
+qa.joborra.com {
+    # API routes
+    handle /api/* {
+        reverse_proxy qa-api:8001
+    }
+    
+    # Frontend routes
+    handle /* {
+        reverse_proxy qa-frontend:3001
+    }
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        X-Environment "QA"
+    }
+    
+    # Logging
+    log {
+        output file /data/qa-access.log
+        format json
+    }
+}
+
+# Redirect www to non-www
+www.qa.joborra.com {
+    redir https://qa.joborra.com{uri} permanent
+}

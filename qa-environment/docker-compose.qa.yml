@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # QA API Service
+  qa-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile.api
+    container_name: joborra-qa-api
+    env_file:
+      - .env.qa
+    volumes:
+      - qa_logs:/app/logs
+    expose:
+      - "8001"  # Different port to avoid conflicts
+    restart: unless-stopped
+    environment:
+      - USE_SUPABASE=true
+      - PORT=8001
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8001/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - qa-network
+
+  # QA Frontend Service
+  qa-frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.frontend
+    container_name: joborra-qa-frontend
+    environment:
+      - REACT_APP_API_URL=https://qa.joborra.com/api
+      - REACT_APP_ENVIRONMENT=qa
+      - REACT_APP_SUPABASE_URL=https://srnsfxmvgypscewsrrbs.supabase.co
+      - REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTg3MzAsImV4cCI6MjA3NDgzNDczMH0.t3od6YyP-cUpQ19_pbh89DdlQ74rroFP1egK5iuBDKw
+    expose:
+      - "3001"  # Different port
+    restart: unless-stopped
+    networks:
+      - qa-network
+
+  # QA Caddy Proxy
+  qa-caddy:
+    image: caddy:2
+    container_name: joborra-qa-caddy
+    ports:
+      - "8080:80"   # Different ports to avoid conflicts
+      - "8443:443"
+    volumes:
+      - ./Caddyfile.qa:/etc/caddy/Caddyfile:ro
+      - caddy_qa_data:/data
+      - caddy_qa_config:/config
+    depends_on:
+      - qa-api
+      - qa-frontend
+    restart: unless-stopped
+    networks:
+      - qa-network
+
+volumes:
+  caddy_qa_data:
+  caddy_qa_config:
+  qa_logs:
+
+networks:
+  qa-network:
+    driver: bridge
+    name: joborra-qa-network
