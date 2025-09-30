@@ -200,17 +200,20 @@ jobs:
             fi
             
             echo "📋 QA Deployment Type: $DEPLOYMENT_TYPE"
+            echo "🔍 Debug: About to create frontend environment file..."
             
             # QA Frontend env
-            if [ -n "${{ secrets.QA_FRONTEND_ENV }}" ]; then
-              echo "${{ secrets.QA_FRONTEND_ENV }}" > frontend/.env.qa
+            echo "📝 Creating QA frontend environment configuration..."
+            echo "REACT_APP_API_URL=https://qa.joborra.com/api" > frontend/.env.qa
+            echo "REACT_APP_ENVIRONMENT=qa" >> frontend/.env.qa
+            echo "REACT_APP_SUPABASE_URL=https://srnsfxmvgypscewsrrbs.supabase.co" >> frontend/.env.qa
+            echo "REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNybnNmeG12Z3lwc2Nld3NycmJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyNTg3MzAsImV4cCI6MjA3NDgzNDczMH0.t3od6YyP-cUpQ19_pbh89DdlQ74rroFP1egK5iuBDKw" >> frontend/.env.qa
+            echo "✅ QA frontend environment configured"
+            echo "🔍 Debug: Frontend environment file created, checking if it exists..."
+            if [ -f "frontend/.env.qa" ]; then
+              echo "✅ Frontend .env.qa file exists"
             else
-              cat > frontend/.env.qa << 'EOF'
-            REACT_APP_API_URL=https://qa.joborra.com/api
-            REACT_APP_ENVIRONMENT=qa
-            REACT_APP_SUPABASE_URL=https://your-qa-project.supabase.co
-            REACT_APP_SUPABASE_ANON_KEY=your_qa_anon_key
-            EOF
+              echo "❌ Frontend .env.qa file missing!"
             fi
             
             # === QA DOCKER COMPOSE SETUP ===
